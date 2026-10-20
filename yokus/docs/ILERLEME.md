@@ -22,7 +22,7 @@ Tasarım: `yokus/docs/TASARIM.md` (kararlar orada; buna uy).
 ## Adımlar
 - [~] 1. Ses araştırması (Haiku, arka planda başlatıldı; çıktı: yokus/sounds-raw/, CREDITS.csv, RAPOR.md)
 - [x] 2. Tasarım belgesi (docs/TASARIM.md)
-- [ ] 3. Uygulama planı (docs/PLAN.md, superpowers:writing-plans)
+- [x] 3. Uygulama planı (docs/PLAN.md, superpowers:writing-plans)
 - [ ] 4. Uygulama görevleri (Sonnet) + her görev sonrası denetim (Sonnet):
   - G1 İskelet: bosyol'dan Dsp/SoundBank/AudioOut/CrashLog/build.py/ikon kopyala, paket com.yokus.app, boş MainActivity derlensin
   - G2 Defs + Terrain
