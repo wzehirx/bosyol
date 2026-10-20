@@ -4,7 +4,9 @@ Kulakla sürülen, ekran okuyucu uyumlu bir sürüş oyunu. Motor, lastikler, r�
 
 ## İndir
 
-En son Android sürümünü (APK) [Sürümler sayfasından](../../releases/latest) indirebilirsin. Android 8 ve üstü gerekir.
+[Boş Yol APK'sını indir](https://github.com/wzehirx/bosyol/raw/main/indir/BosYol.apk) (sürüm 2.1, Android 8 ve üstü).
+
+İndirdikten sonra dosyayı aç. Android bilinmeyen kaynaklardan yükleme izni isteyebilir, izin ver.
 
 ## Özellikler
 

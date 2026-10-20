@@ -5,3 +5,4 @@ android/tools/
 # İmzalama anahtarı asla depoya girmez
 *.jks
 *.keystore
+!indir/*.apk
