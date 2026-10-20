@@ -1,0 +1,6 @@
+android/build/
+android/tools
+*.jks
+*.idsig
+*.apk
+!indir/*.apk
