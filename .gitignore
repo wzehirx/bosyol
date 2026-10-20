@@ -7,3 +7,4 @@ android/tools/
 *.keystore
 !indir/*.apk
 android/tools
+*.idsig
