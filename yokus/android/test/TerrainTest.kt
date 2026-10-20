@@ -1,0 +1,154 @@
+import com.yokus.app.core.*
+import kotlin.math.abs
+
+fun fail(msg: String): Nothing = throw AssertionError(msg)
+fun req(c: Boolean, msg: () -> String) { if (!c) fail(msg()) }
+
+fun deterministic() {
+    for (m in Maps.all) {
+        val a = Terrain(m); val b = Terrain(m)
+        val rnd = java.util.Random(1)
+        repeat(1000) {
+            val x = rnd.nextDouble() * a.length
+            req(a.height(x) == b.height(x)) { "${m.id}: x=$x farklı" }
+        }
+        req(a.coins.size == b.coins.size && a.fuels.size == b.fuels.size && a.features.size == b.features.size) { "${m.id}: nesne sayıları farklı" }
+    }
+}
+
+fun flatStart() {
+    for (m in Maps.all) {
+        val t = Terrain(m)
+        var x = 0.0
+        while (x <= 30.0) { req(t.height(x) == 0.0) { "${m.id}: height($x)=${t.height(x)}" }; x += 0.5 }
+    }
+}
+
+fun slopeBounded() {
+    for (m in Maps.all) {
+        val t = Terrain(m)
+        var x = 0.0
+        while (x <= t.length) { req(abs(t.slope(x)) <= 1.7) { "${m.id}: slope($x)=${t.slope(x)}" }; x += 0.25 }
+    }
+}
+
+fun fuelSpacing() {
+    for (m in Maps.all) {
+        val t = Terrain(m)
+        req(t.fuels.size > 5) { "${m.id}: az bidon ${t.fuels.size}" }
+        req(abs(t.fuels[0].x - 250.0) <= 5.0) { "${m.id}: ilk bidon ${t.fuels[0].x}" }
+        for (i in 1 until t.fuels.size) {
+            val d = t.fuels[i].x - t.fuels[i - 1].x
+            req(abs(d - m.fuelEvery) <= 60.0) { "${m.id}: bidon aralığı $d, beklenen ${m.fuelEvery}" }
+            val f = t.fuels[i]
+            val dy = f.y - t.height(f.x)
+            req(abs(dy - 0.8) < 0.3) { "${m.id}: bidon yüksekliği $dy" }
+        }
+    }
+}
+
+fun coinsAboveGround() {
+    for (m in Maps.all) {
+        val t = Terrain(m)
+        req(t.coins.size > 100) { "${m.id}: az altın ${t.coins.size}" }
+        for (c in t.coins) {
+            val dy = c.y - t.height(c.x)
+            req(dy in 1.0..1.5) { "${m.id}: altın x=${c.x} dy=$dy" }
+            req(c.value in setOf(5, 25, 100, 500)) { "değer ${c.value}" }
+        }
+        req(t.coins.filter { it.x < 500 }.all { it.value == 5 }) { "ilk 500 m değeri 5 olmalı" }
+        req(t.coins.any { it.x > 1500 && it.value >= 100 }) { "1500 m sonrası 100+ yok" }
+    }
+}
+
+fun twelveVehiclesTenMaps() {
+    val vp = listOf(0, 8000, 15000, 25000, 35000, 50000, 70000, 90000, 110000, 140000, 180000, 250000)
+    val vi = listOf("jeep", "moto", "pickup", "tractor", "buggy", "rally", "monster", "bus", "snowmobile", "rover", "tank", "super")
+    req(Vehicles.all.size == 12) { "araç sayısı ${Vehicles.all.size}" }
+    req(Vehicles.all.map { it.id } == vi) { "araç kimlikleri ${Vehicles.all.map { it.id }}" }
+    req(Vehicles.all.map { it.price } == vp) { "araç fiyatları ${Vehicles.all.map { it.price }}" }
+    val mp = listOf(0, 5000, 12000, 20000, 30000, 40000, 50000, 60000, 70000, 90000)
+    val mi = listOf("country", "desert", "arctic", "moon", "forest", "mountain", "beach", "cave", "swamp", "site")
+    req(Maps.all.size == 10) { "harita sayısı ${Maps.all.size}" }
+    req(Maps.all.map { it.id } == mi) { "harita kimlikleri ${Maps.all.map { it.id }}" }
+    req(Maps.all.map { it.price } == mp) { "harita fiyatları ${Maps.all.map { it.price }}" }
+    req(Vehicles.all.map { it.name }.toSet().size == 12) { "araç adları tekrar" }
+    req(Maps.all.map { it.name }.toSet().size == 10) { "harita adları tekrar" }
+    for (v in Vehicles.all) {
+        req(Vehicles.byId(v.id) === v) { "byId ${v.id}" }
+        req(v.headY > v.axleY + v.wheelR) { "${v.id}: headY ${v.headY} axleY ${v.axleY} r ${v.wheelR}" }
+        req(v.headR in 0.2..0.3) { "${v.id}: headR ${v.headR}" }
+        req(v.rearX < v.frontX && v.mass > 0 && v.inertia > 0 && v.fuelL > 0 && v.fuelUse > 0) { "${v.id}: temel değerler" }
+        req(v.desc.isNotBlank() && v.name.isNotBlank()) { "${v.id}: metin" }
+    }
+    for (m in Maps.all) { req(Maps.byId(m.id) === m) { "byId ${m.id}" }; req(m.desc.isNotBlank()) { "${m.id}: desc" } }
+    val j = Vehicles.byId("jeep")
+    req(j.mass == 300.0 && j.rearX == -1.1 && j.frontX == 1.1 && j.wheelR == 0.4 && j.torque == 500.0 && j.drive == Drive.REAR) { "jeep değerleri" }
+    val moto = Vehicles.byId("moto")
+    req(moto.mass == 150.0 && abs((moto.frontX - moto.rearX) - 1.4) < 1e-9) { "moto" }
+    req(moto.airTorque > Vehicles.byId("jeep").airTorque) { "moto airTorque" }
+    val tank = Vehicles.byId("tank")
+    req(tank.torque > j.torque && tank.maxRpm < j.maxRpm && tank.snowGrip == 1.5) { "tank" }
+    val sup = Vehicles.byId("super")
+    req(sup.torque > tank.torque && sup.wheelR < j.wheelR && sup.suspK > j.suspK) { "super" }
+    req(Vehicles.byId("snowmobile").snowGrip == 2.2) { "snowmobile" }
+    val rover = Vehicles.byId("rover")
+    req(rover.electric && rover.engineKey == "synth") { "rover" }
+    req(Vehicles.all.count { it.electric } == 1) { "tek elektrikli" }
+    val moon = Maps.byId("moon")
+    req(moon.gravity == 1.62 && Maps.all.filter { it !== moon }.all { it.gravity == 9.81 }) { "yer çekimi" }
+    req(Maps.byId("arctic").surface == Surface.ICE || Maps.byId("arctic").surface == Surface.SNOW) { "kutup yüzeyi" }
+    req(Maps.byId("country").surface == Surface.DIRT && Maps.byId("site").surface == Surface.ASPHALT) { "yüzeyler" }
+    req(Maps.all.map { it.seed }.toSet().size == 10) { "tohumlar farklı olmalı" }
+    req(Surface.ICE.label == "buz" && Surface.MOON.label == "ay tozu" && Surface.SAND.mu == 0.6) { "yüzey tablosu" }
+}
+
+fun upgradeCostGrows() {
+    for (v in Vehicles.all) for (k in UpgradeKind.values()) {
+        for (l in 0 until 9) req(upgradeCost(v, k, l + 1) > upgradeCost(v, k, l)) { "${v.id} $k $l" }
+        req(upgradeCost(v, k, 0) == maxOf(400, v.price / 25)) { "${v.id} taban" }
+    }
+    req(upgradeCost(Vehicles.byId("jeep"), UpgradeKind.ENGINE, 0) == 400) { "jeep 0 != 400" }
+    req(upgradeCost(Vehicles.byId("jeep"), UpgradeKind.FUEL, 1) == 640) { "jeep 1 != 640" }
+    req(upgradeCost(Vehicles.byId("super"), UpgradeKind.TIRE, 2) == Math.round(10000 * 1.6 * 1.6).toInt()) { "super 2" }
+    val j = Vehicles.byId("jeep")
+    val u = j.upgraded(Upgrades(engine = 5, susp = 3, tire = 10, fuel = 10))
+    req(abs(u.torque - j.torque * 1.4) < 1e-9 && abs(u.fuelL - j.fuelL * 2.0) < 1e-9) { "upgraded motor/yakıt" }
+    req(abs(u.suspK - j.suspK * 1.12) < 1e-9 && abs(u.suspC - j.suspC * 1.21) < 1e-9) { "upgraded süspansiyon" }
+    req(j.upgraded(Upgrades()) == j) { "seviye 0 aynı kalmalı" }
+    req(abs(gripMul(Upgrades(tire = 10)) - 1.6) < 1e-9 && gripMul(Upgrades()) == 1.0) { "gripMul" }
+    req(UpgradeKind.SUSP.label == "Süspansiyon" && UpgradeKind.FUEL.label == "Yakıt deposu") { "etiketler" }
+}
+
+fun featuresFound() {
+    val t = Terrain(Maps.byId("country"))
+    val first = t.features.filter { it.x0 < 5000 }
+    req(first.size >= 10) { "country ilk 5 km öznitelik: ${first.size}" }
+    for (f in t.features) req(f.x1 >= f.x0) { "ters aralık $f" }
+    val kinds = t.features.map { it.kind }.toSet()
+    req(FeatureKind.RAMP in kinds && FeatureKind.PIT in kinds && FeatureKind.BUMPS in kinds) { "türler $kinds" }
+    req(FeatureKind.STEEP_UP in Terrain(Maps.byId("mountain")).features.map { it.kind }) { "dağda dik yokuş yok" }
+    // nextFeature
+    val f = t.features[3]
+    val n = t.nextFeature(f.x0 - 10.0, 20.0)
+    req(n != null && n.x0 > f.x0 - 10.0 && n.x0 <= f.x0 + 10.0) { "nextFeature $n" }
+    req(t.nextFeature(f.x0, 0.5)?.x0 != f.x0) { "nextFeature x'in kendisini dönmemeli" }
+    req(t.nextFeature(-100.0, 10.0) == null || t.nextFeature(-100.0, 10.0)!!.x0 <= -90.0) { "nextFeature aralık" }
+    // clamp
+    req(t.height(-5.0) == t.height(0.0) && t.height(t.length + 50) == t.height(t.length)) { "clamp" }
+    // sample interpolation
+    val x = 1234.0; val mid = t.height(x + 0.5)
+    req(abs(mid - (t.height(x) + t.height(x + 1.0)) / 2) < 1e-9) { "doğrusal ara değer" }
+}
+
+fun main() {
+    deterministic(); println("deterministic ok")
+    flatStart(); println("flatStart ok")
+    slopeBounded(); println("slopeBounded ok")
+    fuelSpacing(); println("fuelSpacing ok")
+    coinsAboveGround(); println("coinsAboveGround ok")
+    twelveVehiclesTenMaps(); println("twelveVehiclesTenMaps ok")
+    upgradeCostGrows(); println("upgradeCostGrows ok")
+    featuresFound(); println("featuresFound ok")
+    println("OK")
+}
