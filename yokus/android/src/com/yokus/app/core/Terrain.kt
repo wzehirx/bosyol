@@ -135,13 +135,19 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
         features = merged
         featX0 = DoubleArray(merged.size) { merged[it].x0 }
 
+        // --- çukur duvarı ve rampa uçurumu yakınına altın/bidon konmaz ---
+        val bad = evs.filter { it.kind == FeatureKind.PIT || it.kind == FeatureKind.RAMP }.map {
+            if (it.kind == FeatureKind.PIT) doubleArrayOf(it.x0 - 2.0, it.x1 + 2.0) else doubleArrayOf(it.x1 - 1.0, it.x1 + 3.0)
+        }
+        fun badZone(x: Double) = bad.firstOrNull { x >= it[0] && x <= it[1] }
+
         // --- altın grupları ---
         val cs = ArrayList<Coin>()
         var gx = 40.0 + rnd.nextDouble() * 40
         while (gx + 20 < length) {
             val v = if (gx < 500) 5 else if (gx < 1500) 25 else if (rnd.nextDouble() < 0.08) 500 else 100
             val cnt = 5 + rnd.nextInt(6)
-            for (j in 0 until cnt) { val x = gx + 2.0 * j; cs.add(Coin(x, height(x) + 1.2, v)) }
+            for (j in 0 until cnt) { val x = gx + 2.0 * j; if (badZone(x) == null) cs.add(Coin(x, height(x) + 1.2, v)) }
             gx += 60 + rnd.nextDouble() * 60
         }
         coins = cs
@@ -149,7 +155,10 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
         val fs = ArrayList<FuelCan>()
         var fx = 250.0 + (rnd.nextDouble() * 2 - 1) * 3
         while (fx < length - 10) {
-            fs.add(FuelCan(fx, height(fx) + 0.8))
+            // bölgenin içindeyse en yakın güvenli kenara kaydır (dizi kaymaz, aralık ±60 içinde kalır)
+            val z = badZone(fx)
+            val px2 = if (z == null) fx else if (fx - z[0] < z[1] - fx) z[0] - 0.5 else z[1] + 0.5
+            fs.add(FuelCan(px2, height(px2) + 0.8))
             fx += map.fuelEvery + (rnd.nextDouble() * 2 - 1) * 40
         }
         fuels = fs

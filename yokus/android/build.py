@@ -48,8 +48,12 @@ classes = [os.path.join(d, f) for d, _, fs in os.walk(cls) for f in fs if f.ends
 dex = os.path.join(B, 'dex'); os.makedirs(dex)
 run(os.path.join(BT, 'd8'), '--release', '--min-api', '26', '--lib', AJAR, '--output', dex, STD, *classes)
 # invoke-custom denetimi: Android'de çökme yaratır, varsa derleme başarısız olur
-dd = subprocess.run([os.path.join(BT, 'dexdump'), '-d', os.path.join(dex, 'classes.dex')], capture_output=True, text=True, check=True).stdout
-n_ic = dd.count('invoke-custom')
+import re
+n_ic = 0
+for df in sorted(f for f in os.listdir(dex) if f.endswith('.dex')):
+    dd = subprocess.run([os.path.join(BT, 'dexdump'), '-d', os.path.join(dex, df)], capture_output=True, text=True, check=True).stdout
+    # yalnızca işlem kodu satırları sayılır ("|0000: invoke-custom ..."), dizge sabitleri değil
+    n_ic += len(re.findall(r'\|[0-9a-f]{4}: invoke-custom', dd))
 print('invoke-custom sayısı:', n_ic)
 if n_ic: sys.exit(f'HATA: {n_ic} adet invoke-custom var')
 with zipfile.ZipFile(base, 'a', zipfile.ZIP_DEFLATED) as z:

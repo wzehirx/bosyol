@@ -16,6 +16,27 @@ fun deterministic() {
     }
 }
 
+fun differentSeeds() {
+    val a = Terrain(Maps.byId("country")); val b = Terrain(Maps.byId("desert"))
+    req((1..2000).any { a.height(it * 7.3) != b.height(it * 7.3) }) { "farklı tohumlar farklı zemin vermeli" }
+    val c = a.height(1234.5)
+    req(c != 0.0 || a.height(900.0) != 0.0) { "zemin düz kalmamalı" }
+}
+
+fun safePlacement() {
+    for (m in Maps.all) {
+        val t = Terrain(m)
+        val pits = t.features.filter { it.kind == FeatureKind.PIT }
+        val ramps = t.features.filter { it.kind == FeatureKind.RAMP }
+        req(pits.isNotEmpty() && ramps.isNotEmpty()) { "${m.id}: çukur/rampa yok" }
+        val xs = t.coins.map { it.x } + t.fuels.map { it.x }
+        for (x in xs) {
+            for (p in pits) req(x < p.x0 - 1.5 || x > p.x1 + 1.5) { "${m.id}: x=$x çukurun ($p) içinde/duvarında" }
+            for (r in ramps) req(x < r.x1 - 0.9 || x > r.x1 + 2.9) { "${m.id}: x=$x rampa ucunda ($r)" }
+        }
+    }
+}
+
 fun flatStart() {
     for (m in Maps.all) {
         val t = Terrain(m)
@@ -134,6 +155,13 @@ fun featuresFound() {
     req(n != null && n.x0 > f.x0 - 10.0 && n.x0 <= f.x0 + 10.0) { "nextFeature $n" }
     req(t.nextFeature(f.x0, 0.5)?.x0 != f.x0) { "nextFeature x'in kendisini dönmemeli" }
     req(t.nextFeature(-100.0, 10.0) == null || t.nextFeature(-100.0, 10.0)!!.x0 <= -90.0) { "nextFeature aralık" }
+    // nextFeature kaba kuvvetle aynı sonucu vermeli
+    val rr = java.util.Random(7)
+    repeat(2000) {
+        val q = rr.nextDouble() * 6000 - 50; val range = rr.nextDouble() * 60
+        val exp = t.features.filter { it.x0 > q }.minByOrNull { it.x0 }?.takeIf { it.x0 <= q + range }
+        req(t.nextFeature(q, range) === exp) { "nextFeature($q,$range) = ${t.nextFeature(q, range)}, beklenen $exp" }
+    }
     // clamp
     req(t.height(-5.0) == t.height(0.0) && t.height(t.length + 50) == t.height(t.length)) { "clamp" }
     // sample interpolation
@@ -143,6 +171,8 @@ fun featuresFound() {
 
 fun main() {
     deterministic(); println("deterministic ok")
+    differentSeeds(); println("differentSeeds ok")
+    safePlacement(); println("safePlacement ok")
     flatStart(); println("flatStart ok")
     slopeBounded(); println("slopeBounded ok")
     fuelSpacing(); println("fuelSpacing ok")
