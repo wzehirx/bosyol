@@ -1,0 +1,1555 @@
+<meta charset="utf-8">
+<title>Boş Yol</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Ekran okuyucu uyumlu, gerçek kayıtlarla 3B sesli sürüş oyunu.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Overpass:wght@600;800;900&display=swap">
+<style>
+/* Layout: üstte gösterge şeridi, ortada 3B yol, altta pedallı kontrol paneli; kurulum ekranı tam sayfa kart */
+:root {
+  --asphalt: #12161b;
+  --asphalt-2: #1b2128;
+  --ink: #f1f4f2;
+  --muted: #a7b2ad;
+  --sign: #0d6b4a;
+  --sign-ink: #ffffff;
+  --amber: #ffb627;
+  --brake: #ff6b5b;
+  --focus: #8fd8ff;
+  --line: rgba(167, 178, 173, 0.32);
+  --panel: rgba(18, 22, 27, 0.86);
+  --display: "Overpass", "Arial Narrow", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", Verdana, system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--asphalt); color: var(--ink);
+  font-family: var(--body); font-size: 16px; line-height: 1.5;
+  overflow: hidden; -webkit-tap-highlight-color: transparent;
+}
+[hidden] { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; touch-action: manipulation; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+
+#scene { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+
+#drive {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 10px;
+  padding-left: max(14px, env(safe-area-inset-left, 0px));
+  padding-right: max(14px, env(safe-area-inset-right, 0px));
+  padding-block: calc(env(safe-area-inset-top, 0px) + 10px) calc(env(safe-area-inset-bottom, 0px) + 12px);
+  pointer-events: none;
+}
+#drive > * { pointer-events: auto; }
+.aux { display: grid; gap: 8px; }
+
+/* Gösterge */
+.dash { display: flex; gap: 10px; align-items: stretch; }
+.gauge {
+  flex: 1 1 auto; min-width: 0;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
+  padding: 8px 14px; display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; align-items: end;
+  font-variant-numeric: tabular-nums;
+}
+.speed { font-family: var(--display); font-weight: 900; font-size: 2.6rem; line-height: 0.9; grid-row: span 2; }
+.speed small { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-left: 3px; }
+.meta { font-size: 0.85rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.meta b { color: var(--ink); font-weight: 700; }
+.rpm { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: rgba(255,255,255,0.1); overflow: hidden; margin-top: 4px; }
+.rpm i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--sign), var(--amber) 75%, var(--brake)); }
+#btnSettings {
+  flex: none; min-width: 56px; padding: 0 14px; border-radius: 14px;
+  border: 1px solid var(--line); background: var(--panel); font-weight: 700;
+}
+
+/* Kontroller */
+.dock { display: grid; gap: 8px; }
+.row { display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); }
+.ctl {
+  min-height: 54px; border-radius: 14px; border: 1px solid var(--line);
+  background: var(--panel); font-weight: 700; padding: 6px 8px; line-height: 1.2;
+}
+.ctl[aria-pressed="true"] { background: var(--sign); border-color: #3fb68a; color: var(--sign-ink); }
+.pedals { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pedal {
+  min-height: min(26vh, 210px); border-radius: 20px;
+  border: 2px solid var(--line); background: rgba(27, 33, 40, 0.78);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-family: var(--display); font-weight: 900; font-size: 1.7rem; letter-spacing: 0.02em;
+  user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: none;
+  background-image: repeating-linear-gradient(0deg, transparent 0 14px, rgba(255,255,255,0.05) 14px 18px);
+}
+.pedal .hint { font-family: var(--body); font-weight: 400; font-size: 0.78rem; color: var(--muted); letter-spacing: 0; }
+#pedBrake[aria-pressed="true"] { border-color: var(--brake); background-color: rgba(255, 107, 91, 0.28); }
+#pedGas[aria-pressed="true"] { border-color: var(--amber); background-color: rgba(255, 182, 39, 0.26); }
+
+/* Kurulum ekranı */
+#setup {
+  position: fixed; inset: 0; overflow-y: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: calc(env(safe-area-inset-top, 0px) + 18px) calc(env(safe-area-inset-bottom, 0px) + 24px);
+  background: linear-gradient(180deg, rgba(18,22,27,0.55), rgba(18,22,27,0.94) 40%);
+}
+.sheet { max-width: 34rem; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+.signplate {
+  align-self: flex-start;
+  background: var(--sign); color: var(--sign-ink);
+  border: 3px solid #fff; border-radius: 10px; padding: 6px 16px 2px;
+  box-shadow: 0 0 0 3px var(--sign);
+}
+h1 { margin: 0; font-family: var(--display); font-weight: 900; font-size: clamp(2.4rem, 11vw, 3.4rem); line-height: 1; letter-spacing: 0.01em; }
+h1:focus { outline: none; }
+h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 1.15rem; }
+.lead { margin: 0; color: var(--muted); max-width: 60ch; }
+.howto { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: grid; gap: 8px; }
+legend { padding: 0; margin-bottom: 8px; font-family: var(--display); font-weight: 800; font-size: 1.15rem; }
+.choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 8px; }
+.choice {
+  position: relative; display: flex; flex-direction: column; gap: 2px;
+  border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; cursor: pointer; min-height: 56px;
+  background: rgba(27, 33, 40, 0.6);
+}
+.choice input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.choice .t { font-weight: 700; }
+.choice .d { font-size: 0.8rem; color: var(--muted); }
+.choice:has(input:checked) { border-color: #3fb68a; background: rgba(13, 107, 74, 0.35); }
+.choice:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+.check { display: flex; gap: 12px; align-items: center; min-height: 44px; }
+.check input { width: 24px; height: 24px; flex: none; accent-color: var(--sign); }
+.range { display: grid; gap: 2px; }
+.range input { width: 100%; min-height: 34px; accent-color: var(--amber); }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; position: sticky; bottom: 0; padding-block: 8px; background: linear-gradient(180deg, transparent, var(--asphalt) 40%); }
+.btn { min-height: 56px; padding: 0 22px; border-radius: 14px; font-weight: 700; border: 1px solid var(--line); background: var(--asphalt-2); }
+.btn.primary { flex: 1 1 14rem; background: var(--amber); border-color: var(--amber); color: #1d1405; font-family: var(--display); font-weight: 900; font-size: 1.25rem; }
+details { border-top: 1px solid var(--line); padding-top: 12px; }
+summary { cursor: pointer; font-weight: 700; min-height: 44px; display: flex; align-items: center; }
+.credits { font-size: 0.85rem; color: var(--muted); display: grid; gap: 6px; margin: 0; padding-left: 1.1em; }
+.credits a { color: var(--focus); }
+#loadMsg { margin: 0; color: var(--amber); min-height: 1.5em; }
+
+/* Yatay ekran: fren solda, gaz sağda, tam yükseklik */
+@media (orientation: landscape) {
+  #drive {
+    display: grid; gap: 10px;
+    grid-template-columns: minmax(120px, 21vw) minmax(0, 1fr) minmax(120px, 21vw);
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "brake dash gas" "brake . gas" "brake aux gas";
+  }
+  .dash { grid-area: dash; }
+  .dock, .pedals { display: contents; }
+  .aux { grid-area: aux; }
+  #pedBrake { grid-area: brake; }
+  #pedGas { grid-area: gas; }
+  .pedal { min-height: 0; height: 100%; font-size: 2rem; }
+  .ctl { min-height: 46px; }
+  .speed { font-size: 2.2rem; }
+}
+select { font: inherit; color: var(--ink); background: var(--asphalt-2); border: 1px solid var(--line); border-radius: 10px; min-height: 48px; padding: 0 10px; width: 100%; }
+.small { font-size: 0.85rem; color: var(--muted); margin: 0; }
+.btnrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.btnrow .btn { flex: 1 1 9rem; min-height: 50px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<canvas id="scene" aria-hidden="true"></canvas>
+
+<main id="drive" hidden>
+  <div class="dash">
+    <div class="gauge" aria-hidden="true">
+      <div class="speed"><span id="hudSpeed">0</span><small>km/sa</small></div>
+      <div class="meta"><b id="hudGear">1. vites</b> · <span id="hudRpm">800</span> devir</div>
+      <div class="meta" id="hudMode">Elle sürüş · Orman yolu</div>
+      <div class="rpm"><i id="hudBar"></i></div>
+    </div>
+    <button id="btnSettings" type="button">Ayarlar</button>
+  </div>
+
+  <div class="dock">
+    <div class="aux">
+    <div class="row" role="group" aria-label="Sürüş yardımcıları">
+      <button class="ctl" id="btnAuto" type="button" aria-pressed="false">Otomatik sürüş</button>
+      <button class="ctl" id="btnSlower" type="button">Hedef hız azalt</button>
+      <button class="ctl" id="btnFaster" type="button">Hedef hız artır</button>
+    </div>
+    <div class="row" role="group" aria-label="Araç">
+      <button class="ctl" id="btnStatus" type="button">Hız ve vites</button>
+      <button class="ctl" id="btnHorn" type="button">Korna</button>
+      <button class="ctl" id="btnWindows" type="button">Camları kapat</button>
+    </div>
+    </div>
+    <div class="pedals" role="group" aria-label="Pedallar">
+      <button class="pedal" id="pedBrake" type="button" aria-pressed="false" aria-describedby="pedalHint">Fren<span class="hint" aria-hidden="true">basılı tut</span></button>
+      <button class="pedal" id="pedGas" type="button" aria-pressed="false" aria-describedby="pedalHint">Gaz<span class="hint" aria-hidden="true">basılı tut</span></button>
+    </div>
+    <p id="pedalHint" hidden></p>
+  </div>
+</main>
+
+<section id="setup" aria-labelledby="setupTitle">
+  <div class="sheet">
+    <div class="signplate"><h1 id="setupTitle" tabindex="-1">Boş Yol</h1></div>
+    <p class="lead" id="setupLead">Sonu olmayan, boş bir yolda sakin bir sürüş. Bu oyun kulakla oynanır: motor, lastikler, rüzgâr ve yanından geçen araçlar etrafında üç boyutlu duyulur. Kulaklık takman önerilir.</p>
+
+    <div id="howto">
+      <h2>Nasıl sürülür</h2>
+      <ol class="howto">
+        <li><strong>Gaz</strong> ve <strong>Fren</strong> ekranın en altında. Gaz sağda, fren solda. Basılı tuttukça çalışırlar.</li>
+        <li>Ekran okuyucuda basılı tutmak zor olabilir. Pedala bir kez dokunursan sabitlenir, tekrar dokunursan bırakılır.</li>
+        <li>Direksiyon otomatik. Araç yolu kendisi takip eder. Virajları yardımcı pilot önceden söyler, viraja hızlı girersen lastikler öter.</li>
+        <li><strong>Otomatik sürüş</strong> açıkken araç hedef hızı kendisi tutar ve virajlarda yavaşlar. Frene basınca kapanır.</li>
+        <li>Klavyede yukarı ok gaz, aşağı ok fren, H korna, O otomatik sürüş, boşluk tuşu hız bilgisi.</li>
+      </ol>
+    </div>
+
+    <fieldset>
+      <legend>Araç</legend>
+      <div class="choices" id="vehChoices"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Ortam</legend>
+      <div class="choices" id="envChoices"></div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Sürüş</legend>
+      <label class="check"><input type="checkbox" id="optTraffic"> Trafik: yanından geçen araçlar</label>
+      <label class="check"><input type="checkbox" id="optLatch"> Pedala tek dokunuş pedalı sabitlesin, tekrar dokunuş bıraksın</label>
+      <label class="check" id="volKeysRow" hidden><input type="checkbox" id="optVolKeys"> Telefonun ses tuşlarıyla sür: ses açma gaz, ses kısma fren</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Bilgi ve ses</legend>
+      <label class="check"><input type="checkbox" id="optPace"> Virajları önceden söyle</label>
+      <label class="check"><input type="checkbox" id="optCallouts"> Hız her 20 km/sa değiştiğinde söyle</label>
+      <label class="check"><input type="checkbox" id="optShift"> Vites değişimini söyle</label>
+      <div class="range"><label for="volMaster">Ana ses</label><input type="range" id="volMaster" min="0" max="100" step="5"></div>
+      <div class="range"><label for="volEngine">Motor sesi</label><input type="range" id="volEngine" min="0" max="100" step="5"></div>
+      <div class="range"><label for="volWorld">Ortam ve trafik sesi</label><input type="range" id="volWorld" min="0" max="100" step="5"></div>
+    </fieldset>
+
+    <fieldset id="importBox">
+      <legend>Sesleri içe aktar</legend>
+      <p class="small">Oyundaki her sesi kendi kaydınla değiştirebilirsin: motor katmanları, ortamlar, trafik, korna. Döngü sesleri kesintisiz dönecek şekilde birleştirilir. Kendi aracım seçeneği için motor döngüsünü içe aktarman yeterli.</p>
+      <div class="range"><label for="slotSel">Değiştirilecek ses</label><select id="slotSel"></select></div>
+      <p class="small" id="slotState" aria-live="polite"></p>
+      <div class="btnrow">
+        <button class="btn" id="btnPick" type="button">Dosya seç ve içe aktar</button>
+        <button class="btn" id="btnPreview" type="button">Dinle</button>
+        <button class="btn" id="btnReset" type="button">Varsayılana döndür</button>
+      </div>
+      <input type="file" id="fileIn" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.flac,.opus" hidden>
+    </fieldset>
+
+    <p id="loadMsg" aria-hidden="true"></p>
+    <div class="actions">
+      <button class="btn primary" id="btnGo" type="button">Motoru çalıştır</button>
+    </div>
+
+    <details>
+      <summary>Ses kaynakları ve lisanslar</summary>
+      <ul class="credits">
+        <li>Motor kayıtları: Bruno Simon, folio-2019 (MIT lisansı), <a href="https://github.com/brunosimon/folio-2019" target="_blank" rel="noopener">github.com/brunosimon/folio-2019</a></li>
+        <li>Korna ve lastik sesleri: pmndrs racing-game ve folio-2019 (CC0 / MIT)</li>
+        <li>Doğa, yağmur, şehir ve otoyol kayıtları: Moodist (CC0 ve Pixabay İçerik Lisansı), <a href="https://github.com/remvze/moodist" target="_blank" rel="noopener">github.com/remvze/moodist</a></li>
+        <li>Elektrikli araç sesi, rüzgâr ve lastik uğultusu Web Audio ile üretilir.</li>
+      </ul>
+    </details>
+  </div>
+</section>
+
+<div id="srPolite" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+<div id="srAlert" class="sr-only" role="alert" aria-live="assertive" aria-atomic="true"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+'use strict';
+document.documentElement.lang = 'tr';
+const $ = id => document.getElementById(id);
+const IS_APP = !!window.AndroidBridge;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const rand = (a, b) => a + Math.random() * (b - a);
+const approach = (v, t, d) => v < t ? Math.min(t, v + d) : Math.max(t, v - d);
+
+/* ================= Ayarlar ================= */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem('bosyol_' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem('bosyol_' + k, JSON.stringify(v)); } catch (e) {} }
+};
+
+/* Araçlar. layers: örnek katmanlarının kaydedildiği devirler (rölanti, düşük, orta, yüksek) */
+const VEHICLES = {
+  sedan: { name: 'Aile sedanı', desc: 'Benzinli, 5 ileri otomatik', set: 'e0', layers: [840, 2340, 3550, 4300],
+    idle: 840, redline: 6000, shiftFull: 5500, shiftLight: 2300, shiftDown: 1400, launch: 2200,
+    gears: [3.45, 1.95, 1.32, 1.0, 0.82], final: 3.9, r: 0.31, mass: 1300, torque: 190, peak: 4000,
+    cd: 0.30, area: 2.2, brake: 8.5, engBrake: 0.9, color: 0x3d6fa8, kind: 'sedan' },
+  truck: { name: 'Dizel kamyonet', desc: 'Dizel, ağır ve tok ses', set: 'e1', layers: [750, 1150, 1800, 2400],
+    idle: 750, redline: 3200, shiftFull: 2950, shiftLight: 1700, shiftDown: 1050, launch: 1400,
+    gears: [4.2, 2.4, 1.5, 1.1, 0.85, 0.7], final: 3.7, r: 0.36, mass: 2100, torque: 430, peak: 1800,
+    cd: 0.42, area: 3.0, brake: 7, engBrake: 1.2, color: 0x8c5a2b, kind: 'truck' },
+  sport: { name: 'Spor coupe', desc: 'Yüksek devirli, sert ses', set: 'e2', layers: [1000, 1870, 3000, 4100],
+    idle: 1000, redline: 6200, shiftFull: 5900, shiftLight: 2600, shiftDown: 1800, launch: 3000,
+    gears: [3.2, 2.2, 1.6, 1.25, 1.0, 0.82], final: 3.6, r: 0.33, mass: 1350, torque: 400, peak: 4600,
+    cd: 0.29, area: 2.0, brake: 10, engBrake: 1.0, color: 0xc0302a, kind: 'sport' },
+  custom: { name: 'Kendi aracım', desc: 'İçe aktardığın motor sesiyle', set: 'c', custom: true, layers: [],
+    idle: 850, redline: 6000, shiftFull: 5500, shiftLight: 2300, shiftDown: 1400, launch: 2200,
+    gears: [3.45, 1.95, 1.32, 1.0, 0.82], final: 3.9, r: 0.31, mass: 1300, torque: 190, peak: 4000,
+    cd: 0.30, area: 2.2, brake: 8.5, engBrake: 0.9, color: 0x6d4fa1, kind: 'sedan' },
+  ev: { name: 'Elektrikli araç', desc: 'Sessiz, ıslık gibi motor', synth: true, layers: [],
+    idle: 0, redline: 15000, shiftFull: 1e9, shiftLight: 1e9, shiftDown: -1, launch: 0,
+    gears: [1], final: 9.0, r: 0.33, mass: 1800, torque: 420, peak: 5500,
+    cd: 0.24, area: 2.3, brake: 9, engBrake: 1.4, color: 0xe8ecef, kind: 'ev' }
+};
+
+/* Ortamlar */
+const ENVS = {
+  forest: { name: 'Orman yolu', desc: 'Gündüz, kuşlar ve rüzgâr', bed: 'bed_forest', bedGain: 0.9,
+    emitters: [{ buf: 'em_birds', n: 5, lat: [9, 40], gain: 1.1 }],
+    oneshots: [{ buf: 'os_woodpecker', every: [30, 70], gain: 0.8, lat: [15, 40] }],
+    traffic: [9, 22], curveR: [90, 500], width: 3.5,
+    sky: 0x9fc6e3, fog: [40, 420], ground: 0x3f6a33, props: 'trees', light: 1 },
+  night: { name: 'Gece kır yolu', desc: 'Cırcır böcekleri, baykuş', bed: 'bed_night', bedGain: 0.9,
+    emitters: [{ buf: 'em_frog', n: 3, lat: [12, 45], gain: 0.9 }],
+    oneshots: [{ buf: 'os_owl', every: [22, 50], gain: 0.9, lat: [20, 50] }, { buf: 'os_wolf', every: [70, 140], gain: 0.5, lat: [120, 250] }, { buf: 'os_dog', every: [45, 100], gain: 0.6, lat: [40, 90] }],
+    traffic: [18, 40], curveR: [80, 450], width: 3.3, night: true,
+    sky: 0x070b18, fog: [15, 170], ground: 0x0d1712, props: 'trees', light: 0.18 },
+  coast: { name: 'Sahil yolu', desc: 'Sağda deniz, dalgalar, martılar', bed: 'bed_coast', bedGain: 0.6,
+    emitters: [{ buf: 'em_waves', n: 4, lat: [26, 40], side: 1, gain: 1.4 }, { buf: 'em_gulls', n: 2, lat: [20, 70], side: 1, gain: 0.7 }],
+    oneshots: [], traffic: [10, 24], curveR: [150, 700], width: 3.5, sea: true,
+    sky: 0xbfe1f2, fog: [60, 520], ground: 0xc9b98a, props: 'coast', light: 1.05 },
+  city: { name: 'Şehir içi', desc: 'Yoğun cadde, kalabalık, siren', bed: 'bed_city', bedGain: 0.8,
+    emitters: [{ buf: 'em_crowd', n: 3, lat: [9, 15], gain: 0.8 }],
+    oneshots: [{ buf: 'os_dog', every: [60, 130], gain: 0.5, lat: [12, 30] }],
+    traffic: [3, 9], siren: [50, 120], curveR: [200, 900], width: 3.4,
+    sky: 0xd9c4a6, fog: [30, 360], ground: 0x4a4b4f, props: 'city', light: 0.85 },
+  highway: { name: 'Otoyol', desc: 'Hızlı ve yoğun trafik', bed: 'bed_highway', bedGain: 0.7,
+    emitters: [], oneshots: [], traffic: [2.5, 7], curveR: [600, 1800], width: 3.7, highway: true,
+    sky: 0xaab8c6, fog: [60, 600], ground: 0x6d7558, props: 'highway', light: 0.95 },
+  rain: { name: 'Yağmurlu yol', desc: 'Sağanak, silecek, gök gürültüsü', bed: 'bed_rain', bedGain: 0.8,
+    cabin: [{ buf: 'cab_rainroof', gain: 1.0 }, { buf: 'cab_wipers', gain: 0.55 }],
+    emitters: [], oneshots: [{ buf: 'os_thunder', every: [25, 60], gain: 1.0, stereo: true }],
+    traffic: [10, 25], curveR: [120, 600], width: 3.5, wet: true,
+    sky: 0x4b5561, fog: [12, 190], ground: 0x2b3a2c, props: 'trees', light: 0.45 },
+  mountain: { name: 'Dağ geçidi', desc: 'Uğuldayan rüzgâr, dere, dar virajlar', bed: 'bed_mountain', bedGain: 0.8,
+    emitters: [{ buf: 'em_river', n: 2, lat: [14, 26], side: -1, gain: 1.2 }],
+    oneshots: [{ buf: 'os_crows', every: [40, 90], gain: 0.6, lat: [30, 80] }],
+    traffic: [20, 45], curveR: [45, 220], width: 3.2,
+    sky: 0xc9d3dc, fog: [30, 330], ground: 0xdfe5e8, props: 'pines', light: 0.95 }
+};
+
+const S = {
+  vehicle: store.get('vehicle', 'sedan'),
+  env: store.get('env', 'forest'),
+  pace: store.get('pace', true),
+  callouts: store.get('callouts', false),
+  shiftSay: store.get('shiftSay', false),
+  volMaster: store.get('volMaster', 85),
+  volEngine: store.get('volEngine', 80),
+  volWorld: store.get('volWorld', 80),
+  traffic: store.get('traffic', true),
+  latch: store.get('latch', true),
+  volKeys: store.get('volKeys', false)
+};
+if (!VEHICLES[S.vehicle]) S.vehicle = 'sedan';
+if (!ENVS[S.env]) S.env = 'forest';
+
+function buildChoices(container, name, defs, current) {
+  container.innerHTML = '';
+  for (const [key, d] of Object.entries(defs)) {
+    const lab = document.createElement('label'); lab.className = 'choice';
+    const inp = document.createElement('input'); inp.type = 'radio'; inp.name = name; inp.value = key; inp.id = name + '_' + key;
+    inp.checked = key === current;
+    const t = document.createElement('span'); t.className = 't'; t.textContent = d.name;
+    const ds = document.createElement('span'); ds.className = 'd'; ds.textContent = d.desc;
+    lab.append(inp, t, ds); container.append(lab);
+  }
+}
+buildChoices($('vehChoices'), 'vehicle', VEHICLES, S.vehicle);
+buildChoices($('envChoices'), 'env', ENVS, S.env);
+$('optPace').checked = S.pace; $('optCallouts').checked = S.callouts; $('optShift').checked = S.shiftSay;
+for (const id of ['volMaster', 'volEngine', 'volWorld']) {
+  const el = $(id); el.value = S[id]; el.setAttribute('aria-valuetext', S[id] + ' yüzde');
+  el.addEventListener('input', () => {
+    S[id] = +el.value; store.set(id, S[id]); el.setAttribute('aria-valuetext', S[id] + ' yüzde'); applyVolumes();
+  });
+}
+$('optPace').addEventListener('change', e => { S.pace = e.target.checked; store.set('pace', S.pace); });
+$('optCallouts').addEventListener('change', e => { S.callouts = e.target.checked; store.set('callouts', S.callouts); });
+$('optShift').addEventListener('change', e => { S.shiftSay = e.target.checked; store.set('shiftSay', S.shiftSay); });
+$('optTraffic').checked = S.traffic; $('optLatch').checked = S.latch; $('optVolKeys').checked = S.volKeys;
+$('optTraffic').addEventListener('change', e => { S.traffic = e.target.checked; store.set('traffic', S.traffic); });
+$('optLatch').addEventListener('change', e => { S.latch = e.target.checked; store.set('latch', S.latch); updatePedalHint(); });
+$('optVolKeys').addEventListener('change', e => { S.volKeys = e.target.checked; store.set('volKeys', S.volKeys); syncVolKeys(); });
+if (IS_APP) $('volKeysRow').hidden = false;
+function syncVolKeys() { try { window.AndroidBridge && window.AndroidBridge.setVolumeKeys(!!S.volKeys); } catch (e) {} }
+function updatePedalHint() {
+  $('pedalHint').textContent = S.latch
+    ? 'Basılı tutarak kullan. Tek dokunuş pedalı sabitler, tekrar dokunuş bırakır.'
+    : 'Basılı tuttuğun sürece çalışır.';
+}
+updatePedalHint(); syncVolKeys();
+
+/* ================= Duyurular ================= */
+const sayTimers = {};
+function say(text, urgent) {
+  const node = urgent ? $('srAlert') : $('srPolite');
+  const k = urgent ? 'a' : 'p';
+  clearTimeout(sayTimers[k]);
+  node.textContent = '';
+  sayTimers[k] = setTimeout(() => { node.textContent = text; }, 60);
+}
+
+/* ================= Ses motoru ================= */
+let ctx = null;
+const A = {};
+const bufCache = new Map();
+
+function initAudio() {
+  if (ctx) { if (ctx.state !== 'running') ctx.resume(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  ctx = new AC({ latencyHint: 'interactive' });
+  const comp = ctx.createDynamicsCompressor();
+  comp.threshold.value = -10; comp.knee.value = 8; comp.ratio.value = 3; comp.attack.value = 0.01; comp.release.value = 0.2;
+  A.master = ctx.createGain(); A.master.connect(comp); comp.connect(ctx.destination);
+  // Motor yolu: kabin içinden duyulur, hafif boğuk
+  A.engine = ctx.createGain();
+  A.engineLP = ctx.createBiquadFilter(); A.engineLP.type = 'lowpass'; A.engineLP.frequency.value = 6000; A.engineLP.Q.value = 0.5;
+  A.engine.connect(A.engineLP); A.engineLP.connect(A.master);
+  // Dış dünya: camlar kapalıyken süzülür
+  A.world = ctx.createGain();
+  A.outLP = ctx.createBiquadFilter(); A.outLP.type = 'lowpass'; A.outLP.frequency.value = 1200; A.outLP.Q.value = 0.4;
+  A.outGain = ctx.createGain(); A.outGain.gain.value = 0.55;
+  A.world.connect(A.outLP); A.outLP.connect(A.outGain); A.outGain.connect(A.master);
+  // Kabin içi (yağmur tavana, silecek, lastik ve rüzgâr uğultusu)
+  A.cabin = ctx.createGain(); A.cabin.connect(A.master);
+  A.fx = ctx.createGain(); A.fx.connect(A.master);
+  // Gürültü tamponları
+  A.white = makeNoise('white'); A.brown = makeNoise('brown'); A.pink = makeNoise('pink');
+  applyVolumes();
+  buildRoadNoise();
+  setWindows(true, true);
+}
+
+function makeNoise(kind) {
+  const len = ctx.sampleRate * 3, b = ctx.createBuffer(1, len, ctx.sampleRate), d = b.getChannelData(0);
+  let last = 0, b0 = 0, b1 = 0, b2 = 0;
+  for (let i = 0; i < len; i++) {
+    const w = Math.random() * 2 - 1;
+    if (kind === 'brown') { last = (last + 0.02 * w) / 1.02; d[i] = last * 3.5; }
+    else if (kind === 'pink') { b0 = 0.997 * b0 + w * 0.029591; b1 = 0.985 * b1 + w * 0.032534; b2 = 0.95 * b2 + w * 0.048056; d[i] = (b0 + b1 + b2 + w * 0.05) * 2.2; }
+    else d[i] = w * 0.5;
+  }
+  // uçları birleştir
+  const L = 2000; for (let i = 0; i < L; i++) { const t = i / L; d[len - L + i] = d[len - L + i] * (1 - t) + d[i] * t; }
+  return b;
+}
+
+function applyVolumes() {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  A.master.gain.setTargetAtTime(Math.pow(S.volMaster / 100, 1.6) * 1.1, t, 0.05);
+  A.engine.gain.setTargetAtTime(Math.pow(S.volEngine / 100, 1.5) * 1.1, t, 0.05);
+  A.world.gain.setTargetAtTime(Math.pow(S.volWorld / 100, 1.5) * 1.2, t, 0.05);
+  A.cabin.gain.setTargetAtTime(Math.pow(S.volWorld / 100, 1.2), t, 0.05);
+}
+
+/* ---- Ses yuvaları: her ses bir yuvadır; içe aktarılan dosya varsayılanın yerine geçer */
+const DB = {
+  p: null,
+  open() {
+    if (!this.p) this.p = new Promise((res, rej) => {
+      const r = indexedDB.open('bosyol', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('sounds');
+      r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+    });
+    return this.p;
+  },
+  async run(mode, fn) {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('sounds', mode), req = fn(t.objectStore('sounds'));
+      t.oncomplete = () => res(req && req.result); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+    });
+  },
+  get(k) { return this.run('readonly', st => st.get(k)); },
+  put(k, v) { return this.run('readwrite', st => st.put(v, k)); },
+  del(k) { return this.run('readwrite', st => st.delete(k)); },
+  keys() { return this.run('readonly', st => st.getAllKeys()); }
+};
+const customKeys = new Map();   // anahtar -> dosya adı
+let dbOk = true;
+async function loadCustomList() {
+  try { const keys = await DB.keys(); for (const k of keys) { const v = await DB.get(k); if (v) customKeys.set(k, v.name || 'dosya'); } }
+  catch (e) { dbOk = false; }
+}
+function defaultFile(key) {
+  if (/^e[0-2]_/.test(key)) return key + '.wav';
+  if (key === 'tr_1') return 'e0_med_on.wav';
+  if (key === 'tr_2') return 'e1_med_on.wav';
+  if (key === 'tr_3') return 'e2_low_on.wav';
+  if (/^c_|^ev_/.test(key)) return null;
+  return key + '.mp3';
+}
+const isEngineLoop = k => /^(e[0-2]|c)_(?!start)/.test(k) || /^tr_|^ev_loop/.test(k);
+/* Kendi kaydının ucunu başına bindirerek dikişsiz döngü yapar */
+function makeSeamless(buf, sec) {
+  const L = Math.min(Math.floor(buf.sampleRate * sec), Math.floor(buf.length / 4));
+  if (L < 32) return buf;
+  const out = ctx.createBuffer(buf.numberOfChannels, buf.length - L, buf.sampleRate);
+  for (let c = 0; c < buf.numberOfChannels; c++) {
+    const x = buf.getChannelData(c), y = out.getChannelData(c), n = y.length;
+    y.set(x.subarray(L));
+    for (let i = 0; i < L; i++) { const t = i / L; y[n - L + i] = x[x.length - L + i] * Math.sqrt(1 - t) + x[i] * Math.sqrt(t); }
+  }
+  return out;
+}
+const decode = ab => new Promise((res, rej) => ctx.decodeAudioData(ab, res, rej));
+function loadBuf(key) {
+  if (!bufCache.has(key)) {
+    let p;
+    if (customKeys.has(key)) p = DB.get(key).then(v => decode(v.data.slice(0))).then(b => isEngineLoop(key) ? makeSeamless(b, 0.06) : b);
+    else {
+      const f = defaultFile(key);
+      p = f ? fetch('sounds/' + f).then(r => { if (!r.ok) throw new Error(key); return r.arrayBuffer(); }).then(decode)
+        : Promise.reject(new Error('missing ' + key));
+    }
+    p.catch(() => bufCache.delete(key));
+    bufCache.set(key, p);
+  }
+  return bufCache.get(key);
+}
+async function loadAll(names, onProgress) {
+  let done = 0; const out = {};
+  await Promise.all(names.map(n => loadBuf(n).then(b => { out[n] = b; done++; onProgress && onProgress(done, names.length); })));
+  return out;
+}
+
+function setP(param, v, t = 0.03) { param.setTargetAtTime(v, ctx.currentTime, t); }
+
+/* Uzun kayıtları dikişsiz döndürür: iki kopya üst üste eşit güçte geçiş yapar */
+const FADE_IN = new Float32Array(64).map((_, i) => Math.sin(i / 63 * Math.PI / 2));
+const FADE_OUT = new Float32Array(64).map((_, i) => Math.cos(i / 63 * Math.PI / 2));
+class CrossLoop {
+  constructor(buf, dest, opts = {}) {
+    this.buf = buf; this.xf = Math.min(opts.xf || 2.5, buf.duration / 4);
+    this.out = ctx.createGain(); this.out.gain.value = opts.gain ?? 1; this.out.connect(dest);
+    this.srcs = new Set(); this.alive = true; this.rate = opts.rate || 1;
+    this.play(ctx.currentTime + 0.05, opts.offset ?? Math.random() * (buf.duration - this.xf * 2), true);
+    this.timer = setInterval(() => this.tick(), 300);
+  }
+  play(t, off, first) {
+    const src = ctx.createBufferSource(); src.buffer = this.buf; src.playbackRate.value = this.rate;
+    const g = ctx.createGain(); g.gain.value = 0; src.connect(g); g.connect(this.out);
+    const len = (this.buf.duration - off) / this.rate, xf = this.xf;
+    g.gain.setValueCurveAtTime(FADE_IN, t, first ? 0.6 : xf);
+    g.gain.setValueCurveAtTime(FADE_OUT, t + len - xf, xf - 0.01);
+    src.start(t, off); src.stop(t + len);
+    src.onended = () => { this.srcs.delete(src); g.disconnect(); };
+    this.srcs.add(src); this.next = t + len - xf;
+  }
+  tick() { if (this.alive && this.next - ctx.currentTime < 2.2) this.play(Math.max(this.next, ctx.currentTime + 0.02), 0, false); }
+  setGain(v, tc = 0.3) { setP(this.out.gain, v, tc); }
+  stop(fade = 1.5) {
+    if (!this.alive) return; this.alive = false; clearInterval(this.timer);
+    const t = ctx.currentTime; this.out.gain.cancelScheduledValues(t); this.out.gain.setValueAtTime(this.out.gain.value, t);
+    this.out.gain.linearRampToValueAtTime(0, t + fade);
+    setTimeout(() => { this.srcs.forEach(s => { try { s.stop(); } catch (e) {} }); this.out.disconnect(); }, fade * 1000 + 150);
+  }
+}
+
+function makePanner(ref = 6, roll = 1.3) {
+  const p = ctx.createPanner();
+  p.panningModel = 'HRTF'; p.distanceModel = 'inverse';
+  p.refDistance = ref; p.rolloffFactor = roll; p.maxDistance = 10000;
+  return p;
+}
+function setPos(p, x, y, z) {
+  if (p.positionX) { p.positionX.value = x; p.positionY.value = y; p.positionZ.value = z; }
+  else p.setPosition(x, y, z);
+}
+function setListener(x, z, h) {
+  const L = ctx.listener, fx = Math.sin(h), fz = -Math.cos(h);
+  if (L.positionX) {
+    L.positionX.value = x; L.positionY.value = 1.1; L.positionZ.value = z;
+    L.forwardX.value = fx; L.forwardY.value = 0; L.forwardZ.value = fz;
+    L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0;
+  } else { L.setPosition(x, 1.1, z); L.setOrientation(fx, 0, fz, 0, 1, 0); }
+}
+
+/* --- Örnek tabanlı motor: devir katmanları arasında eşit güçte geçiş, yük ile "gazda" / "gazsız" kayıt karışımı */
+class SampleEngine {
+  constructor(spec, minRate = 0.5) {
+    this.minRate = minRate; this.out = ctx.createGain(); this.out.gain.value = 0; this.out.connect(A.engine);
+    const mk = buf => {
+      const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true;
+      const g = ctx.createGain(); g.gain.value = 0; s.connect(g); g.connect(this.out);
+      s.start(ctx.currentTime, Math.random() * buf.duration); return { s, g };
+    };
+    this.layers = spec.map(l => ({ rpm: l.rpm, idle: !!l.idle, on: mk(l.on), off: l.off ? mk(l.off) : null }));
+  }
+  start() { setP(this.out.gain, 1, 0.25); }
+  update(rpm, load) {
+    const L = this.layers, n = L.length, w = new Array(n).fill(0);
+    if (rpm <= L[0].rpm) w[0] = 1;
+    else if (rpm >= L[n - 1].rpm) w[n - 1] = 1;
+    else for (let i = 0; i < n - 1; i++) if (rpm < L[i + 1].rpm) {
+      const t = (rpm - L[i].rpm) / (L[i + 1].rpm - L[i].rpm);
+      w[i] = Math.cos(t * Math.PI / 2); w[i + 1] = Math.sin(t * Math.PI / 2); break;
+    }
+    const vol = 0.62 + 0.38 * load;
+    L.forEach((l, i) => {
+      const rate = clamp(rpm / l.rpm, this.minRate, 2.3);
+      setP(l.on.s.playbackRate, rate, 0.02);
+      if (l.off) {
+        setP(l.off.s.playbackRate, rate, 0.02);
+        setP(l.on.g.gain, w[i] * vol * (0.12 + 0.88 * load), 0.04);
+        setP(l.off.g.gain, w[i] * vol * (1 - load) * 0.95, 0.04);
+      } else setP(l.on.g.gain, w[i] * (l.idle ? 0.85 : vol * (0.45 + 0.55 * load)), 0.04);
+    });
+  }
+  stop() {
+    setP(this.out.gain, 0, 0.2);
+    setTimeout(() => { this.layers.forEach(l => { [l.on, l.off].forEach(x => { if (x) try { x.s.stop(); } catch (e) {} }); }); this.out.disconnect(); }, 1500);
+  }
+}
+
+/* --- Tek döngülü motor (elektrikli araç için içe aktarılan ses) */
+class LoopEngine {
+  constructor(buf) {
+    this.out = ctx.createGain(); this.out.gain.value = 0; this.out.connect(A.engine);
+    this.s = ctx.createBufferSource(); this.s.buffer = buf; this.s.loop = true;
+    this.g = ctx.createGain(); this.g.gain.value = 0; this.s.connect(this.g); this.g.connect(this.out); this.s.start();
+  }
+  start() { setP(this.out.gain, 1, 0.3); }
+  update(rpm, load, v, regen) {
+    setP(this.s.playbackRate, 0.55 + clamp(rpm / 12000, 0, 1) * 1.3, 0.03);
+    setP(this.g.gain, 0.08 + clamp(v / 4, 0, 1) * (0.3 + 0.62 * Math.max(load, regen * 0.6)), 0.05);
+  }
+  stop() { setP(this.out.gain, 0, 0.2); setTimeout(() => { try { this.s.stop(); } catch (e) {} this.out.disconnect(); }, 1500); }
+}
+
+/* --- Elektrikli motor: sentez */
+class EVEngine {
+  constructor() {
+    this.out = ctx.createGain(); this.out.gain.value = 0; this.out.connect(A.engine);
+    const mk = (type, g) => { const o = ctx.createOscillator(); o.type = type; const gg = ctx.createGain(); gg.gain.value = 0; o.connect(gg); gg.connect(this.out); o.start(); return { o, g: gg, base: g }; };
+    this.m1 = mk('sine'); this.m2 = mk('triangle'); this.m3 = mk('sine'); this.m4 = mk('sawtooth');
+    this.bp = ctx.createBiquadFilter(); this.bp.type = 'bandpass'; this.bp.Q.value = 6;
+    this.m4.g.disconnect(); this.m4.g.connect(this.bp); this.bp.connect(this.out);
+    this.hum = ctx.createBufferSource(); this.hum.buffer = A.pink; this.hum.loop = true;
+    this.humF = ctx.createBiquadFilter(); this.humF.type = 'bandpass'; this.humF.frequency.value = 240; this.humF.Q.value = 2;
+    this.humG = ctx.createGain(); this.humG.gain.value = 0.03; this.hum.connect(this.humF); this.humF.connect(this.humG); this.humG.connect(this.out); this.hum.start();
+  }
+  start() {
+    setP(this.out.gain, 1, 0.3);
+    const t = ctx.currentTime;
+    [523, 659, 784].forEach((f, i) => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = f; g.gain.setValueAtTime(0.0001, t + i * 0.12); g.gain.exponentialRampToValueAtTime(0.12, t + i * 0.12 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.12 + 0.3); o.connect(g); g.connect(A.fx); o.start(t + i * 0.12); o.stop(t + i * 0.12 + 0.35); });
+  }
+  update(rpm, load, v, regen) {
+    const f = 18 + rpm / 60 * 0.9;
+    setP(this.m1.o.frequency, f * 2); setP(this.m2.o.frequency, f * 6.02); setP(this.m3.o.frequency, 900 + rpm * 0.32);
+    setP(this.m4.o.frequency, f * 3); setP(this.bp.frequency, 1200 + rpm * 0.25);
+    const mv = clamp(v / 6, 0, 1), act = Math.max(load, regen * 0.7);
+    setP(this.m1.g.gain, mv * (0.05 + 0.12 * act), 0.05);
+    setP(this.m2.g.gain, mv * (0.012 + 0.05 * act), 0.05);
+    setP(this.m3.g.gain, mv * (0.004 + 0.016 * act), 0.05);
+    setP(this.m4.g.gain, mv * 0.03 * act, 0.05);
+    setP(this.humG.gain, 0.02 + 0.03 * act, 0.1);
+  }
+  stop() { setP(this.out.gain, 0, 0.2); setTimeout(() => { [this.m1, this.m2, this.m3, this.m4].forEach(m => m.o.stop()); this.hum.stop(); this.out.disconnect(); }, 1500); }
+}
+
+/* --- Lastik, rüzgâr ve ıslak yol uğultusu */
+function buildRoadNoise() {
+  const mk = (buf, type, f, q) => {
+    const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true; s.loopStart = 0; s.loopEnd = buf.duration;
+    const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q;
+    const g = ctx.createGain(); g.gain.value = 0; s.connect(fl); fl.connect(g); g.connect(A.cabin); s.start(ctx.currentTime, Math.random() * 2);
+    return { s, f: fl, g };
+  };
+  A.tire = mk(A.brown, 'lowpass', 200, 0.7);
+  A.tire2 = mk(A.pink, 'bandpass', 600, 0.9);
+  A.wind = mk(A.pink, 'bandpass', 500, 0.6);
+  A.wet = mk(A.white, 'highpass', 2500, 0.5);
+  A.windLFO = ctx.createOscillator(); A.windLFO.frequency.value = 0.35;
+  A.windLFOg = ctx.createGain(); A.windLFOg.gain.value = 0;
+  A.windLFO.connect(A.windLFOg); A.windLFOg.connect(A.wind.g.gain); A.windLFO.start();
+}
+
+/* --- Tek seferlik ve basılı tutulan efektler */
+let screech = null, hornSrc = null;
+function playOneShot(buf, dest, { gain = 1, offset = 0, dur = null, rate = 1 } = {}) {
+  const s = ctx.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate;
+  const g = ctx.createGain(); s.connect(g); g.connect(dest);
+  const d = dur || (buf.duration - offset), t = ctx.currentTime;
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gain, t + 0.04);
+  g.gain.setValueAtTime(gain, t + Math.max(0.05, d - 0.6)); g.gain.linearRampToValueAtTime(0, t + d);
+  s.start(t, offset, d + 0.05); s.onended = () => g.disconnect();
+  return s;
+}
+function hornOn() {
+  if (!ctx || !bufs.horn || hornSrc) return;
+  const s = ctx.createBufferSource(); s.buffer = bufs.horn; s.loop = true;
+  if (!customKeys.has('horn')) { s.loopStart = 0.35; s.loopEnd = 2.4; }
+  const g = ctx.createGain(); g.gain.value = 0; s.connect(g); g.connect(A.fx); s.start();
+  setP(g.gain, 0.7, 0.01); hornSrc = { s, g };
+}
+function hornOff() {
+  if (!hornSrc) return; const h = hornSrc; hornSrc = null;
+  setP(h.g.gain, 0, 0.03); setTimeout(() => { try { h.s.stop(); } catch (e) {} }, 250);
+}
+function chime(dir) {
+  const t = ctx.currentTime, p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+  if (p) { p.pan.value = dir * 0.85; p.connect(A.fx); }
+  [880, 1175].forEach((f, i) => {
+    const o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t + i * 0.13); g.gain.exponentialRampToValueAtTime(0.13, t + i * 0.13 + 0.015); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.13 + 0.35);
+    o.connect(g); g.connect(p || A.fx); o.start(t + i * 0.13); o.stop(t + i * 0.13 + 0.4);
+  });
+}
+function windowMotor() {
+  const t = ctx.currentTime, o = ctx.createOscillator(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  o.type = 'sawtooth'; o.frequency.setValueAtTime(95, t); o.frequency.linearRampToValueAtTime(120, t + 1.3);
+  f.type = 'lowpass'; f.frequency.value = 700; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.08);
+  g.gain.setValueAtTime(0.05, t + 1.2); g.gain.linearRampToValueAtTime(0, t + 1.35);
+  o.connect(f); f.connect(g); g.connect(A.fx); o.start(t); o.stop(t + 1.4);
+}
+
+/* ================= Yol ================= */
+const STEP = 2;
+const road = { x: [0], z: [0], h: [0], k: [0], curves: [], curveIdx: 0, seg: null, segLeft: 0, kCur: 0 };
+function nextSegment() {
+  const env = ENVS[S.env], prev = road.seg;
+  const curve = dir => { const R = rand(env.curveR[0], env.curveR[1]); return { k: dir / R, len: clamp(rand(0.4, 1.4) * R, 50, 420) }; };
+  if (!prev) return { k: 0, len: 200 };
+  if (prev.k === 0) return Math.random() < 0.8 ? curve(Math.random() < 0.5 ? -1 : 1) : { k: 0, len: rand(150, 500) };
+  if (Math.random() < 0.25) return curve(-Math.sign(prev.k));   // S viraj
+  return { k: 0, len: rand(120, 600) };
+}
+function extendRoad() {
+  if (road.segLeft <= 0) {
+    road.seg = nextSegment(); road.segLeft = road.seg.len;
+    if (road.seg.k !== 0) road.curves.push({ s0: (road.x.length - 1) * STEP, s1: (road.x.length - 1) * STEP + road.seg.len, k: road.seg.k, noted: false });
+  }
+  road.segLeft -= STEP;
+  road.kCur += (road.seg.k - road.kCur) * 0.09;
+  const i = road.x.length - 1, h = road.h[i] + road.kCur * STEP;
+  road.h.push(h); road.k.push(road.kCur);
+  road.x.push(road.x[i] + Math.sin(h) * STEP); road.z.push(road.z[i] - Math.cos(h) * STEP);
+}
+function ensureRoad(s) { while ((road.x.length - 1) * STEP < s) extendRoad(); }
+const tmpP = { x: 0, z: 0, h: 0, k: 0 };
+function roadAt(s, lat = 0, out = tmpP) {
+  s = Math.max(0, s); ensureRoad(s + STEP * 2);
+  const f = s / STEP, i = Math.floor(f), t = f - i;
+  const h = lerp(road.h[i], road.h[i + 1], t);
+  out.h = h; out.k = lerp(road.k[i], road.k[i + 1], t);
+  out.x = lerp(road.x[i], road.x[i + 1], t) + Math.cos(h) * lat;
+  out.z = lerp(road.z[i], road.z[i + 1], t) + Math.sin(h) * lat;
+  return out;
+}
+function curvatureAt(s) { const i = Math.floor(Math.max(0, s) / STEP); ensureRoad(s + 4); return road.k[i] || 0; }
+/* Önümüzdeki virajlara göre güvenli hız (otomatik sürüş) */
+function curveLimit(s, v) {
+  const look = Math.max(60, v * v / (2 * 2.5) + 40);
+  let lim = 1e9;
+  for (let d = 0; d <= look; d += 6) {
+    const k = Math.abs(curvatureAt(s + d));
+    if (k < 1e-4) continue;
+    const vl = Math.sqrt(3.2 / k);
+    lim = Math.min(lim, Math.sqrt(vl * vl + 2 * 2.5 * d));
+  }
+  return lim;
+}
+
+/* ================= 3B sahne ================= */
+const canvas = $('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.75));
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x9fc6e3, 40, 420);
+scene.background = new THREE.Color(0x9fc6e3);
+const camera = new THREE.PerspectiveCamera(62, 1, 0.3, 900);
+const hemi = new THREE.HemisphereLight(0xffffff, 0x445544, 0.8); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff2dd, 0.8); sun.position.set(40, 80, 20); scene.add(sun);
+const headLight = new THREE.SpotLight(0xfff4d6, 0, 90, 0.5, 0.6, 1.2); scene.add(headLight); scene.add(headLight.target);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), new THREE.MeshLambertMaterial({ color: 0x3f6a33 }));
+ground.rotation.x = -Math.PI / 2; ground.position.y = -0.05; scene.add(ground);
+
+function roadTexture(width) {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 512; const g = c.getContext('2d');
+  g.fillStyle = '#3a3e44'; g.fillRect(0, 0, 256, 512);
+  for (let i = 0; i < 2500; i++) { const v = 50 + Math.random() * 30 | 0; g.fillStyle = `rgb(${v},${v + 2},${v + 5})`; g.fillRect(Math.random() * 256, Math.random() * 512, 2, 2); }
+  g.fillStyle = '#e9e9e2'; g.fillRect(8, 0, 6, 512); g.fillRect(242, 0, 6, 512);
+  g.fillStyle = '#f1f1ea'; g.fillRect(125, 0, 6, 250);
+  const t = new THREE.CanvasTexture(c); t.wrapS = THREE.ClampToEdgeWrapping; t.wrapT = THREE.RepeatWrapping; t.anisotropy = 4;
+  return t;
+}
+const RIB = 220;
+function makeRibbon(mat) {
+  const n = RIB + 1, geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 6), 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(n * 4), 2));
+  const idx = [];
+  for (let i = 0; i < RIB; i++) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+  const nrm = new Float32Array(n * 6); for (let i = 1; i < n * 6; i += 3) nrm[i] = 1;
+  geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
+  geo.setIndex(idx);
+  const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; scene.add(m); return m;
+}
+const roadMesh = makeRibbon(new THREE.MeshLambertMaterial({ map: roadTexture() }));
+const seaMesh = makeRibbon(new THREE.MeshLambertMaterial({ color: 0x2b7fa6, emissive: 0x06283a }));
+const shoulderMesh = makeRibbon(new THREE.MeshLambertMaterial({ color: 0x6b6355 }));
+function updateRibbon(m, s0, latA, latB, y, vLen) {
+  const pos = m.geometry.attributes.position.array, uv = m.geometry.attributes.uv.array;
+  const base = Math.floor(s0 / vLen) * vLen, p = {};
+  for (let i = 0; i <= RIB; i++) {
+    const s = s0 + i * STEP; roadAt(s, 0, p);
+    const cx = Math.cos(p.h), cz = Math.sin(p.h);
+    pos[i * 6] = p.x + cx * latA; pos[i * 6 + 1] = y; pos[i * 6 + 2] = p.z + cz * latA;
+    pos[i * 6 + 3] = p.x + cx * latB; pos[i * 6 + 4] = y; pos[i * 6 + 5] = p.z + cz * latB;
+    const v = (s - base) / vLen; uv[i * 4] = 0; uv[i * 4 + 1] = v; uv[i * 4 + 2] = 1; uv[i * 4 + 3] = v;
+  }
+  m.geometry.attributes.position.needsUpdate = true; m.geometry.attributes.uv.needsUpdate = true;
+  m.geometry.computeBoundingSphere();
+}
+
+/* Araç modelleri */
+function carModel(kind, color) {
+  const g = new THREE.Group();
+  const paint = new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.3 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.6 });
+  const glass = new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.15, metalness: 0.5 });
+  const dims = { sedan: [1.8, 0.62, 4.5, 1.6, 0.5, 2.3], truck: [2.0, 0.85, 5.2, 1.85, 0.75, 1.9], sport: [1.9, 0.5, 4.4, 1.5, 0.42, 1.9], ev: [1.85, 0.62, 4.6, 1.65, 0.52, 2.6] }[kind] || [1.8, 0.62, 4.5, 1.6, 0.5, 2.3];
+  const [w, h, l, cw, ch, cl] = dims;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, l), paint); body.position.y = 0.35 + h / 2; g.add(body);
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(cw, ch, cl), glass);
+  cab.position.set(0, 0.35 + h + ch / 2, kind === 'truck' ? -l * 0.18 : l * 0.02); g.add(cab);
+  if (kind === 'truck') { const bed = new THREE.Mesh(new THREE.BoxGeometry(w, 0.35, l * 0.42), paint); bed.position.set(0, 0.35 + h + 0.17, l * 0.27); g.add(bed); }
+  const wheelGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.26, 14); wheelGeo.rotateZ(Math.PI / 2);
+  g.wheels = [];
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => { const wm = new THREE.Mesh(wheelGeo, dark); wm.position.set(sx * (w / 2 - 0.05), 0.34, sz * l * 0.32); g.add(wm); g.wheels.push(wm); });
+  const tlMat = new THREE.MeshBasicMaterial({ color: 0x661111 });
+  const hlMat = new THREE.MeshBasicMaterial({ color: 0xfff6d8 });
+  [-1, 1].forEach(sx => {
+    const tl = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.14, 0.05), tlMat); tl.position.set(sx * (w / 2 - 0.3), 0.35 + h * 0.75, l / 2 + 0.01); g.add(tl);
+    const hl = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.14, 0.05), hlMat); hl.position.set(sx * (w / 2 - 0.3), 0.35 + h * 0.7, -l / 2 - 0.01); g.add(hl);
+  });
+  g.tailMat = tlMat;
+  return g;
+}
+let playerCar = carModel('sedan', 0x3d6fa8); scene.add(playerCar);
+
+/* Çevre nesneleri */
+let props = [];
+const PROP = {
+  trunk: new THREE.MeshLambertMaterial({ color: 0x4a3526 }),
+  leaf: [0x2f5a2a, 0x3b6b30, 0x285024].map(c => new THREE.MeshLambertMaterial({ color: c })),
+  pine: new THREE.MeshLambertMaterial({ color: 0x24402f }),
+  snow: new THREE.MeshLambertMaterial({ color: 0xf4f7fa }),
+  rock: new THREE.MeshLambertMaterial({ color: 0x7c7a75 }),
+  pole: new THREE.MeshLambertMaterial({ color: 0x9aa0a6 }),
+  lamp: new THREE.MeshBasicMaterial({ color: 0xffe2a0 }),
+  bld: [0x8d8a86, 0xb39b7f, 0x6f7a86, 0xa5aab0, 0x7d6b5d].map(c => new THREE.MeshLambertMaterial({ color: c })),
+  rail: new THREE.MeshLambertMaterial({ color: 0xb8bec4 })
+};
+const GEO = {
+  trunk: new THREE.CylinderGeometry(0.25, 0.35, 2, 6), cone: new THREE.ConeGeometry(2.2, 5, 7), pine: new THREE.ConeGeometry(1.5, 7, 6),
+  cap: new THREE.ConeGeometry(0.75, 2.2, 6), rock: new THREE.DodecahedronGeometry(1.4, 0), box: new THREE.BoxGeometry(1, 1, 1),
+  pole: new THREE.CylinderGeometry(0.09, 0.12, 8, 6), lamp: new THREE.BoxGeometry(1.2, 0.18, 0.4)
+};
+function makeProp(type) {
+  const g = new THREE.Group();
+  if (type === 'tree') {
+    const t = new THREE.Mesh(GEO.trunk, PROP.trunk); t.position.y = 1; g.add(t);
+    const c = new THREE.Mesh(GEO.cone, PROP.leaf[Math.random() * 3 | 0]); c.position.y = 4; g.add(c);
+    g.scale.setScalar(rand(0.7, 1.5));
+  } else if (type === 'pine') {
+    const c = new THREE.Mesh(GEO.pine, PROP.pine); c.position.y = 3.5; g.add(c);
+    const s = new THREE.Mesh(GEO.cap, PROP.snow); s.position.y = 6.3; g.add(s);
+    g.scale.setScalar(rand(0.8, 1.6));
+  } else if (type === 'rock') {
+    const r = new THREE.Mesh(GEO.rock, PROP.rock); r.position.y = 0.6; r.rotation.set(rand(0, 3), rand(0, 3), 0); g.add(r);
+    g.scale.set(rand(0.6, 2), rand(0.5, 1.4), rand(0.6, 2));
+  } else if (type === 'building') {
+    const w = rand(8, 16), h = rand(8, 38), d = rand(8, 14);
+    const b = new THREE.Mesh(GEO.box, PROP.bld[Math.random() * 5 | 0]); b.scale.set(w, h, d); b.position.y = h / 2; g.add(b);
+    g.userData.half = w / 2;
+  } else if (type === 'lamp') {
+    const p = new THREE.Mesh(GEO.pole, PROP.pole); p.position.y = 4; g.add(p);
+    const l = new THREE.Mesh(GEO.lamp, PROP.lamp); l.position.set(-0.5, 8, 0); g.add(l);
+  }
+  g.userData.type = type; scene.add(g); return g;
+}
+function placeProp(p, s) {
+  const env = ENVS[S.env], t = p.userData.type, W = env.width * (env.highway ? 2 : 1);
+  let lat;
+  if (t === 'lamp') lat = (env.highway || Math.random() < 0.5 ? 1 : -1) * (env.width + 1.5);
+  else if (t === 'building') lat = (Math.random() < 0.5 ? -1 : 1) * (W + 5 + (p.userData.half || 5) + rand(0, 4));
+  else if (env.sea) lat = -rand(W + 4, 60);
+  else lat = (Math.random() < 0.5 ? -1 : 1) * rand(W + 4, 70);
+  if (env.highway && t !== 'lamp' && Math.abs(lat) < 18) lat = Math.sign(lat) * rand(18, 70);
+  const q = roadAt(s, lat, {});
+  p.position.set(q.x, 0, q.z); p.rotation.y = -q.h + (t === 'lamp' && lat < 0 ? Math.PI : 0);
+  p.userData.s = s;
+}
+function buildProps() {
+  props.forEach(p => scene.remove(p)); props = [];
+  const env = ENVS[S.env], kinds = {
+    trees: [['tree', 120], ['rock', 12]], pines: [['pine', 120], ['rock', 25]], coast: [['rock', 40], ['tree', 30]],
+    city: [['building', 70], ['lamp', 30]], highway: [['lamp', 40], ['tree', 50]]
+  }[env.props];
+  const s0 = car.s - 40;
+  kinds.forEach(([t, n]) => { for (let i = 0; i < n; i++) { const p = makeProp(t); placeProp(p, s0 + rand(0, 440)); props.push(p); } });
+}
+
+/* Yağmur damlaları */
+const rainGeo = new THREE.BufferGeometry(), RN = 1400, rainPos = new Float32Array(RN * 3);
+for (let i = 0; i < RN; i++) { rainPos[i * 3] = rand(-25, 25); rainPos[i * 3 + 1] = rand(0, 18); rainPos[i * 3 + 2] = rand(-40, 10); }
+rainGeo.setAttribute('position', new THREE.BufferAttribute(rainPos, 3));
+const rain = new THREE.Points(rainGeo, new THREE.PointsMaterial({ color: 0xc8d4e0, size: 0.08, transparent: true, opacity: 0.7 }));
+rain.frustumCulled = false; scene.add(rain);
+
+function applyEnvVisual() {
+  const env = ENVS[S.env];
+  scene.background.setHex(env.sky); scene.fog.color.setHex(env.sky); scene.fog.near = env.fog[0]; scene.fog.far = env.fog[1];
+  ground.material.color.setHex(env.ground);
+  hemi.intensity = 0.25 + 0.6 * env.light; sun.intensity = 0.9 * env.light;
+  headLight.intensity = env.night || env.wet ? 2.2 : 0;
+  rain.visible = !!env.wet; seaMesh.visible = !!env.sea;
+  shoulderMesh.visible = !!env.highway;
+  roadMesh.material.map.repeat.set(1, 1);
+  buildProps();
+}
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h;
+  camera.fov = w < h ? 70 : 58;
+  // Dikey ekranda araç alttaki pedalların üstünde görünsün
+  if (w < h) camera.setViewOffset(w, h, 0, h * 0.2, w, h); else camera.clearViewOffset();
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+
+/* ================= Oyun durumu ================= */
+const car = { s: 30, v: 0, rpm: 800, gear: 0, thr: 0, brk: 0, shiftT: 0, cut: 0, auto: false, cruise: 90, ai: 0.2, windows: false, running: false, squeal: 0, lastBand: 0 };
+const ctl = { gasHold: false, gasLatch: false, brakeHold: false, brakeLatch: false, keyGas: false, keyBrake: false };
+let bufs = {}, engine = null, bed = null, cabinLoops = [], emitters = [], traffic = [], nextTrafficAt = 0, nextSirenAt = 0, oneShotTimers = [];
+let lastRoadBuild = -999;
+
+const gasOn = () => ctl.gasHold || ctl.gasLatch || ctl.keyGas;
+const brakeOn = () => ctl.brakeHold || ctl.brakeLatch || ctl.keyBrake;
+
+function torqueAt(V, rpm) {
+  if (V.synth) return rpm < V.peak ? V.torque : V.torque * V.peak / rpm;
+  const x = rpm / V.peak;
+  return V.torque * (x < 1 ? 0.62 + 0.38 * Math.sin(x * Math.PI / 2) : 1 - 0.38 * Math.pow((x - 1) / (V.redline / V.peak - 1), 2));
+}
+
+function physics(dt) {
+  const V = VEHICLES[S.vehicle];
+  let thrT = 0, brkT = 0;
+  if (car.auto) {
+    const vT = Math.min(car.cruise / 3.6, curveLimit(car.s, car.v));
+    const err = vT - car.v;
+    car.ai = clamp(car.ai + err * dt * 0.05, 0, 0.7);
+    thrT = clamp(err * 0.3 + car.ai, 0, 1);
+    if (err < -1.5) { brkT = clamp(-err * 0.1, 0, 0.6); thrT = 0; }
+  } else { thrT = gasOn() ? 1 : 0; brkT = brakeOn() ? 1 : 0; }
+  car.thr = approach(car.thr, thrT, dt * (thrT > car.thr ? 2.6 : 5));
+  car.brk = approach(car.brk, brkT, dt * (brkT > car.brk ? 2.2 : 5));
+
+  const ratio = V.gears[car.gear] * V.final;
+  const wheelRpm = car.v / V.r * 60 / (2 * Math.PI);
+  let rpmRaw = wheelRpm * ratio, rpmT = rpmRaw, load = car.thr;
+  if (car.shiftT > 0) { car.shiftT -= dt; load *= 0.05; }
+  if (car.cut > 0) { car.cut -= dt; load = 0; }
+  const slipping = !V.synth && car.gear === 0 && rpmRaw < V.launch;
+  if (slipping) rpmT = Math.max(rpmRaw, V.idle + car.thr * (V.launch - V.idle) * 1.15);
+  if (!V.synth) rpmT = Math.max(rpmT, V.idle);
+  car.rpm += (rpmT - car.rpm) * Math.min(1, dt * (car.shiftT > 0 ? 7 : 12));
+  if (car.rpm > V.redline) { car.cut = 0.08; }
+
+  let F = torqueAt(V, car.rpm) * load * ratio * 0.9 / V.r;
+  if (load < 0.05 && rpmRaw > V.idle * 1.1) F -= V.mass * V.engBrake * (rpmRaw / V.redline) * Math.sqrt(V.gears[car.gear] / V.gears[0]);
+  F -= 0.5 * 1.2 * V.cd * V.area * car.v * car.v + (car.v > 0.2 ? 0.013 * V.mass * 9.81 : 0);
+  F -= car.brk * V.brake * V.mass * (car.v > 0.05 ? 1 : 0);
+  // Viraj tutunması
+  const k = Math.abs(curvatureAt(car.s)), grip = k > 1e-4 ? Math.sqrt(7 / k) : 1e9;
+  car.squeal = clamp((car.v - grip * 0.82) / (grip * 0.25), 0, 1);
+  if (car.squeal > 0) F -= V.mass * 3 * car.squeal;
+  car.v = Math.max(0, car.v + F / V.mass * dt);
+  if (car.v < 0.15 && load < 0.05) car.v = Math.max(0, car.v - dt);
+
+  // Otomatik vites
+  if (!V.synth && car.shiftT <= 0) {
+    const up = lerp(V.shiftLight, V.shiftFull, clamp(car.thr * 1.15, 0, 1));
+    if (car.gear < V.gears.length - 1 && car.rpm > up && !slipping) { car.gear++; car.shiftT = 0.32; if (S.shiftSay) say((car.gear + 1) + '. vites'); }
+    else if (car.gear > 0 && rpmRaw < V.shiftDown * (car.brk > 0.1 ? 1.25 : 1)) { car.gear--; car.shiftT = 0.22; if (S.shiftSay) say((car.gear + 1) + '. vites'); }
+  }
+  car.s += car.v * dt;
+  return load;
+}
+
+/* ================= Trafik ================= */
+const TRAFFIC_SETS = ['tr_1', 'tr_2', 'tr_3'];
+function spawnTraffic(kind) {
+  const env = ENVS[S.env], W = env.width;
+  let t;
+  const fast = env.highway ? 1.35 : 1;
+  // Sağdan akan trafik: karşıdan gelenler ve sollayanlar soldan geçer
+  const oncomingLat = env.highway ? -(W * 2 + 2) : -W / 2;
+  if (kind === 'siren') t = { s: car.s + 520, lat: oncomingLat, v: -rand(16, 22), siren: true };
+  else if (car.v > 12 && Math.random() < (env.highway ? 0.55 : 0.4)) t = { s: car.s - 300, lat: -W / 2, v: car.v + rand(7, 16) };
+  else t = { s: car.s + 520, lat: oncomingLat, v: -rand(14, 26) * fast };
+  const out = makePanner(5, 1.25);
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 6000;
+  const g = ctx.createGain(); g.gain.value = 1;
+  g.connect(lp); lp.connect(out); out.connect(A.world);
+  const nodes = [];
+  if (t.siren) {
+    const s = ctx.createBufferSource(); s.buffer = bufs.em_siren; s.loop = true; s.start(ctx.currentTime, rand(0, 10));
+    const sg = ctx.createGain(); sg.gain.value = 1.4; s.connect(sg); sg.connect(g); nodes.push({ s, base: 1 });
+  }
+  const eb = bufs[TRAFFIC_SETS[Math.random() * 3 | 0]];
+  const es = ctx.createBufferSource(); es.buffer = eb; es.loop = true; es.start(ctx.currentTime, rand(0, eb.duration));
+  const eg = ctx.createGain(); eg.gain.value = 0.55; es.connect(eg); eg.connect(g);
+  const base = rand(0.8, 1.15) * (t.v > 0 ? 1.12 : 1);
+  nodes.push({ s: es, base });
+  const ns = ctx.createBufferSource(); ns.buffer = A.pink; ns.loop = true; ns.start(ctx.currentTime, rand(0, 2));
+  const nf = ctx.createBiquadFilter(); nf.type = 'bandpass'; nf.Q.value = 0.6; nf.frequency.value = 800;
+  const ng = ctx.createGain(); ng.gain.value = 0.35 + (env.wet ? 0.35 : 0); ns.connect(nf); nf.connect(ng); ng.connect(g);
+  t.audio = { out, lp, g, nodes, ns, nf };
+  t.mesh = carModel(['sedan', 'truck', 'sport', 'ev'][Math.random() * 4 | 0], [0xd8d8d8, 0x2d3a4a, 0x8a1c1c, 0x1f5f3a, 0xe0b040, 0x222222][Math.random() * 6 | 0]);
+  if (t.siren) { t.mesh.children[0].material = new THREE.MeshStandardMaterial({ color: 0xffffff }); }
+  scene.add(t.mesh);
+  t.prevD = null; t.dop = 1;
+  if (Math.random() < 0.06) t.honkAt = 1;
+  traffic.push(t);
+}
+function removeTraffic(t) {
+  const a = t.audio; setP(a.g.gain, 0, 0.1);
+  setTimeout(() => { a.nodes.forEach(n => { try { n.s.stop(); } catch (e) {} }); try { a.ns.stop(); } catch (e) {} a.out.disconnect(); }, 600);
+  scene.remove(t.mesh);
+  t.mesh.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+}
+function updateTraffic(dt, now, lx, lz) {
+  const env = ENVS[S.env];
+  if (!S.traffic) {
+    if (traffic.length) { traffic.forEach(removeTraffic); traffic = []; }
+    nextTrafficAt = now + rand(3, 6); nextSirenAt = now + rand(20, 50);
+    return;
+  }
+  if (now > nextTrafficAt) { if (traffic.length < 5) spawnTraffic(); nextTrafficAt = now + rand(env.traffic[0], env.traffic[1]); }
+  if (env.siren && now > nextSirenAt) { spawnTraffic('siren'); nextSirenAt = now + rand(env.siren[0], env.siren[1]); }
+  const q = {};
+  for (let i = traffic.length - 1; i >= 0; i--) {
+    const t = traffic[i];
+    t.s += t.v * dt;
+    roadAt(t.s, t.lat, q);
+    setPos(t.audio.out, q.x, 0.6, q.z);
+    t.mesh.position.set(q.x, 0, q.z); t.mesh.rotation.y = -q.h + (t.v < 0 ? Math.PI : 0);
+    const d = Math.hypot(q.x - lx, q.z - lz);
+    if (t.prevD !== null && dt > 0) {
+      const vr = (d - t.prevD) / dt;            // uzaklaşma hızı
+      const dop = clamp(343 / (343 + vr), 0.75, 1.3);
+      t.dop += (dop - t.dop) * Math.min(1, dt * 8);
+    }
+    t.prevD = d;
+    const sp = Math.abs(t.v);
+    t.audio.nodes.forEach(n => setP(n.s.playbackRate, n.base * t.dop, 0.05));
+    setP(t.audio.nf.frequency, (500 + sp * 18) * t.dop, 0.05);
+    setP(t.audio.lp.frequency, clamp(17000 * Math.exp(-d / 110) * (env.wet ? 0.7 : 1), 500, 17000), 0.05);
+    if (t.honkAt && d < 40 && bufs.horn) {
+      t.honkAt = 0; const hs = ctx.createBufferSource(); hs.buffer = bufs.horn; hs.playbackRate.value = rand(0.9, 1.15);
+      const hg = ctx.createGain(); hg.gain.value = 0.6; hs.connect(hg); hg.connect(t.audio.g); hs.start(ctx.currentTime, 0.3, 0.45);
+    }
+    if (t.s - car.s > 560 || t.s - car.s < -360) { removeTraffic(t); traffic.splice(i, 1); }
+  }
+}
+
+/* ================= Ortam sesleri ================= */
+function startEnvAudio() {
+  const env = ENVS[S.env];
+  if (bed) bed.stop(2.5);
+  cabinLoops.forEach(c => c.stop(2)); cabinLoops = [];
+  emitters.forEach(e => { e.loop.stop(2); setTimeout(() => e.pan.disconnect(), 2600); }); emitters = [];
+  oneShotTimers.forEach(clearTimeout); oneShotTimers = [];
+  bed = new CrossLoop(bufs[env.bed], A.world, { gain: env.bedGain, xf: 3 });
+  (env.cabin || []).forEach(c => cabinLoops.push(new CrossLoop(bufs[c.buf], A.cabin, { gain: c.gain, xf: 2 })));
+  env.emitters.forEach(def => {
+    for (let i = 0; i < def.n; i++) {
+      const pan = makePanner(10, 1.0); pan.connect(A.world);
+      const e = { def, pan, loop: new CrossLoop(bufs[def.buf], pan, { gain: def.gain, xf: 2.5, rate: rand(0.94, 1.06) }) };
+      placeEmitter(e, car.s + rand(-60, 420)); emitters.push(e);
+    }
+  });
+  env.oneshots.forEach(def => scheduleOneShot(def));
+  const now = performance.now() / 1000;
+  nextTrafficAt = now + rand(4, 8); nextSirenAt = now + rand(25, 60);
+}
+function placeEmitter(e, s) {
+  const side = e.def.side || (Math.random() < 0.5 ? -1 : 1);
+  e.s = s; e.lat = side * rand(e.def.lat[0], e.def.lat[1]); e.y = e.def.buf === 'em_birds' ? rand(4, 12) : 1;
+  const q = roadAt(e.s, e.lat, {}); setPos(e.pan, q.x, e.y, q.z);
+}
+function scheduleOneShot(def) {
+  const id = setTimeout(() => {
+    if (!car.running || ENVS[S.env].oneshots.indexOf(def) < 0) return;
+    const b = bufs[def.buf];
+    if (def.stereo) {
+      const off = rand(0, Math.max(0, b.duration - 14));
+      playOneShot(b, A.world, { gain: def.gain, offset: off, dur: 13 });
+    } else {
+      const pan = makePanner(12, 1.0); pan.connect(A.world);
+      const side = Math.random() < 0.5 ? -1 : 1;
+      const q = roadAt(car.s + rand(20, 160), side * rand(def.lat[0], def.lat[1]), {});
+      setPos(pan, q.x, rand(2, 10), q.z);
+      const dur = Math.min(b.duration, rand(5, 9));
+      const src = playOneShot(b, pan, { gain: def.gain * 1.6, offset: rand(0, Math.max(0, b.duration - dur)), dur });
+      src.onended = () => pan.disconnect();
+    }
+    scheduleOneShot(def);
+  }, rand(def.every[0], def.every[1]) * 1000);
+  oneShotTimers.push(id);
+}
+function updateEmitters() {
+  emitters.forEach(e => { if (e.s < car.s - 140) placeEmitter(e, car.s + rand(300, 500)); });
+}
+
+/* ================= Gürültü ve kabin ================= */
+function updateCabin(load) {
+  const v = car.v, env = ENVS[S.env], open = car.windows;
+  setP(A.tire.g.gain, clamp(v / 30, 0, 1.2) * 0.32, 0.08);
+  setP(A.tire.f.frequency, 120 + v * 7, 0.1);
+  setP(A.tire2.g.gain, clamp(v / 35, 0, 1.2) * 0.09, 0.08);
+  setP(A.tire2.f.frequency, 400 + v * 14, 0.1);
+  const windAmp = Math.pow(v / 35, 2) * (open ? 0.42 : 0.07);
+  setP(A.wind.g.gain, windAmp, 0.1);
+  A.windLFOg.gain.setTargetAtTime(open ? windAmp * 0.5 : 0, ctx.currentTime, 0.2);
+  setP(A.wind.f.frequency, (open ? 380 : 650) + v * 9, 0.1);
+  setP(A.wet.g.gain, env.wet ? clamp(v / 25, 0, 1.3) * 0.11 : 0, 0.2);
+  // Lastik ötmesi
+  if (bufs.screech) {
+    if (car.squeal > 0.02 && !screech) {
+      const s = ctx.createBufferSource(); s.buffer = bufs.screech; s.loop = true;
+      const def = !customKeys.has('screech'); if (def) { s.loopStart = 0.3; s.loopEnd = 2.6; }
+      const g = ctx.createGain(); g.gain.value = 0; s.connect(g); g.connect(A.fx); s.start(ctx.currentTime, def ? 0.3 : 0); screech = { s, g };
+    }
+    if (screech) {
+      setP(screech.g.gain, car.squeal * 0.55, 0.05); setP(screech.s.playbackRate, 0.9 + car.squeal * 0.2, 0.1);
+      if (car.squeal <= 0.01) { const sc = screech; screech = null; setP(sc.g.gain, 0, 0.08); setTimeout(() => { try { sc.s.stop(); } catch (e) {} }, 400); }
+    }
+  }
+}
+function setWindows(open, silent) {
+  car.windows = open;
+  if (ctx) {
+    setP(A.outLP.frequency, open ? 16000 : 1200, 0.4);
+    setP(A.outGain.gain, open ? 1.0 : 0.55, 0.4);
+    setP(A.engineLP.frequency, open ? 9000 : 5500, 0.4);
+    if (!silent) windowMotor();
+  }
+  const b = $('btnWindows'); b.textContent = open ? 'Camları kapat' : 'Camları aç';
+  if (!silent) say(open ? 'Camlar açık' : 'Camlar kapalı');
+}
+
+/* ================= Yardımcı pilot ================= */
+function paceNotes() {
+  if (!S.pace) return;
+  const ahead = Math.max(90, car.v * 6);
+  while (road.curveIdx < road.curves.length && road.curves[road.curveIdx].s1 < car.s) road.curveIdx++;
+  for (let i = road.curveIdx; i < road.curves.length; i++) {
+    const c = road.curves[i];
+    if (c.noted) continue;
+    if (c.s0 - car.s > ahead) break;
+    c.noted = true;
+    if (c.s0 < car.s) continue;
+    const R = 1 / Math.abs(c.k), dir = c.k > 0 ? 'Sağa' : 'Sola';
+    const sev = R < 90 ? ' keskin' : R > 300 ? ' hafif' : '';
+    const dist = Math.max(10, Math.round((c.s0 - car.s) / 10) * 10);
+    const safe = Math.round(Math.sqrt(3.2 * R) * 3.6 / 10) * 10;
+    let msg = `${dir}${sev} viraj, ${dist} metre`;
+    if (car.v * 3.6 > safe + 10) msg += `, ${safe} ile gir`;
+    chime(c.k > 0 ? 1 : -1); say(msg);
+    break;
+  }
+}
+function statusText() {
+  const V = VEHICLES[S.vehicle];
+  const kmh = Math.round(car.v * 3.6);
+  const gear = V.synth ? 'tek vites' : (car.gear + 1) + '. vites';
+  let t = `${kmh} kilometre, ${gear}`;
+  if (!V.synth) t += `, ${Math.round(car.rpm / 100) * 100} devir`;
+  t += car.auto ? `. Otomatik sürüş, hedef ${car.cruise}` : '. Elle sürüş';
+  return t + '. ' + ENVS[S.env].name + '.';
+}
+
+/* ================= Kurulum ve başlatma ================= */
+function vehicleFiles(key) {
+  const V = VEHICLES[key];
+  if (V.synth) return customKeys.has('ev_loop') ? ['ev_loop'] : [];
+  if (V.custom) return ['c_loop', 'c_idle', 'c_off', 'c_high', 'c_start'].filter(k => customKeys.has(k));
+  return ['idle', 'low_on', 'low_off', 'med_on', 'med_off', 'high_on', 'high_off', 'start'].map(n => `${V.set}_${n}`);
+}
+function envFiles(key) {
+  const E = ENVS[key], f = [E.bed];
+  (E.cabin || []).forEach(c => f.push(c.buf));
+  E.emitters.forEach(e => f.push(e.buf));
+  E.oneshots.forEach(o => f.push(o.buf));
+  if (E.siren) f.push('em_siren');
+  return f;
+}
+const COMMON = ['horn', 'screech', ...TRAFFIC_SETS];
+const dirty = new Set();
+
+let busy = false;
+async function goDrive() {
+  if (busy) return;
+  const vSel = document.querySelector('input[name="vehicle"]:checked').value;
+  const eSel = document.querySelector('input[name="env"]:checked').value;
+  initAudio();
+  if (VEHICLES[vSel].custom && !customKeys.has('c_loop')) {
+    const m = 'Kendi aracım için önce Sesleri içe aktar bölümünden "Kendi aracım: motor döngüsü" sesini seç ve bir dosya içe aktar.';
+    $('loadMsg').textContent = m; say(m, true); return;
+  }
+  busy = true;
+  const btn = $('btnGo'); btn.setAttribute('aria-disabled', 'true');
+  const msg = $('loadMsg');
+  const files = [...new Set([...COMMON, ...vehicleFiles(vSel), ...envFiles(eSel)])].filter(f => !bufs[f]);
+  try {
+    if (files.length) {
+      say('Sesler yükleniyor');
+      const got = await loadAll(files, (d, n) => { msg.textContent = `Sesler yükleniyor: ${Math.round(d / n * 100)}%`; });
+      Object.assign(bufs, got);
+    }
+  } catch (e) {
+    msg.textContent = 'Sesler yüklenemedi. Bağlantını kontrol edip tekrar dene.';
+    say(msg.textContent, true); busy = false; btn.removeAttribute('aria-disabled'); return;
+  }
+  msg.textContent = '';
+  const vehChanged = vSel !== S.vehicle || !engine || vehicleFiles(vSel).some(k => dirty.has(k));
+  const envChanged = eSel !== S.env || !bed || envFiles(eSel).some(k => dirty.has(k));
+  dirty.clear();
+  S.vehicle = vSel; S.env = eSel; store.set('vehicle', vSel); store.set('env', eSel);
+  if (envChanged) { applyEnvVisual(); startEnvAudio(); }
+  if (vehChanged) startEngine();
+  showDrive();
+  busy = false; btn.removeAttribute('aria-disabled');
+  const intro = car.running && !vehChanged && !envChanged ? 'Sürüşe dönüldü.' : `${VEHICLES[S.vehicle].name}, ${ENVS[S.env].name}. Motor çalışıyor.`;
+  setTimeout(() => say(intro + ' Gaz ekranın sağ altında, fren sol altında.'), 400);
+  car.running = true;
+  requestWakeLock();
+}
+
+function startEngine() {
+  const V = VEHICLES[S.vehicle];
+  if (engine) engine.stop();
+  scene.remove(playerCar); playerCar = carModel(V.kind, V.color); scene.add(playerCar);
+  car.gear = 0; car.shiftT = 0;
+  if (!V.synth) {
+    // Hızı koru, uygun vitesi seç
+    for (let g = 0; g < V.gears.length; g++) { car.gear = g; if (car.v / V.r * 60 / (2 * Math.PI) * V.gears[g] * V.final < V.shiftFull * 0.7) break; }
+    const st = bufs[V.custom ? 'c_start' : V.set + '_start'];
+    if (st && car.v < 1) { const s = ctx.createBufferSource(); s.buffer = st; const g = ctx.createGain(); g.gain.value = 0.9; s.connect(g); g.connect(A.engine); s.start(); }
+    engine = new SampleEngine(engineSpec(V), V.custom ? 0.3 : 0.5);
+    car.rpm = V.idle;
+    setTimeout(() => engine && engine.start(), st && car.v < 1 ? Math.min(st.duration, 3) * 650 : 0);
+  } else {
+    engine = bufs.ev_loop && customKeys.has('ev_loop') ? new LoopEngine(bufs.ev_loop) : new EVEngine();
+    engine.start(); car.rpm = 0;
+  }
+}
+function engineSpec(V) {
+  if (V.custom) {
+    const L = [];
+    if (bufs.c_idle && customKeys.has('c_idle')) L.push({ rpm: 850, on: bufs.c_idle, idle: true });
+    L.push({ rpm: 3000, on: bufs.c_loop, off: customKeys.has('c_off') ? bufs.c_off : null });
+    if (bufs.c_high && customKeys.has('c_high')) L.push({ rpm: 5200, on: bufs.c_high });
+    return L;
+  }
+  const n = ['idle', 'low', 'med', 'high'];
+  return V.layers.map((rpm, i) => i === 0 ? { rpm, on: bufs[V.set + '_idle'], idle: true }
+    : { rpm, on: bufs[`${V.set}_${n[i]}_on`], off: bufs[`${V.set}_${n[i]}_off`] });
+}
+
+function showDrive() {
+  $('setup').hidden = true; $('drive').hidden = false; $('drive').inert = false;
+  $('btnGo').textContent = 'Sürüşe dön';
+  $('setupLead').textContent = 'Aracı veya ortamı değiştirebilirsin. Değişiklik sürüşe dönünce uygulanır.';
+  $('howto').hidden = true;
+  setTimeout(() => $('pedGas').focus(), 50);
+}
+function showSetup() {
+  buildChoices($('vehChoices'), 'vehicle', VEHICLES, S.vehicle);
+  buildChoices($('envChoices'), 'env', ENVS, S.env);
+  $('drive').inert = true; $('setup').hidden = false;
+  releaseAll();
+  $('setupTitle').textContent = 'Ayarlar';
+  setTimeout(() => $('setupTitle').focus(), 50);
+}
+let wakeLock = null;
+async function requestWakeLock() { try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {} }
+
+/* ================= Girdiler ================= */
+function releaseAll() { ctl.gasHold = ctl.brakeHold = ctl.keyGas = ctl.keyBrake = false; refreshPedals(); hornOff(); }
+function setAuto(on, silent) {
+  car.auto = on; car.ai = clamp(car.thr * 0.6, 0.1, 0.6);
+  if (on) { ctl.gasLatch = ctl.brakeLatch = false; if (car.v * 3.6 > 25) car.cruise = clamp(Math.round(car.v * 3.6 / 10) * 10, 30, 160); }
+  $('btnAuto').setAttribute('aria-pressed', String(on));
+  refreshPedals();
+  if (!silent) say(on ? `Otomatik sürüş açık. Hedef ${car.cruise} kilometre.` : 'Otomatik sürüş kapandı.');
+}
+function refreshPedals() {
+  $('pedGas').setAttribute('aria-pressed', String(gasOn()));
+  $('pedBrake').setAttribute('aria-pressed', String(brakeOn()));
+}
+function pedalTouched(key) {
+  if (car.auto) setAuto(false);
+  if (key === 'brake') ctl.gasLatch = false; else ctl.brakeLatch = false;
+}
+function setLatch(key, on) {
+  pedalTouched(key);
+  ctl[key + 'Latch'] = on;
+  refreshPedals();
+  if (key === 'gas') say(on ? 'Gaz sabit. Bırakmak için tekrar dokun.' : 'Gaz bırakıldı.');
+  else say(on ? 'Fren sabit.' : 'Fren bırakıldı.');
+}
+function bindPedal(btn, key) {
+  let downAt = 0, lastPtr = 0, wasLatched = false, active = false;
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault(); try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+    if (ctx && ctx.state !== 'running') ctx.resume();
+    downAt = lastPtr = performance.now(); wasLatched = ctl[key + 'Latch']; active = true;
+    pedalTouched(key); ctl[key + 'Hold'] = true; refreshPedals();
+  });
+  const up = () => {
+    if (!active) return; active = false; ctl[key + 'Hold'] = false; lastPtr = performance.now();
+    if (S.latch && performance.now() - downAt < 320) setLatch(key, !wasLatched);
+    else { ctl[key + 'Latch'] = false; refreshPedals(); }
+  };
+  btn.addEventListener('pointerup', up); btn.addEventListener('pointercancel', up); btn.addEventListener('lostpointercapture', up);
+  btn.addEventListener('click', () => {
+    if (performance.now() - lastPtr < 700) return;
+    if (S.latch) { setLatch(key, !ctl[key + 'Latch']); return; }
+    // Sabitleme kapalıyken ekran okuyucunun tek tıklaması kısa bir basış olur
+    pedalTouched(key); ctl[key + 'Hold'] = true; refreshPedals();
+    clearTimeout(btn._pulse); btn._pulse = setTimeout(() => { ctl[key + 'Hold'] = false; refreshPedals(); }, 700);
+  });
+  btn.addEventListener('contextmenu', e => e.preventDefault());
+}
+bindPedal($('pedGas'), 'gas');
+bindPedal($('pedBrake'), 'brake');
+
+{ // Korna: basılı tut, ya da tek dokunuşta kısa çal
+  const b = $('btnHorn'); let downAt = 0, lastPtr = 0;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); try { b.setPointerCapture(e.pointerId); } catch (_) {} downAt = lastPtr = performance.now(); hornOn(); });
+  const up = () => { lastPtr = performance.now(); const held = performance.now() - downAt; setTimeout(hornOff, Math.max(0, 350 - held)); };
+  b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up);
+  b.addEventListener('click', () => { if (performance.now() - lastPtr < 700) return; hornOn(); setTimeout(hornOff, 450); });
+  b.addEventListener('contextmenu', e => e.preventDefault());
+}
+$('btnAuto').addEventListener('click', () => setAuto(!car.auto));
+$('btnSlower').addEventListener('click', () => { car.cruise = clamp(car.cruise - 10, 30, 160); say(`Hedef ${car.cruise} kilometre` + (car.auto ? '' : '. Otomatik sürüş kapalı.')); });
+$('btnFaster').addEventListener('click', () => { car.cruise = clamp(car.cruise + 10, 30, 160); say(`Hedef ${car.cruise} kilometre` + (car.auto ? '' : '. Otomatik sürüş kapalı.')); });
+$('btnStatus').addEventListener('click', () => say(statusText()));
+$('btnWindows').addEventListener('click', () => setWindows(!car.windows));
+$('btnSettings').addEventListener('click', showSetup);
+$('btnGo').addEventListener('click', goDrive);
+
+window.addEventListener('keydown', e => {
+  if (!$('setup').hidden || e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if (k === 'arrowup' || k === 'w') { e.preventDefault(); if (!e.repeat) { pedalTouched('gas'); ctl.keyGas = true; refreshPedals(); } }
+  else if (k === 'arrowdown' || k === 's') { e.preventDefault(); if (!e.repeat) { pedalTouched('brake'); ctl.keyBrake = true; refreshPedals(); } }
+  else if (k === 'h' && !e.repeat) hornOn();
+  else if (k === 'o' && !e.repeat) setAuto(!car.auto);
+  else if (k === ' ' && !e.repeat) { e.preventDefault(); say(statusText()); }
+  else if ((k === '+' || k === '=') && !e.repeat) $('btnFaster').click();
+  else if (k === '-' && !e.repeat) $('btnSlower').click();
+  else if (k === 'c' && !e.repeat) setWindows(!car.windows);
+  else if (k === 't' && !e.repeat) { S.traffic = !S.traffic; store.set('traffic', S.traffic); $('optTraffic').checked = S.traffic; say(S.traffic ? 'Trafik açık' : 'Trafik kapalı'); }
+});
+/* Uygulamadan gelen ses tuşları ve geri tuşu */
+window.__hwKey = (k, down) => {
+  if (!car.running || !$('setup').hidden) return;
+  if (k === 'gas') { if (down) pedalTouched('gas'); ctl.keyGas = down; }
+  else { if (down) pedalTouched('brake'); ctl.keyBrake = down; }
+  refreshPedals();
+};
+window.__back = () => {
+  if ($('setup').hidden) { showSetup(); return true; }
+  if (car.running) { goDrive(); return true; }
+  return false;
+};
+window.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowup' || k === 'w') { ctl.keyGas = false; refreshPedals(); }
+  else if (k === 'arrowdown' || k === 's') { ctl.keyBrake = false; refreshPedals(); }
+  else if (k === 'h') hornOff();
+});
+window.addEventListener('blur', releaseAll);
+document.addEventListener('visibilitychange', () => {
+  if (!ctx) return;
+  if (document.hidden) { releaseAll(); ctx.suspend(); }
+  else { ctx.resume(); if (car.running) requestWakeLock(); }
+});
+
+/* ================= Döngü ================= */
+let last = performance.now(), hudT = 0, calloutT = 0;
+const hud = { speed: $('hudSpeed'), gear: $('hudGear'), rpm: $('hudRpm'), bar: $('hudBar'), mode: $('hudMode') };
+const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const V = VEHICLES[S.vehicle];
+  let load = 0;
+  if (car.running) load = physics(dt);
+  const lat = ENVS[S.env].width / 2;
+  const p = roadAt(car.s, lat, {});
+  if (ctx && car.running) {
+    setListener(p.x, p.z, p.h);
+    if (engine) V.synth ? engine.update(car.rpm, load, car.v, car.brk) : engine.update(car.rpm, load);
+    updateCabin(load);
+    updateTraffic(dt, now / 1000, p.x, p.z);
+    updateEmitters();
+    paceNotes();
+    if (S.callouts) {
+      const band = Math.round(car.v * 3.6 / 20);
+      if (band !== car.lastBand) { calloutT += dt; if (calloutT > 1.2) { car.lastBand = band; calloutT = 0; if (band > 0) say(band * 20 + ''); } } else calloutT = 0;
+    }
+  }
+
+  // Görüntü
+  playerCar.position.set(p.x, 0, p.z); playerCar.rotation.y = -p.h;
+  playerCar.wheels.forEach(w => { w.rotation.x -= car.v * dt / 0.34; });
+  playerCar.tailMat.color.setHex(brakeOn() || car.brk > 0.1 ? 0xff2a1a : 0x661111);
+  const back = roadAt(car.s - 8.5, lat * 0.9, {});
+  camPos.set(back.x, 3.0, back.z);
+  const ahead = roadAt(car.s + 14, lat * 0.6, {});
+  camLook.set(ahead.x, 1.0, ahead.z);
+  camera.position.lerp(camPos, Math.min(1, dt * 6) || 1);
+  camera.lookAt(camLook);
+  headLight.position.set(p.x, 1.0, p.z); headLight.target.position.set(ahead.x, 0, ahead.z);
+  ground.position.set(p.x, -0.05, p.z);
+  if (rain.visible) {
+    rain.position.set(p.x, 0, p.z); rain.rotation.y = -p.h;
+    for (let i = 0; i < RN; i++) { rainPos[i * 3 + 1] -= dt * 22; if (rainPos[i * 3 + 1] < 0) rainPos[i * 3 + 1] += 18; }
+    rainGeo.attributes.position.needsUpdate = true;
+  }
+  if (car.s - lastRoadBuild > 6 || lastRoadBuild < 0) {
+    lastRoadBuild = car.s;
+    const env = ENVS[S.env], W = env.width;
+    const s0 = Math.max(0, car.s - 40);
+    updateRibbon(roadMesh, s0, -W, W, 0.0, 12);
+    if (env.sea) updateRibbon(seaMesh, s0, W + 14, W + 600, 0.02, 50);
+    if (env.highway) updateRibbon(shoulderMesh, s0, -W * 2 - 5, -W - 0.3, -0.01, 50);
+    props.forEach(pr => { if (pr.userData.s < car.s - 40) placeProp(pr, car.s + rand(380, 440)); });
+  }
+  renderer.render(scene, camera);
+
+  hudT += dt;
+  if (hudT > 0.1) {
+    hudT = 0;
+    hud.speed.textContent = Math.round(car.v * 3.6);
+    hud.gear.textContent = V.synth ? 'D' : (car.gear + 1) + '. vites';
+    hud.rpm.textContent = V.synth ? Math.round(car.rpm / 100) * 100 : Math.round(car.rpm / 50) * 50;
+    hud.bar.style.width = clamp(car.rpm / V.redline * 100, 0, 100) + '%';
+    hud.mode.textContent = (car.auto ? `Otomatik · hedef ${car.cruise}` : 'Elle sürüş') + ' · ' + ENVS[S.env].name;
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ================= Sesleri içe aktar ================= */
+const SLOT_GROUPS = (() => {
+  const g = [];
+  const veh = [['e0', 'Aile sedanı'], ['e1', 'Dizel kamyonet'], ['e2', 'Spor coupe']];
+  const parts = [['idle', 'rölanti'], ['low_on', 'düşük devir, gazda'], ['low_off', 'düşük devir, gaz kesik'], ['med_on', 'orta devir, gazda'], ['med_off', 'orta devir, gaz kesik'], ['high_on', 'yüksek devir, gazda'], ['high_off', 'yüksek devir, gaz kesik'], ['start', 'marş']];
+  g.push({ label: 'Kendi aracım', items: [['c_loop', 'Kendi aracım: motor döngüsü (gerekli, orta devirde bir kayıt)'], ['c_idle', 'Kendi aracım: rölanti (isteğe bağlı)'], ['c_off', 'Kendi aracım: gaz kesik döngü (isteğe bağlı)'], ['c_high', 'Kendi aracım: yüksek devir (isteğe bağlı)'], ['c_start', 'Kendi aracım: marş (isteğe bağlı)']] });
+  veh.forEach(([set, name]) => g.push({ label: name, items: parts.map(([p, l]) => [`${set}_${p}`, `${name}: ${l}`]) }));
+  g.push({ label: 'Elektrikli araç', items: [['ev_loop', 'Elektrikli araç: motor döngüsü (isteğe bağlı, sentez yerine)']] });
+  const names = { em_birds: 'kuşlar', em_frog: 'kurbağalar', em_waves: 'dalgalar', em_gulls: 'martılar', em_river: 'dere', em_crowd: 'kalabalık',
+    os_woodpecker: 'ağaçkakan', os_owl: 'baykuş', os_wolf: 'kurt', os_dog: 'köpek havlaması', os_thunder: 'gök gürültüsü', os_crows: 'kargalar',
+    cab_rainroof: 'tavana yağmur', cab_wipers: 'silecek' };
+  const envItems = [], seen = new Map();
+  for (const E of Object.values(ENVS)) {
+    envItems.push([E.bed, `${E.name}: ortam sesi`]);
+    [...(E.cabin || []), ...E.emitters, ...E.oneshots].forEach(x => { if (!seen.has(x.buf)) seen.set(x.buf, []); seen.get(x.buf).push(E.name); });
+  }
+  for (const [k, envs] of seen) envItems.push([k, `${names[k] || k} (${envs.join(', ')})`]);
+  g.push({ label: 'Ortamlar', items: envItems });
+  g.push({ label: 'Trafik ve efektler', items: [['tr_1', 'Trafik aracı 1, binek'], ['tr_2', 'Trafik aracı 2, dizel'], ['tr_3', 'Trafik aracı 3, spor'], ['em_siren', 'Ambulans sireni'], ['horn', 'Korna'], ['screech', 'Lastik ötmesi']] });
+  return g;
+})();
+const SLOT_LABEL = new Map(SLOT_GROUPS.flatMap(gr => gr.items));
+function buildSlotSelect() {
+  const sel = $('slotSel'), cur = sel.value; sel.innerHTML = '';
+  SLOT_GROUPS.forEach(gr => {
+    const og = document.createElement('optgroup'); og.label = gr.label;
+    gr.items.forEach(([k, l]) => { const o = document.createElement('option'); o.value = k; o.textContent = (customKeys.has(k) ? '● ' : '') + l; og.append(o); });
+    sel.append(og);
+  });
+  if (cur) sel.value = cur;
+  slotState();
+}
+function slotState() {
+  const k = $('slotSel').value;
+  $('slotState').textContent = !dbOk ? 'Bu ortamda içe aktarılan sesler saklanamıyor.'
+    : customKeys.has(k) ? `Şu an senin dosyan çalıyor: ${customKeys.get(k)}.`
+    : defaultFile(k) ? 'Şu an oyunun kendi sesi çalıyor.' : 'Bu yuva boş. Bir dosya içe aktarabilirsin.';
+}
+function slotChanged(k) {
+  bufCache.delete(k); delete bufs[k]; dirty.add(k);
+  if (k.startsWith('c_') || k === 'ev_loop') buildChoices($('vehChoices'), 'vehicle', VEHICLES, document.querySelector('input[name="vehicle"]:checked')?.value || S.vehicle);
+  buildSlotSelect();
+}
+$('slotSel').addEventListener('change', slotState);
+$('btnPick').addEventListener('click', () => { initAudio(); $('fileIn').value = ''; $('fileIn').click(); });
+$('fileIn').addEventListener('change', async () => {
+  const f = $('fileIn').files[0]; if (!f) return;
+  const k = $('slotSel').value, label = SLOT_LABEL.get(k);
+  try {
+    if (f.size > 40 * 1024 * 1024) throw new Error('size');
+    const ab = await f.arrayBuffer();
+    await decode(ab.slice(0));
+    await DB.put(k, { name: f.name, data: ab });
+    customKeys.set(k, f.name); slotChanged(k);
+    say(`İçe aktarıldı: ${label}. Değişiklik sürüşe dönünce duyulur.`);
+  } catch (e) {
+    say(e.message === 'size' ? 'Dosya çok büyük. 40 megabayttan küçük bir dosya seç.' : 'Bu dosya açılamadı. MP3, WAV, OGG ya da M4A biçiminde bir ses dosyası seç.', true);
+  }
+});
+$('btnReset').addEventListener('click', async () => {
+  const k = $('slotSel').value;
+  if (!customKeys.has(k)) { say('Bu ses zaten varsayılan.'); return; }
+  try { await DB.del(k); } catch (e) {}
+  customKeys.delete(k); slotChanged(k);
+  say('Varsayılana döndürüldü: ' + SLOT_LABEL.get(k));
+});
+let previewSrc = null;
+$('btnPreview').addEventListener('click', async () => {
+  initAudio();
+  const k = $('slotSel').value;
+  if (previewSrc) { try { previewSrc.stop(); } catch (e) {} previewSrc = null; }
+  try {
+    const b = await loadBuf(k);
+    previewSrc = playOneShot(b, A.fx, { gain: 0.9, dur: Math.min(b.duration, 5) });
+  } catch (e) { say('Bu yuvada çalınacak ses yok.'); }
+});
+
+applyEnvVisual();
+requestAnimationFrame(frame);
+loadCustomList().then(buildSlotSelect);
+})();
+</script>

@@ -1,0 +1,7 @@
+# Derleme çıktıları ve yerel araçlar
+android/build/
+android/tools/
+*.apk
+# İmzalama anahtarı asla depoya girmez
+*.jks
+*.keystore
