@@ -24,9 +24,9 @@ Tasarım: `yokus/docs/TASARIM.md` (kararlar orada; buna uy).
 - [x] 2. Tasarım belgesi (docs/TASARIM.md)
 - [x] 3. Uygulama planı (docs/PLAN.md, superpowers:writing-plans)
 - [ ] 4. Uygulama görevleri (Sonnet) + her görev sonrası denetim (Sonnet):
-  - G1 İskelet: bosyol'dan Dsp/SoundBank/AudioOut/CrashLog/build.py/ikon kopyala, paket com.yokus.app, boş MainActivity derlensin
-  - G2 Defs + Terrain
-  - G3 Physics + JVM testleri
+  - [x] G1 İskelet: bosyol'dan Dsp/SoundBank/AudioOut/CrashLog/build.py/ikon kopyala, paket com.yokus.app, boş MainActivity derlensin
+  - [x] G2 Defs + Terrain
+  - [~] G3 Physics (Sonnet çalışıyor; G1/G2 denetimi paralel) + JVM testleri
   - G4 Game oturumu (yakıt, altın, kaza, takla, puan) + testler
   - G5 Ses tasarımı (motor, yüzey, eğim tonu, yol radarı, işaret sesleri, iniş) + WAV ölçüm testi
   - G6 Ses hazırlama betiği (sounds-raw → sounds; döngüler dikişsiz, yükseklik eşitleme, eksikler için yedek)
