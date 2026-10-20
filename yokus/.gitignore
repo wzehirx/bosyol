@@ -4,3 +4,4 @@ android/tools
 *.idsig
 *.apk
 !indir/*.apk
+sounds-raw/
