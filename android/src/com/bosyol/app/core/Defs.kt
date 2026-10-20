@@ -1,37 +1,69 @@
 package com.bosyol.app.core
 
+/**
+ * Araç tanımı. Sayılar gerçek araçlardan: vites oranları, son oran, lastik yarıçapı, tork eğrisi, ağırlık ve sürtünmeler.
+ * layers: motor kayıtlarının kaydedildiği devirler (rölanti, düşük, orta, yüksek).
+ */
 class VehicleDef(
     val id: String, val name: String, val desc: String,
     /** Yerleşik ses seti öneki (e0, e1, e2); kendi araçlarda null */
     val set: String?, val layers: IntArray,
-    val idle: Double, val redline: Double, val shiftFull: Double, val shiftLight: Double, val shiftDown: Double, val launch: Double,
-    val gears: DoubleArray, val final: Double, val r: Double, val mass: Double, val torque: Double, val peak: Double,
-    val cd: Double, val area: Double, val brake: Double, val engBrake: Double,
+    val idle: Double, val redline: Double,
+    /** Tork eğrisi: rölantide, zirvede ve devir sınırında Nm */
+    val torqueIdle: Double, val torquePeak: Double, val peakRpm: Double, val torqueRed: Double,
+    val gears: DoubleArray, val final: Double, val r: Double, val mass: Double,
+    val cd: Double, val area: Double, val crr: Double, val efficiency: Double,
+    /** Gaz kapalıyken motor freni (devir sınırında Nm) */
+    val engBrakeNm: Double,
+    /** Otomatik vites: hafif gazda ve tam gazda vites büyütme devri, hafif gazda küçültme devri */
+    val upLight: Double, val upFull: Double, val downLight: Double,
+    /** Tork konvertörünün kilitlendiği devir ve kalkışta motorun çıkabileceği devir */
+    val launch: Double,
+    /** Lastik tutunması (kuru asfalt, g) ve en sert fren (m/s²) */
+    val mu: Double, val brakeMax: Double,
     val color: Int, val kind: String,
     val synth: Boolean = false,
-    /** Kendi araçlarda ses yuvası öneki, örn. cv_ab12 */
     val customPrefix: String? = null,
-    val customRpm: Int = 3000
+    val customRpm: Int = 3000,
+    /** Elektrikli araç: en yüksek güç (W) */
+    val maxPower: Double = 0.0
 ) {
     fun copyAsCustom(id: String, name: String, prefix: String, rpm: Int) = VehicleDef(
-        id, name, "Kendi aracın", null, IntArray(0), idle, redline, shiftFull, shiftLight, shiftDown, launch,
-        gears, final, r, mass, torque, peak, cd, area, brake, engBrake, 0xFF6D4FA1.toInt(), kind, false, prefix, rpm
+        id, name, "Kendi aracın", null, IntArray(0), idle, redline, torqueIdle, torquePeak, peakRpm, torqueRed,
+        gears, final, r, mass, cd, area, crr, efficiency, engBrakeNm, upLight, upFull, downLight, launch, mu, brakeMax,
+        0xFF6D4FA1.toInt(), kind, false, prefix, rpm
     )
 }
 
 object Vehicles {
-    val sedan = VehicleDef("sedan", "Aile sedanı", "Benzinli, 5 ileri otomatik", "e0", intArrayOf(840, 2340, 3550, 4300),
-        840.0, 6000.0, 5500.0, 2300.0, 1400.0, 2200.0, doubleArrayOf(3.45, 1.95, 1.32, 1.0, 0.82), 3.9, 0.31, 1300.0, 190.0, 4000.0,
-        0.30, 2.2, 8.5, 0.9, 0xFF3D6FA8.toInt(), "sedan")
-    val truck = VehicleDef("truck", "Dizel kamyonet", "Dizel, ağır ve tok ses", "e1", intArrayOf(750, 1150, 1800, 2400),
-        750.0, 3200.0, 2950.0, 1700.0, 1050.0, 1400.0, doubleArrayOf(4.2, 2.4, 1.5, 1.1, 0.85, 0.7), 3.7, 0.36, 2100.0, 430.0, 1800.0,
-        0.42, 3.0, 7.0, 1.2, 0xFF8C5A2B.toInt(), "truck")
-    val sport = VehicleDef("sport", "Spor coupe", "Yüksek devirli, sert ses", "e2", intArrayOf(1000, 1870, 3000, 4100),
-        1000.0, 6200.0, 5900.0, 2600.0, 1800.0, 3000.0, doubleArrayOf(3.2, 2.2, 1.6, 1.25, 1.0, 0.82), 3.6, 0.33, 1350.0, 400.0, 4600.0,
-        0.29, 2.0, 10.0, 1.0, 0xFFC0302A.toInt(), "sport")
-    val ev = VehicleDef("ev", "Elektrikli araç", "Sessiz, ıslık gibi motor", null, IntArray(0),
-        0.0, 15000.0, 1e9, 1e9, -1.0, 0.0, doubleArrayOf(1.0), 9.0, 0.33, 1800.0, 420.0, 5500.0,
-        0.24, 2.3, 9.0, 1.4, 0xFFE8ECEF.toInt(), "ev", synth = true)
+    /** 2.5 litre benzinli aile sedanı, 8 ileri tork konvertörlü otomatik (Camry sınıfı) */
+    val sedan = VehicleDef("sedan", "Aile sedanı", "2.5 benzinli, 8 ileri otomatik", "e0", intArrayOf(840, 2340, 3550, 4300),
+        idle = 750.0, redline = 6000.0, torqueIdle = 150.0, torquePeak = 250.0, peakRpm = 4000.0, torqueRed = 205.0,
+        gears = doubleArrayOf(5.519, 3.184, 2.050, 1.492, 1.235, 1.000, 0.801, 0.673), final = 2.796, r = 0.334, mass = 1550.0,
+        cd = 0.27, area = 2.24, crr = 0.012, efficiency = 0.88, engBrakeNm = 55.0,
+        upLight = 1900.0, upFull = 5400.0, downLight = 1100.0, launch = 2300.0, mu = 0.95, brakeMax = 9.0,
+        color = 0xFF3D6FA8.toInt(), kind = "sedan")
+    /** 2.1 litre dizel panelvan, 7 ileri otomatik (Sprinter sınıfı) */
+    val truck = VehicleDef("truck", "Dizel kamyonet", "2.1 dizel, 7 ileri otomatik, ağır", "e1", intArrayOf(750, 1150, 1800, 2400),
+        idle = 750.0, redline = 3800.0, torqueIdle = 220.0, torquePeak = 360.0, peakRpm = 1700.0, torqueRed = 250.0,
+        gears = doubleArrayOf(4.377, 2.859, 1.921, 1.368, 1.000, 0.820, 0.728), final = 3.923, r = 0.355, mass = 2700.0,
+        cd = 0.36, area = 3.5, crr = 0.014, efficiency = 0.85, engBrakeNm = 75.0,
+        upLight = 1500.0, upFull = 3300.0, downLight = 950.0, launch = 1700.0, mu = 0.85, brakeMax = 8.0,
+        color = 0xFF8C5A2B.toInt(), kind = "truck")
+    /** 3.0 litre turbo spor coupe, 7 ileri çift kavrama (911 sınıfı) */
+    val sport = VehicleDef("sport", "Spor coupe", "3.0 turbo benzinli, 7 ileri çift kavrama", "e2", intArrayOf(1000, 2100, 3300, 4600),
+        idle = 950.0, redline = 7200.0, torqueIdle = 220.0, torquePeak = 450.0, peakRpm = 3500.0, torqueRed = 340.0,
+        gears = doubleArrayOf(3.91, 2.29, 1.65, 1.30, 1.08, 0.88, 0.62), final = 3.44, r = 0.346, mass = 1550.0,
+        cd = 0.29, area = 2.0, crr = 0.011, efficiency = 0.90, engBrakeNm = 65.0,
+        upLight = 2300.0, upFull = 6600.0, downLight = 1300.0, launch = 3200.0, mu = 1.05, brakeMax = 10.5,
+        color = 0xFFC0302A.toInt(), kind = "sport")
+    /** Elektrikli sedan, tek oran */
+    val ev = VehicleDef("ev", "Elektrikli araç", "Sessiz, ıslık gibi motor, tek vites", null, IntArray(0),
+        idle = 0.0, redline = 15000.0, torqueIdle = 400.0, torquePeak = 400.0, peakRpm = 5000.0, torqueRed = 130.0,
+        gears = doubleArrayOf(1.0), final = 9.0, r = 0.33, mass = 1850.0,
+        cd = 0.23, area = 2.3, crr = 0.010, efficiency = 0.92, engBrakeNm = 70.0,
+        upLight = 1e9, upFull = 1e9, downLight = -1.0, launch = 0.0, mu = 0.95, brakeMax = 9.0,
+        color = 0xFFE8ECEF.toInt(), kind = "ev", synth = true, maxPower = 210000.0)
     val builtIn = listOf(sedan, truck, sport, ev)
     /** Kendi araçlar için sürüş karakterleri */
     val presets = linkedMapOf("binek" to sedan, "spor" to sport, "agir" to truck)
@@ -49,7 +81,9 @@ class EnvDef(
     val trafficMin: Double, val trafficMax: Double, val siren: Boolean,
     val curveMin: Double, val curveMax: Double, val width: Double,
     val night: Boolean = false, val sea: Boolean = false, val wet: Boolean = false, val highway: Boolean = false,
-    val sky: Int, val skyLow: Int, val ground: Int, val ground2: Int, val fogNear: Double, val fogFar: Double, val props: String
+    val sky: Int, val skyLow: Int, val ground: Int, val ground2: Int, val fogNear: Double, val fogFar: Double, val props: String,
+    /** Yol yüzeyinin tutunma çarpanı: kuru asfalt 1, ıslak yol daha az */
+    val grip: Double = 1.0
 )
 
 object Envs {
@@ -80,12 +114,12 @@ object Envs {
             listOf(Cabin("cab_rainroof", 1.0f), Cabin("cab_wipers", 0.55f)), emptyList(),
             listOf(OneShot("os_thunder", 25.0, 60.0, 1.0f, stereo = true)),
             10.0, 25.0, false, 120.0, 600.0, 3.5, wet = true,
-            sky = 0xFF3E4752.toInt(), skyLow = 0xFF6A7480.toInt(), ground = 0xFF263426.toInt(), ground2 = 0xFF2B3A2B.toInt(), fogNear = 12.0, fogFar = 170.0, props = "trees"),
+            sky = 0xFF3E4752.toInt(), skyLow = 0xFF6A7480.toInt(), ground = 0xFF263426.toInt(), ground2 = 0xFF2B3A2B.toInt(), fogNear = 12.0, fogFar = 170.0, props = "trees", grip = 0.62),
         EnvDef("mountain", "Dağ geçidi", "Uğuldayan rüzgâr, dere, dar virajlar", "bed_mountain", 0.8f, emptyList(),
             listOf(Emitter("em_river", 2, 14.0, 26.0, -1, 1.2f)),
             listOf(OneShot("os_crows", 40.0, 90.0, 0.6f, 30.0, 80.0)),
             20.0, 45.0, false, 45.0, 220.0, 3.2,
-            sky = 0xFFA9BCCD.toInt(), skyLow = 0xFFE4EAEF.toInt(), ground = 0xFFDCE3E7.toInt(), ground2 = 0xFFE6ECEF.toInt(), fogNear = 30.0, fogFar = 300.0, props = "pines")
+            sky = 0xFFA9BCCD.toInt(), skyLow = 0xFFE4EAEF.toInt(), ground = 0xFFDCE3E7.toInt(), ground2 = 0xFFE6ECEF.toInt(), fogNear = 30.0, fogFar = 300.0, props = "pines", grip = 0.85)
     )
     fun byId(id: String) = list.firstOrNull { it.id == id } ?: list[0]
 }
@@ -117,6 +151,7 @@ object Slots {
         out.add(Slot("em_siren", "Ambulans sireni (Şehir içi)", "Trafik ve efektler", "em_siren.mp3"))
         out.add(Slot("horn", "Korna", "Trafik ve efektler", "horn.mp3"))
         out.add(Slot("screech", "Lastik ötmesi", "Trafik ve efektler", "screech.mp3"))
+        out.add(Slot("crash", "Kaza", "Trafik ve efektler", "crash.mp3"))
         out
     }
     fun byKey(k: String) = all.firstOrNull { it.key == k }

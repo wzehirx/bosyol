@@ -75,8 +75,8 @@ class RoadView(ctx: Context) : View(ctx) {
 
         // Kamera aracın arkasında
         val cs = g.s
-        road.at(cs - 7.0, g.lane * 0.85, cam)
-        road.at(cs + 4.0, g.lane * 0.6, rp)
+        road.at(cs - 7.0, (g.lane + g.offset) * 0.85, cam)
+        road.at(cs + 4.0, (g.lane + g.offset) * 0.6, rp)
         val hd = Math.atan2(rp.x - cam.x, -(rp.z - cam.z))
         cx = cam.x; cz = cam.z; sh = sin(hd); ch = cos(hd)
 
@@ -246,7 +246,7 @@ class RoadView(ctx: Context) : View(ctx) {
 
     private fun drawPlayer(c: Canvas, g: Game, cs: Double) {
         val q = RoadPoint()
-        g.road.at(cs, g.lane, q)
+        g.road.at(cs, g.lane + g.offset, q)
         if (!proj1(q.x, 0.0, q.z)) return
         drawCarSprite(c, sx[0], sy[0], fpx / sz[0], g.vehicle.color, oncoming = false, braking = g.brakeOn || g.brk > 0.1, z = 0f, siren = false)
     }

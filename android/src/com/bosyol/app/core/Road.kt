@@ -77,18 +77,18 @@ class Road(var env: EnvDef) {
         return a.k[(ss / step).toInt().coerceAtMost(count - 1)]
     }
 
-    /** Önümüzdeki virajlara göre güvenli hız (m/s) */
-    fun safeSpeed(s: Double, v: Double): Double {
-        val look = maxOf(60.0, v * v / (2 * 2.5) + 40)
+    /** Önümüzdeki virajlara göre güvenli hız (m/s): yanal ivme sınırı aLat ve frenleme ivmesi aBrake ile */
+    fun safeSpeed(s: Double, v: Double, aLat: Double, aBrake: Double): Double {
+        val look = maxOf(60.0, v * v / (2 * aBrake) + 40)
         var lim = 1e9
         var d = 0.0
         while (d <= look) {
             val k = abs(curvature(s + d))
             if (k > 1e-4) {
-                val vl = kotlin.math.sqrt(3.2 / k)
-                lim = minOf(lim, kotlin.math.sqrt(vl * vl + 2 * 2.5 * d))
+                val vl = kotlin.math.sqrt(aLat / k)
+                lim = minOf(lim, kotlin.math.sqrt(vl * vl + 2 * aBrake * d))
             }
-            d += 6.0
+            d += 5.0
         }
         return lim
     }

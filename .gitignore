@@ -6,3 +6,4 @@ android/tools/
 *.jks
 *.keystore
 !indir/*.apk
+android/tools

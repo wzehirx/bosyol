@@ -62,19 +62,20 @@ class SampleEngine(mix: Mixer, private val layers: List<Layer>, private val minR
             val t = (rpm - layers[i].rpm) / (layers[i + 1].rpm - layers[i].rpm)
             w[i] = cos(t * PI / 2); w[i + 1] = sin(t * PI / 2); break
         }
-        // Gaz kesilince motor sesi kaybolmasın: genel düzey yüke az bağlı
-        val vol = 0.84 + 0.16 * load
+        // Gaz kapalıyken motor duyulmaya devam eder; gaza basıldığı an gazda kayıt ve ses düzeyi hemen yükselir
+        val lo = load.coerceIn(0.0, 1.0).pow(0.6)
+        val vol = 0.72 + 0.42 * load.coerceIn(0.0, 1.0).pow(0.7)
         for (i in 0 until n) {
             val rate = clamp(rpm / layers[i].rpm, minRate, 2.3)
             on[i].rate = rate
             val offV = off[i]
             if (offV != null) {
                 offV.rate = rate
-                on[i].fadeTo((level * w[i] * vol * (0.2 + 0.8 * load)).toFloat(), 0.05f)
-                offV.fadeTo((level * w[i] * vol * (1 - load) * 0.95).toFloat(), 0.05f)
+                on[i].fadeTo((level * w[i] * vol * (0.15 + 0.85 * lo)).toFloat(), 0.03f)
+                offV.fadeTo((level * w[i] * vol * (1 - lo) * 0.95).toFloat(), 0.03f)
             } else {
-                val g = if (layers[i].idle) 0.88 else vol * (0.62 + 0.38 * load)
-                on[i].fadeTo((level * w[i] * g).toFloat(), 0.05f)
+                val g = if (layers[i].idle) 0.88 else vol * (0.6 + 0.4 * lo)
+                on[i].fadeTo((level * w[i] * g).toFloat(), 0.03f)
             }
         }
     }
@@ -141,7 +142,13 @@ class TrafficCar(@Volatile var s: Double, val lat: Double, val v: Double, val si
 
 class EmitterInst(val def: Emitter, val voice: SampleVoice, val sp: Spatial) { var s = 0.0; var lat = 0.0; var y = 1.0 }
 
-/** Bir sürüş oturumu: fizik, ses ve yardımcı pilot. Tüm zaman oyun saatine göre işler. */
+/**
+ * Bir sürüş oturumu. Fizik gerçek araç verileriyle çalışır:
+ * - Gaz pedalı basılı tutuldukça derinleşir; otomatik şanzıman pedal konumuna göre vites seçer ve gaza basınca küçültür.
+ * - Tork konvertörü kalkışta motoru serbest bırakır, hız arttıkça kilitlenir.
+ * - Lastik tutunması bir sürtünme dairesidir: virajda harcanan tutunma frene ve gaza kalmaz.
+ * - Viraja hızlı girilirse araç dışa kayar; kenar şeridine, sonra çakıla çıkar; fazlasında kaza olur.
+ */
 class Game(
     private val mix: Mixer, private val bank: Bank, private val speak: Speaker,
     private val set: GameSettings, val vehicle: VehicleDef, val env: EnvDef
@@ -152,16 +159,32 @@ class Game(
     @Volatile var rpm = vehicle.idle
     @Volatile var gear = 0
     @Volatile var brk = 0.0
+    @Volatile var pedal = 0.0
     @Volatile var auto = false
     @Volatile var cruise = 90
     @Volatile var windows = true
     @Volatile var squeal = 0.0
-    private var thr = 0.0
+    /** Şerit ortasına göre yanal konum (m), artı sağ */
+    @Volatile var offset = 0.0
+    /** 0 asfalt, 1 kenar şeridi, 2 çakıl */
+    @Volatile var surface = 0
+    @Volatile var crashT = 0.0
+    /** Motor sesinin yük düzeyi (0..1) */
+    val engineLoad get() = sndLoad
+    private var latVel = 0.0
     private var shiftT = 0.0
+    private var shiftDur = 0.3
+    private var shiftFromRpm = 0.0
+    private var shiftCool = 0.0
     private var cut = 0.0
-    private var ai = 0.2
+    private var ai = 0.0
+    private var autoPedal = 0.0
+    private var autoBrk = 0.0
+    private var sndLoad = 0.0
     private var lastBand = 0
     private var calloutT = 0.0
+    private var lastSurface = 0
+    private var offroadSaid = 0.0
     var time = 0.0
         private set
 
@@ -174,7 +197,8 @@ class Game(
     @Volatile var keyBrake = false
     @Volatile var gasPulse = 0.0
     @Volatile var brakePulse = 0.0
-    val gasOn get() = gasHold || gasLatch || keyGas || gasPulse > 0
+    private val gasPressed get() = gasHold || keyGas || gasPulse > 0
+    val gasOn get() = gasPressed || gasLatch
     private val brakePressed get() = brakeHold || keyBrake || brakePulse > 0
     val brakeOn get() = brakePressed || brakeLatch
 
@@ -191,6 +215,9 @@ class Game(
     private lateinit var tire2: SampleVoice
     private lateinit var wind: SampleVoice
     private lateinit var wet: SampleVoice
+    private lateinit var gravel: SampleVoice
+    private lateinit var gravelLow: SampleVoice
+    private lateinit var rumble: OscVoice
     private var screech: SampleVoice? = null
     private var horn: SampleVoice? = null
     private val rnd = java.util.Random()
@@ -199,6 +226,15 @@ class Game(
     val lane get() = env.width / 2
 
     private fun rand(a: Double, b: Double) = a + rnd.nextDouble() * (b - a)
+
+    /** Bu yolda ve bu araçla kullanılabilecek en büyük yanal ivme (m/s²) */
+    private fun gripAccel(): Double = vehicle.mu * 9.81 * env.grip * when (surface) { 2 -> 0.55; 1 -> 0.9; else -> 1.0 }
+
+    /** Bir viraj için önerilen en yüksek hız (km/sa), 10'a aşağı yuvarlanmış */
+    fun advisedKmh(k: Double): Int {
+        val vmax = sqrt(0.82 * vehicle.mu * 9.81 * env.grip / abs(k)) * 3.6
+        return max(20, (vmax / 10).toInt() * 10)
+    }
 
     /* ---------- başlat / durdur ---------- */
     fun start() {
@@ -223,6 +259,9 @@ class Game(
         tire2 = mix.add(SampleVoice(Noises.pink, BUS_CABIN, true, startSec = rand(0.0, 2.0)).also { it.filter = Biquad(Biquad.BANDPASS, 600f, 0.9f) })
         wind = mix.add(SampleVoice(Noises.pink, BUS_CABIN, true, startSec = rand(0.0, 2.0)).also { it.filter = Biquad(Biquad.BANDPASS, 500f, 0.6f) })
         wet = mix.add(SampleVoice(Noises.white, BUS_CABIN, true, startSec = rand(0.0, 2.0)).also { it.filter = Biquad(Biquad.HIGHPASS, 2500f, 0.5f) })
+        gravel = mix.add(SampleVoice(Noises.white, BUS_CABIN, true, startSec = rand(0.0, 2.0)).also { it.filter = Biquad(Biquad.BANDPASS, 2200f, 0.8f) })
+        gravelLow = mix.add(SampleVoice(Noises.brown, BUS_CABIN, true, startSec = rand(0.0, 2.0)).also { it.filter = Biquad(Biquad.LOWPASS, 140f, 0.8f) })
+        rumble = mix.add(OscVoice(BUS_CABIN, OscVoice.SAW).also { it.filter = Biquad(Biquad.LOWPASS, 260f, 0.9f) })
         startEngine()
         setWindows(windows, true)
     }
@@ -263,13 +302,12 @@ class Game(
     fun stop() { mix.stopAll(0.6f) }
 
     fun applyVolumes() {
-        mix.master = (pow(set.volMaster / 100.0, 1.6) * 1.1).toFloat()
-        mix.busGain[BUS_ENGINE] = (pow(set.volEngine / 100.0, 1.5) * 1.1).toFloat()
-        mix.busGain[BUS_WORLD] = (pow(set.volWorld / 100.0, 1.5) * 1.2 * (if (windows) 1.0 else 0.55)).toFloat()
-        mix.busGain[BUS_CABIN] = pow(set.volWorld / 100.0, 1.2).toFloat()
+        mix.master = ((set.volMaster / 100.0).pow(1.6) * 1.1).toFloat()
+        mix.busGain[BUS_ENGINE] = ((set.volEngine / 100.0).pow(1.5) * 1.1).toFloat()
+        mix.busGain[BUS_WORLD] = ((set.volWorld / 100.0).pow(1.5) * 1.2 * (if (windows) 1.0 else 0.55)).toFloat()
+        mix.busGain[BUS_CABIN] = (set.volWorld / 100.0).pow(1.2).toFloat()
         mix.busGain[BUS_FX] = 1f
     }
-    private fun pow(a: Double, b: Double) = a.pow(b)
 
     fun setWindows(open: Boolean, silent: Boolean) {
         windows = open
@@ -296,7 +334,7 @@ class Game(
     fun pulse(gas: Boolean) { pedalTouched(gas); if (gas) gasPulse = 0.7 else brakePulse = 0.7 }
 
     fun setAuto(on: Boolean, silent: Boolean = false) {
-        auto = on; ai = clamp(thr * 0.6, 0.1, 0.6)
+        auto = on; ai = pedal * 0.8
         if (on) { gasLatch = false; brakeLatch = false; if (v * 3.6 > 25) cruise = ((v * 3.6 / 10).roundToInt() * 10).coerceIn(30, 160) }
         if (!silent) speak.say(if (on) "Otomatik sürüş açık. Hedef $cruise kilometre." else "Otomatik sürüş kapandı.")
     }
@@ -319,6 +357,7 @@ class Game(
         var t = "$kmh kilometre, " + if (vehicle.synth) "tek vites" else "${gear + 1}. vites"
         if (!vehicle.synth) t += ", ${(rpm / 100).roundToInt() * 100} devir"
         t += if (auto) ". Otomatik sürüş, hedef $cruise" else ". Elle sürüş"
+        when (surface) { 1 -> t += ". Yol kenarındasın"; 2 -> t += ". Yoldan çıktın, çakıldasın" }
         return "$t. ${env.name}."
     }
 
@@ -328,93 +367,206 @@ class Game(
         if (gasPulse > 0) gasPulse = max(0.0, gasPulse - dt)
         if (brakePulse > 0) brakePulse = max(0.0, brakePulse - dt)
         if (startDelay > 0) { startDelay -= dt; if (startDelay <= 0) engine?.start() }
-        val load = physics(dt)
-        road.at(s, lane, p)
+        // Fizik küçük adımlarla: yüksek hızda ve sert virajda kararlı kalsın
+        val steps = max(1, kotlin.math.ceil(dt / 0.01).toInt())
+        val h = dt / steps
+        repeat(steps) { physics(h) }
+        road.at(s, lane + offset, p)
         mix.lx = p.x; mix.lz = p.z; mix.lh = p.h
-        engine?.update(rpm, load, v, brk)
+        engine?.update(rpm, sndLoad, v, brk)
         cabin()
         updateTraffic(dt)
         for (e in emitters) if (e.s < s - 140) place(e, s + rand(300.0, 500.0))
         oneShots()
         paceNotes()
+        surfaceNotes(dt)
         if (set.callouts) {
             val band = (v * 3.6 / 20).roundToInt()
             if (band != lastBand) { calloutT += dt; if (calloutT > 1.2) { lastBand = band; calloutT = 0.0; if (band > 0) speak.say("${band * 20}") } } else calloutT = 0.0
         }
     }
 
-    private fun torqueAt(rpm: Double): Double {
+    /** Motor torku (Nm): rölanti, zirve ve devir sınırı arasında yumuşak eğri */
+    private fun torqueAt(r: Double): Double {
         val V = vehicle
-        if (V.synth) return if (rpm < V.peak) V.torque else V.torque * V.peak / rpm
-        val x = rpm / V.peak
-        return V.torque * if (x < 1) 0.62 + 0.38 * sin(x * PI / 2) else 1 - 0.38 * ((x - 1) / (V.redline / V.peak - 1)).pow(2)
+        if (V.synth) return min(V.torquePeak, V.maxPower / max(1.0, r * 2 * PI / 60))
+        return if (r <= V.peakRpm) {
+            val t = ((r - V.idle) / (V.peakRpm - V.idle)).coerceIn(0.0, 1.0)
+            V.torqueIdle + (V.torquePeak - V.torqueIdle) * sin(t * PI / 2)
+        } else {
+            val t = ((r - V.peakRpm) / (V.redline - V.peakRpm)).coerceIn(0.0, 1.0)
+            V.torquePeak + (V.torqueRed - V.torquePeak) * t * t
+        }
     }
 
-    private fun physics(dt: Double): Double {
-        val V = vehicle
-        var thrT: Double
-        var autoBrk = 0.0
-        if (auto) {
-            val vT = min(cruise / 3.6, road.safeSpeed(s, v))
-            val err = vT - v
-            ai = clamp(ai + err * dt * 0.05, 0.0, 0.7)
-            thrT = clamp(err * 0.3 + ai, 0.0, 1.0)
-            if (err < -1.5) { autoBrk = clamp(-err * 0.08, 0.0, 0.5); thrT = 0.0 }
-        } else thrT = if (gasOn) 1.0 else 0.0
-        thr = approach(thr, thrT, dt * if (thrT > thr) 2.6 else 2.2)
+    private fun ratio(g: Int) = vehicle.gears[g] * vehicle.final
 
-        // Fren: pedal basılı tutuldukça basınç kademeli artar, sabitlenince orta düzeyde kalır
+    private fun physics(dt: Double) {
+        val V = vehicle
+        val crashed = crashT > 0
+        if (crashed) crashT -= dt
+
+        // Gaz pedalı: basılı tutuldukça derinleşir, bırakınca hızla kalkar
+        when {
+            crashed -> pedal = 0.0
+            auto -> pedal = approach(pedal, autoPedal, dt * 1.6)
+            gasPressed -> pedal = min(1.0, pedal + dt * if (pedal < 0.35) 2.6 else 0.22)
+            gasLatch -> pedal = approach(pedal, 0.55, dt * 0.9)
+            else -> pedal = max(0.0, pedal - dt * 5.0)
+        }
+        // Fren basıncı: önce yumuşak, basılı tuttukça sertleşir
         brk = when {
+            crashed -> 0.0
             auto -> approach(brk, autoBrk, dt * 1.2)
             brakePressed -> min(1.0, brk + dt * if (brk < 0.18) 0.9 else 0.24)
             brakeLatch -> approach(brk, 0.42, dt * 0.6)
             else -> approach(brk, 0.0, dt * 2.5)
         }
 
-        val ratio = V.gears[gear] * V.final
-        val wheelRpm = v / V.r * 60 / (2 * PI)
-        val rpmRaw = wheelRpm * ratio
-        var rpmT = rpmRaw
-        var load = thr
-        if (shiftT > 0) { shiftT -= dt; load *= 0.05 }
-        if (cut > 0) { cut -= dt; load = 0.0 }
-        val slipping = !V.synth && gear == 0 && rpmRaw < V.launch
-        if (slipping) rpmT = max(rpmRaw, V.idle + thr * (V.launch - V.idle) * 1.15)
-        if (!V.synth) rpmT = max(rpmT, V.idle)
-        rpm += (rpmT - rpm) * min(1.0, dt * if (shiftT > 0) 7 else 12)
-        if (rpm > V.redline) cut = 0.08
-
-        var f = torqueAt(rpm) * load * ratio * 0.9 / V.r
-        if (load < 0.05 && rpmRaw > V.idle * 1.1) f -= V.mass * V.engBrake * (rpmRaw / V.redline) * sqrt(V.gears[gear] / V.gears[0])
-        f -= 0.5 * 1.2 * V.cd * V.area * v * v + (if (v > 0.2) 0.013 * V.mass * 9.81 else 0.0)
-        val grip = if (env.wet) 0.68 else 1.0
-        // Düşük hızda fren kuvveti yumuşar, araç sarsılmadan durur
-        val stopSoft = clamp(v / 1.5, 0.35, 1.0)
-        if (v > 0.01) f -= brk * V.brake * grip * stopSoft * V.mass
-        val k = abs(road.curvature(s))
-        val gripV = if (k > 1e-4) sqrt(7 * grip / k) else 1e9
-        squeal = clamp((v - gripV * 0.82) / (gripV * 0.25), 0.0, 1.0)
-        if (squeal > 0) f -= V.mass * 3 * squeal
-        v = max(0.0, v + f / V.mass * dt)
-        if (v < 0.12 && load < 0.05) v = max(0.0, v - dt * 0.6)
-
-        if (!V.synth && shiftT <= 0) {
-            val up = lerp(V.shiftLight, V.shiftFull, clamp(thr * 1.15, 0.0, 1.0))
-            if (gear < V.gears.size - 1 && rpm > up && !slipping) { gear++; shiftT = 0.32; if (set.shiftSay) speak.say("${gear + 1}. vites") }
-            else if (gear > 0 && rpmRaw < V.shiftDown * (if (brk > 0.1) 1.25 else 1.0)) { gear--; shiftT = 0.22; if (set.shiftSay) speak.say("${gear + 1}. vites") }
+        val wheelRpm = v / (2 * PI * V.r) * 60
+        val coupled = wheelRpm * ratio(gear)
+        var torque: Double
+        var conv = 1.0
+        var lock = 1.0
+        if (V.synth) {
+            rpm = coupled
+            torque = if (pedal > 0.02) torqueAt(rpm) * pedal else -V.engBrakeNm * clamp(v / 4, 0.0, 1.0)
+        } else {
+            // Tork konvertörü: kalkışta motor serbest döner ve torku katlar; hız arttıkça kilitlenir
+            lock = ((coupled - V.idle * 0.9) / (V.launch - V.idle * 0.9)).coerceIn(0.0, 1.0)
+            val freeRpm = V.idle + pedal * (V.launch * 1.05 - V.idle)
+            var target = max(coupled, freeRpm * (1 - lock) + coupled * lock)
+            target = max(target, V.idle)
+            if (shiftT > 0) {
+                shiftT -= dt
+                val t = (1 - shiftT / shiftDur).coerceIn(0.0, 1.0)
+                target = shiftFromRpm + (target - shiftFromRpm) * t
+            }
+            rpm += (target - rpm) * min(1.0, dt * 14)
+            conv = 1 + 0.9 * (1 - lock)
+            if (cut > 0) cut -= dt
+            if (rpm >= V.redline && cut <= 0) cut = 0.07
+            torque = if (cut > 0) 0.0 else torqueAt(rpm) * pedal
+            if (shiftT > 0) torque *= 0.35
+            if (pedal < 0.03 && coupled > V.idle * 1.05) torque = -V.engBrakeNm * (0.3 + 0.7 * rpm / V.redline) * lock
         }
+        val tmax = max(1.0, torqueAt(max(rpm, 1.0)))
+        val loadT = if (torque > 0) (torque / tmax).coerceIn(0.0, 1.0) else 0.0
+        sndLoad = approach(sndLoad, loadT, dt * if (loadT > sndLoad) 14 else 5)
+
+        // Tutunma: virajın istediği yanal ivme ve kalan boyuna tutunma (sürtünme dairesi)
+        val k = road.curvature(s)
+        val aReq = v * v * k
+        val aMax = gripAccel()
+        val aLong = sqrt(max(0.0, aMax * aMax - aReq * aReq))
+        var fDrive = if (torque > 0) torque * ratio(gear) * V.efficiency / V.r * conv else torque * ratio(gear) / V.r
+        val tractionLimit = aLong * V.mass * 0.55
+        var spin = 0.0
+        if (fDrive > tractionLimit) { spin = ((fDrive - tractionLimit) / tractionLimit).coerceIn(0.0, 1.0); fDrive = tractionLimit }
+        val brakeWant = brk * V.brakeMax * env.grip.coerceAtLeast(0.7)
+        val brakeA = min(brakeWant, aLong)
+        val lockup = if (brakeWant > aLong + 0.3 && v > 3) ((brakeWant - aLong) / 3).coerceIn(0.0, 1.0) else 0.0
+        val drag = 0.5 * 1.2 * V.cd * V.area * v * v
+        val roll = (if (v > 0.1) V.crr * V.mass * 9.81 else 0.0) * (if (surface == 2) 4.0 else 1.0)
+        var acc = (fDrive - drag - roll) / V.mass - (if (v > 0.01) brakeA * clamp(v / 1.2, 0.35, 1.0) else 0.0)
+        if (surface == 2) acc -= 1.5 * clamp(v / 5, 0.0, 1.0)
+
+        // Viraj: tutunma yetmezse araç dışa kayar ve hız kaybeder
+        val excess = abs(aReq) - aMax
+        if (excess > 0 && !crashed) {
+            latVel += -kotlin.math.sign(k) * excess * dt
+            acc -= excess * 0.35
+        } else {
+            val back = (-offset * 0.9).coerceIn(-1.6, 1.6)
+            latVel = approach(latVel, back, dt * if (surface == 2) 1.5 else 3.5)
+        }
+        offset += latVel * dt
+        v = max(0.0, v + acc * dt)
+        if (v < 0.12 && pedal < 0.03) v = max(0.0, v - dt * 0.6)
+
+        // Yol kenarı: kenar şeridi, çakıl, kaza
+        val right = env.width / 2; val left = -1.5 * env.width
+        val dR = right - (offset + 0.9); val dL = (offset - 0.9) - left
+        surface = if (dR < -0.4 || dL < -0.4) 2 else if (dR < 0.35 || dL < 0.35) 1 else 0
+        if (!crashed && (offset > right + 5.0 || offset < left - 5.0)) {
+            if (v > 9) crash() else { offset = offset.coerceIn(left - 5.0, right + 5.0); latVel = 0.0 }
+        }
+
+        val lat = if (aMax > 0) abs(aReq) / aMax else 0.0
+        squeal = max(max(((lat - 0.85) / 0.15).coerceIn(0.0, 1.0), lockup), spin * 0.8) * (if (surface == 2) 0.3 else 1.0)
+
+        // Otomatik sürüş: hedef hız ve önündeki virajlar
+        if (auto && !crashed) {
+            val vT = min(cruise / 3.6, road.safeSpeed(s, v, 0.72 * aMax, 3.0))
+            val err = vT - v
+            ai = clamp(ai + err * dt * 0.04, 0.0, 0.8)
+            autoPedal = clamp(err * 0.22 + ai, 0.0, 1.0)
+            autoBrk = if (err < -1.2) clamp(-err * 0.1, 0.0, 0.6) else 0.0
+            if (autoBrk > 0) autoPedal = 0.0
+        }
+
+        if (!V.synth) shiftLogic(dt, wheelRpm, lock)
         s += v * dt
-        return load
+    }
+
+    /** Otomatik şanzıman: pedal konumuna göre vites büyütür; gaza basınca ya da hız düşünce küçültür */
+    private fun shiftLogic(dt: Double, wheelRpm: Double, lock: Double) {
+        val V = vehicle
+        if (shiftCool > 0) { shiftCool -= dt; return }
+        if (shiftT > 0 || crashT > 0) return
+        if (v < 1.0 && gear > 0) { gear = 0; return }
+        val pe = pedal.coerceIn(0.0, 1.0)
+        val up = V.upLight + (V.upFull - V.upLight) * pe.pow(1.4)
+        val down = V.downLight + (V.upFull * 0.5 - V.downLight) * pe.pow(1.2)
+        val now = wheelRpm * ratio(gear)
+        if (gear < V.gears.size - 1 && lock >= 1.0 && now > up && wheelRpm * ratio(gear + 1) > down + 150) {
+            shift(gear + 1, if (V.kind == "sport") 0.15 else 0.32)
+        } else if (gear > 0 && now < down && wheelRpm * ratio(gear - 1) < V.upFull * 0.97) {
+            shift(gear - 1, 0.22)
+        }
+    }
+
+    private fun shift(to: Int, dur: Double) {
+        shiftFromRpm = rpm; shiftDur = dur; shiftT = dur; shiftCool = dur + 0.25
+        gear = to
+        if (set.shiftSay) speak.say("${gear + 1}. vites")
+    }
+
+    private fun crash() {
+        bank.get("crash")?.let { mix.add(SampleVoice(it, BUS_FX, false, fadeOutSec = 0.3)).fadeTo(1f, 0.005f) }
+        v = 0.0; latVel = 0.0; offset = 0.0; gear = 0; pedal = 0.0; brk = 0.0; sndLoad = 0.0
+        gasLatch = false; brakeLatch = false
+        if (auto) auto = false
+        crashT = 3.0
+        speak.say("Kaza yaptın, yoldan çıktın. Araç yola geri alındı.", true)
+    }
+
+    private fun surfaceNotes(dt: Double) {
+        if (offroadSaid > 0) offroadSaid -= dt
+        if (surface == 2 && lastSurface != 2 && offroadSaid <= 0) { speak.say("Yoldan çıkıyorsun, yavaşla!", true); offroadSaid = 4.0 }
+        lastSurface = surface
     }
 
     private fun cabin() {
         val open = windows
-        tire.fadeTo((clamp(v / 30, 0.0, 1.2) * 0.32).toFloat(), 0.08f); tire.filter?.freq = (120 + v * 7).toFloat()
+        val onGravel = surface == 2
+        tire.fadeTo((clamp(v / 30, 0.0, 1.2) * 0.32 * if (onGravel) 0.4 else 1.0).toFloat(), 0.08f); tire.filter?.freq = (120 + v * 7).toFloat()
         tire2.fadeTo((clamp(v / 35, 0.0, 1.2) * 0.09).toFloat(), 0.08f); tire2.filter?.freq = (400 + v * 14).toFloat()
         val amp = (v / 35).pow(2) * if (open) 0.42 else 0.07
         val lfo = if (open) 1 + 0.5 * sin(time * 2 * PI * 0.35) else 1.0
         wind.fadeTo((amp * lfo).toFloat(), 0.1f); wind.filter?.freq = ((if (open) 380 else 650) + v * 9).toFloat()
         wet.fadeTo((if (env.wet) clamp(v / 25, 0.0, 1.3) * 0.11 else 0.0).toFloat(), 0.2f)
+        // Çakıl: çıtırtılı yüksek gürültü ve alçak uğultu
+        val gv = if (onGravel) clamp(v / 15, 0.15, 1.2) else 0.0
+        val crackle = 0.6 + 0.4 * rnd.nextDouble()
+        gravel.fadeTo((gv * 0.32 * crackle).toFloat(), 0.03f); gravel.filter?.freq = (1600 + v * 40).toFloat()
+        gravelLow.fadeTo((gv * 0.5).toFloat(), 0.1f)
+        // Kenar şeridi titreşimi: kayılan tarafta, hızla sıklaşan tok vuruşlar
+        if (surface == 1 && v > 3) {
+            rumble.freq = (v / 0.35).toFloat().coerceIn(15f, 140f)
+            rumble.pan = if (offset > 0) 0.8f else -0.8f
+            rumble.fadeTo(0.22f, 0.05f)
+        } else rumble.fadeTo(0f, 0.08f)
         val sc = bank.get("screech")
         if (sc != null) {
             if (squeal > 0.02 && screech == null) {
@@ -521,7 +673,7 @@ class Game(
 
     private fun paceNotes() {
         if (!set.pace) return
-        val ahead = max(90.0, v * 6)
+        val ahead = max(100.0, v * 6.5)
         val list = road.curves
         synchronized(list) {
             while (road.curveIdx < list.size && list[road.curveIdx].s1 < s) road.curveIdx++
@@ -535,9 +687,10 @@ class Game(
                 val dir = if (c.k > 0) "Sağa" else "Sola"
                 val sev = if (r < 90) " keskin" else if (r > 300) " hafif" else ""
                 val dist = max(10, ((c.s0 - s) / 10).roundToInt() * 10)
-                val safe = (sqrt(3.2 * r) * 3.6 / 10).roundToInt() * 10
+                val adv = advisedKmh(c.k)
                 var msg = "$dir$sev viraj, $dist metre"
-                if (v * 3.6 > safe + 10) msg += ", $safe ile gir"
+                if (adv < 150) msg += ", en fazla $adv"
+                if (v * 3.6 > adv + 15) msg += ", yavaşla"
                 chime(if (c.k > 0) 1f else -1f)
                 speak.say(msg)
                 break
