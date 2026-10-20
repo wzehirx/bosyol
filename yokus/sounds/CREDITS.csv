@@ -1,0 +1,38 @@
+slot,id,title,user,url,license
+eng_jeep,438105,G15-10-Jeep Rumbling Idle.wav,craigsmith,https://freesound.org/s/438105/,CC0
+eng_moto,724080,Motorcycle Startup and Idle,brucehep,https://freesound.org/s/724080/,CC0
+eng_tractor,149193,tractor idling,videog,https://freesound.org/s/149193/,CC0
+eng_buggy,413906,dune buggy muscle car approach pass medium speed nearby full engine rev and trail off to right.wav,kyles,https://freesound.org/s/413906/,CC0
+eng_monster,348430,Classic Car Idle.wav,jackthemurray,https://freesound.org/s/348430/,CC0
+eng_bus,540398,Bus Engine Idling,bikesnbassboi,https://freesound.org/s/540398/,CC0
+eng_snowmobile,560873,Snowmobiles 1.wav,craig5595,https://freesound.org/s/560873/,CC0
+eng_rally,273334,WRX - Exhaust sounds,ulose2piranha,https://freesound.org/s/273334/,CC0
+roll_dirt,251661,Tires on Gravel Road 1,OBXJohn,https://freesound.org/s/251661/,CC0
+roll_sand,612965,Walking in sand.m4a (UNUSED: replaced by synthesized granular sand roll),sandralaughs,https://freesound.org/s/612965/,CC0
+roll_snow,420555,Footsteps_Snow_09.wav,MarcMatthewsMusic,https://freesound.org/s/420555/,CC0
+roll_mud,675266,S07-20 car stuck in mud; medium distance engine revs; wheels spin.wav,craigsmith,https://freesound.org/s/675266/,CC0
+roll_rock,637192,auto truck int driving on dirt road +small rocks hitting bottom of car.flac,kyles,https://freesound.org/s/637192/,CC0
+roll_asphalt,591079,Car rolling on asphalt .wav,orlandorizo,https://freesound.org/s/591079/,CC0
+land_thud,397596,Heavy Impacts,Nightflame,https://freesound.org/s/397596/,CC0
+creak,633701,Creak.wav,uniuniversal,https://freesound.org/s/633701/,CC0
+coin,478647,Coin Pickup.mp3,Phenala,https://freesound.org/s/478647/,CC0
+fuel_pick,620496,banging jerry cans.mp3,ibrizie,https://freesound.org/s/620496/,CC0
+fuel_low,742645,MaxTempAlert,CompleteMelody,https://freesound.org/s/742645/,CC0
+crash,237375,Car Crash,squareal,https://freesound.org/s/237375/,CC0
+wind,841982,WIND_loop,kevinklang,https://freesound.org/s/841982/,CC0
+amb_country,466072,BIRDS IN COUNTRYSIDE – 1,SamuelGremaud,https://freesound.org/s/466072/,CC0
+amb_desert,697217,Looping Gentle Wind Ambience on an Open Desert Plain.wav,dhallcomposer,https://freesound.org/s/697217/,CC0
+amb_arctic,670682,Arctic Wind.wav,deleted_user_14597403,https://freesound.org/s/670682/,CC0
+amb_moon,478488,Low Space Drone Loop 1_1,Joao_Janz,https://freesound.org/s/478488/,CC0
+amb_forest,462136,forest-bird (2).WAV,sama66,https://freesound.org/s/462136/,CC0
+amb_beach,657801,Huge Ocean Waves Loop,The-Sacha-Rush,https://freesound.org/s/657801/,CC0
+amb_cave,580931,cave dripping.mp3,AKkingStudio,https://freesound.org/s/580931/,CC0
+amb_swamp,705953,Frog Swamp.m4a,MushroomMan123,https://freesound.org/s/705953/,CC0
+amb_mountain,288899,Rocky Mountain Outdoors:  wind and birds,petebuchwald,https://freesound.org/s/288899/,CC0
+amb_city,479554,R16-22-Construction Site Ambience.wav,craigsmith,https://freesound.org/s/479554/,CC0
+flip,449996,whoosh_short_mid.wav,DJT4NN3R,https://freesound.org/s/449996/,CC0
+buy,209578,Cash Register Purchase,Zott820,https://freesound.org/s/209578/,CC0
+e0_*/e1_*/e2_*.wav,,bosyol engine layers,Bruno Simon (folio-2019),https://github.com/brunosimon/folio-2019,MIT
+crash_car,,bosyol crash.mp3,bosyol deposu,bosyol deposu,bosyol deposu
+nope,,synthesized 220 Hz tone,yokus prep_sounds.py,,CC0 (generated)
+roll_sand,,synthesized granular sand roll,yokus prep_sounds.py,,CC0 (generated)
