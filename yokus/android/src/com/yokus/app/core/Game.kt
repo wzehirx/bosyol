@@ -162,7 +162,7 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
 
     fun statusText(): String {
         val t = tiltDeg()
-        val tilt = when { t > 0 -> "Burun $t derece yukarı"; t < 0 -> "Burun ${-t} derece aşağı"; else -> "Burun düz" }
+        val tilt = when { abs(t) < 3 -> "Burun düz"; t > 0 -> "Burun $t derece yukarı"; else -> "Burun ${-t} derece aşağı" }
         return "Mesafe ${distance.toInt()} metre. Yakıt yüzde ${fuelPct()}. Altın $coins. $tilt."
     }
 

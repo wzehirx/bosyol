@@ -18,7 +18,9 @@ data class VehicleDef(
     val drive: Drive, val airTorque: Double, val fuelL: Double, val fuelUse: Double, // L, tam gazda L/s
     val headX: Double, val headY: Double, val headR: Double,           // kafa dairesi, gövde koordinatı
     val engineKey: String, val engineRefRpm: Double, val enginePitch: Double, val electric: Boolean = false,
-    val snowGrip: Double = 1.0)                                         // KAR/BUZ üzerinde μ çarpanı
+    val snowGrip: Double = 1.0,                                         // KAR/BUZ üzerinde μ çarpanı
+    val engineLp: Double = 20000.0,                                     // motor sesi alçak geçiren süzgeç (Hz); 20000 = kapalı
+    val engineHp: Double = 0.0)                                         // motor sesi yüksek geçiren süzgeç (Hz); 0 = kapalı
 
 data class MapDef(
     val id: String, val name: String, val price: Int, val desc: String, val surface: Surface, val gravity: Double,
@@ -54,7 +56,7 @@ object Vehicles {
             torque = 1700.0, idleRpm = 800.0, maxRpm = 3500.0, ratio = 20.20,
             drive = Drive.REAR, airTorque = 7680.0, fuelL = 16.0, fuelUse = 0.12,
             headX = -0.4, headY = 1.2, headR = 0.25,
-            engineKey = "eng_tractor", engineRefRpm = 2200.0, enginePitch = 1.0),
+            engineKey = "eng_tractor", engineRefRpm = 2200.0, enginePitch = 0.6, engineLp = 1500.0),
         VehicleDef("buggy", "Kum arabası", 35000, "Hafif, yumuşak süspansiyonlu, zıplamayı sever.",
             mass = 250.0, inertia = 900.0, wheelR = 0.42, wheelMass = 18.0, rearX = -1.0, frontX = 1.0, axleY = -0.25,
             suspK = 8500.0, suspC = 700.0, suspTravel = 0.4,
@@ -89,7 +91,7 @@ object Vehicles {
             torque = 420.0, idleRpm = 1200.0, maxRpm = 7000.0, ratio = 14.20,
             drive = Drive.REAR, airTorque = 3360.0, fuelL = 9.0, fuelUse = 0.1,
             headX = -0.1, headY = 0.9, headR = 0.22,
-            engineKey = "eng_snowmobile", engineRefRpm = 3500.0, enginePitch = 1.0, snowGrip = 2.2),
+            engineKey = "eng_snowmobile", engineRefRpm = 3500.0, enginePitch = 1.4, snowGrip = 2.2, engineHp = 900.0),
         VehicleDef("rover", "Ay aracı", 140000, "Elektrikli ve hafif, Ay'da at gibi zıplar.",
             mass = 200.0, inertia = 800.0, wheelR = 0.38, wheelMass = 15.0, rearX = -1.0, frontX = 1.0, axleY = -0.25,
             suspK = 7000.0, suspC = 600.0, suspTravel = 0.35,
@@ -103,7 +105,7 @@ object Vehicles {
             torque = 3200.0, idleRpm = 700.0, maxRpm = 2500.0, ratio = 13.10,
             drive = Drive.ALL, airTorque = 11200.0, fuelL = 30.0, fuelUse = 0.2,
             headX = 0.0, headY = 1.3, headR = 0.28,
-            engineKey = "eng_tractor", engineRefRpm = 1600.0, enginePitch = 0.6, snowGrip = 1.5),
+            engineKey = "eng_tractor", engineRefRpm = 1600.0, enginePitch = 0.45, snowGrip = 1.5, engineLp = 700.0),
         VehicleDef("super", "Süper araba", 250000, "Çok hızlı, kontrolü zor.",
             mass = 350.0, inertia = 600.0, wheelR = 0.32, wheelMass = 16.0, rearX = -1.2, frontX = 1.2, axleY = -0.2,
             suspK = 30000.0, suspC = 2400.0, suspTravel = 0.15,
@@ -122,11 +124,11 @@ object Maps {
         MapDef("arctic", "Kutup", 12000, "Karlı, kaygan yamaçlar.", Surface.SNOW, 9.81, "amb_arctic", 3303L, 3.5, 0.2, 700.0, 450.0),
         MapDef("moon", "Ay", 20000, "Düşük yer çekimi, uzun sıçramalar.", Surface.MOON, 1.62, "amb_moon", 4404L, 3.5, 0.15, 400.0, 500.0),
         MapDef("forest", "Orman", 30000, "Toprak yol, sık tümsekler.", Surface.DIRT, 9.81, "amb_forest", 5505L, 4.0, 0.2, 600.0, 500.0),
-        MapDef("mountain", "Dağ", 40000, "Kayalık, çok dik yamaçlar.", Surface.ROCK, 9.81, "bed_mountain", 6606L, 6.0, 0.25, 800.0, 400.0, maxSlope = 1.2),
+        MapDef("mountain", "Dağ", 40000, "Kayalık, çok dik yamaçlar.", Surface.ROCK, 9.81, "amb_mountain", 6606L, 6.0, 0.25, 800.0, 400.0, maxSlope = 1.2),
         MapDef("beach", "Plaj", 50000, "Yumuşak kum, uzun düzlükler.", Surface.SAND, 9.81, "amb_beach", 7707L, 2.5, 0.1, 500.0, 600.0, maxSlope = 0.9),
         MapDef("cave", "Mağara", 60000, "Kaya zemin, sert inişler.", Surface.ROCK, 9.81, "amb_cave", 8808L, 4.5, 0.2, 600.0, 450.0, maxSlope = 1.2),
         MapDef("swamp", "Bataklık", 70000, "Çamurda tutunmak zor.", Surface.MUD, 9.81, "amb_swamp", 9909L, 3.0, 0.15, 600.0, 550.0),
-        MapDef("site", "Şantiye", 90000, "Asfalt zemin ve çok rampa.", Surface.ASPHALT, 9.81, "bed_city", 10110L, 2.5, 0.15, 300.0, 600.0)
+        MapDef("site", "Şantiye", 90000, "Asfalt zemin ve çok rampa.", Surface.ASPHALT, 9.81, "amb_city", 10110L, 2.5, 0.15, 300.0, 600.0)
     )
     fun byId(id: String): MapDef = all.first { it.id == id }
 }
