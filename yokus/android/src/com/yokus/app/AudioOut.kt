@@ -32,10 +32,10 @@ class AudioOut(private val mix: Mixer) {
             try {
                 while (running) {
                     mix.render(buf, n)
-                    track.write(buf, 0, n * 2, AudioTrack.WRITE_BLOCKING)
+                    if (track.write(buf, 0, n * 2, AudioTrack.WRITE_BLOCKING) < 0) break   // ölü iz: sıcak döngüye girme, sonraki onResume yeniden kursun
                 }
-            } catch (e: Throwable) { running = false
-            } finally { try { track.stop() } catch (e: Throwable) {}; track.release() }
+            } catch (e: Throwable) {
+            } finally { running = false; try { track.stop() } catch (e: Throwable) {}; track.release() }
           } catch (e: Throwable) { running = false }  // AudioTrack kurulamadıysa sonraki onResume yeniden denesin
         }, "yokus-audio")
         thread!!.isDaemon = true

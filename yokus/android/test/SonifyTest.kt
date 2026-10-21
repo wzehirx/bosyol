@@ -302,6 +302,51 @@ fun busAnalysis() {
     check("no clipping in full mix", all.peak <= 1.0f, "peak=${all.peak}")
 }
 
+/** 10 dk oyun (rastgele gaz/fren, kaza sonrası yeni tur, araya duraklat/devam): ses sayısı sınırlı kalmalı, durdurunca sıfırlanmalı. */
+fun voicesDoNotLeak() {
+    println("voicesDoNotLeak")
+    val mix = Mixer()
+    val bank = FBank()
+    val rnd = java.util.Random(11)
+    val spf = OUT_RATE / 60
+    val buf = FloatArray(spf * 2)
+    var maxVoices = 0
+    var frames = 0
+    var rounds = 0
+    var cycles = 0
+    val vehicles = Vehicles.all
+    while (frames < 60 * 600) {
+        val v = vehicles[rounds % vehicles.size]
+        val m = Maps.all[rounds % Maps.all.size]
+        rounds++
+        val s = GameSession(v, Upgrades(), m)
+        val son = Sonify(mix, bank, AudioSettings().also { it.distanceCalls = true }) { }
+        son.start(s)
+        var gas = 1.0; var brake = 0.0
+        var untilPause = 60 * 30
+        while (!s.over && frames < 60 * 600) {
+            if (frames % 20 == 0) { gas = if (rnd.nextInt(4) == 0) 0.0 else 1.0; brake = if (rnd.nextInt(6) == 0) 1.0 else 0.0 }
+            s.update(1.0 / 60, gas, brake)
+            son.update(1.0 / 60)
+            mix.render(buf, spf)
+            frames++
+            if (mix.voiceCount > maxVoices) maxVoices = mix.voiceCount
+            if (--untilPause <= 0) {          // Duraklat + Devam: ses durdurulur, yeniden başlatılır
+                untilPause = 60 * 30; cycles++
+                son.stop(); for (k in 0 until 40) mix.render(buf, spf)
+                if (mix.voiceCount > 0) { check("pause leaves no voices", false, "voices=${mix.voiceCount}"); }
+                son.start(s)
+            }
+        }
+        // oyun sonu: 2.5 sn sonra ekran değişir ve ses durdurulur
+        for (k in 0 until 150) { son.update(1.0 / 60); mix.render(buf, spf) }
+        son.stop()
+        for (k in 0 until 60) mix.render(buf, spf)
+    }
+    check("voice count bounded over 10 min ($rounds rounds, $cycles pauses)", maxVoices < 40, "max=$maxVoices")
+    check("no voices left after stop", mix.voiceCount == 0, "left=${mix.voiceCount}")
+}
+
 fun main() {
     missingSoundsSilentOk()
     rendersFinite()
@@ -314,6 +359,7 @@ fun main() {
     fullRunAllVehicles()
     wavExport()
     busAnalysis()
+    voicesDoNotLeak()
     if (failures > 0) { println("FAILED: $failures"); System.exit(1) }
     println("OK")
 }

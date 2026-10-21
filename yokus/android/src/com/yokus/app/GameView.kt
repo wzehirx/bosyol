@@ -162,6 +162,7 @@ class PedalView(ctx: Context, val label: String) : TextView(ctx) {
 
     private fun changed() {
         if (Build.VERSION.SDK_INT >= 30) stateDescription = if (active) "basılı" else "bırakılmış"
+        else contentDescription = if (active) "$label, basılı" else label   // eski sürümlerde durum açıklaması yok
         onChange()
     }
 

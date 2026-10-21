@@ -91,6 +91,7 @@ class MainActivity : Activity() {
     override fun onResume() { super.onResume(); audio.start() }   // oyundaysak Duraklat ekranında kalırız
     override fun onPause() {
         if (screen == Scr.GAME) { if (session?.over == true) showEnd() else pauseGame() }
+        bankProgress()   // uygulama arka planda sistem tarafından öldürülürse kazanılan altın kaybolmasın
         audio.stop(); super.onPause()
     }
     override fun onDestroy() {
@@ -413,12 +414,20 @@ class MainActivity : Activity() {
         val so = Sonify(mix, bank, store.audio) { speaker.say(it) }
         so.start(s)
         session = s; sonify = so
-        settled = false; overT = 0.0; gasCur = 0.0
+        settled = false; overT = 0.0; gasCur = 0.0; credited = 0; bestAtStart = store.best(s.map.id)
+        warmSounds()
         screen = Scr.GAME
         introSay = true
         render()
     }
     private var introSay = false
+
+    /** Oyun sırasında ilk kez kullanılacak kısa sesleri önceden çözer (UI iş parçacığında takılma olmasın). */
+    private fun warmSounds() {
+        val b = bank
+        val t = Thread { for (k in arrayOf("coin", "fuel_pick", "fuel_low", "land_thud", "creak", "flip", "crash", "crash_car")) b.get(k) }
+        t.isDaemon = true; t.start()
+    }
 
     /** Açık oyunu ve ses/döngü kaynaklarını bırakır. */
     private fun leaveGame() {
@@ -467,17 +476,25 @@ class MainActivity : Activity() {
         }
     }
 
-    /** Kazanılan altını ve en iyi mesafeyi bir kez kaydeder. */
+    private var credited = 0
+    private var bestAtStart = 0
+
+    /** Şimdiye dek kazanılan altını ve en iyi mesafeyi kaydeder. Tekrar çağrılabilir: her altın yalnızca bir kez eklenir. */
+    private fun bankProgress() {
+        val s = session ?: return
+        if (s.coins > credited) { store.gold = store.gold + (s.coins - credited); credited = s.coins }
+        store.setBest(s.map.id, s.distance.toInt())
+    }
+
+    /** Tur bitince sonucu bir kez kesinleştirir ve kaydeder. */
     private fun settle() {
         val s = session ?: return
         if (settled) return
         settled = true
         val m = s.distance.toInt()
-        val prev = store.best(s.map.id)
-        resRecord = m > prev && m > 0
-        resMeters = m; resCoins = s.coins; resBest = max(prev, m)
-        store.gold = store.gold + s.coins
-        store.setBest(s.map.id, m)
+        resRecord = m > bestAtStart && m > 0
+        resMeters = m; resCoins = s.coins; resBest = max(bestAtStart, m)
+        bankProgress()
     }
 
     /** Oyunu bırakır (olaylar susturulur, ek duyuru yok) ve altını kaydeder. */
