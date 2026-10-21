@@ -14,7 +14,9 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.TypedValue
+import android.view.Choreographer
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -28,12 +30,17 @@ import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
 import com.yokus.app.core.BUS_FX
+import com.yokus.app.core.EndReason
+import com.yokus.app.core.GameSession
+import com.yokus.app.core.Sonify
 import com.yokus.app.core.Maps
 import com.yokus.app.core.Mixer
 import com.yokus.app.core.SampleVoice
 import com.yokus.app.core.UpgradeKind
 import com.yokus.app.core.Vehicles
 import com.yokus.app.core.upgradeCost
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.pow
 
 class MainActivity : Activity() {
@@ -45,7 +52,7 @@ class MainActivity : Activity() {
     private lateinit var root: FrameLayout
     private val ui = Handler(Looper.getMainLooper())
 
-    private enum class Scr { MENU, VEHICLES, MAPS, GARAGE, SETTINGS, HELP, EXIT, GAME, CRASH }
+    private enum class Scr { MENU, VEHICLES, MAPS, GARAGE, SETTINGS, HELP, EXIT, GAME, PAUSE, OVER, CRASH }
     private var screen = Scr.MENU
     private var focusTag: String? = null
     private var crashReport: String? = null
@@ -81,9 +88,13 @@ class MainActivity : Activity() {
         render()
     }
 
-    override fun onResume() { super.onResume(); audio.start() }
-    override fun onPause() { super.onPause(); audio.stop() }
+    override fun onResume() { super.onResume(); audio.start() }   // oyundaysak Duraklat ekranında kalırız
+    override fun onPause() {
+        if (screen == Scr.GAME) { if (session?.over == true) showEnd() else pauseGame() }
+        audio.stop(); super.onPause()
+    }
     override fun onDestroy() {
+        stopLoop(); sonify?.stop(); sonify = null
         ui.removeCallbacksAndMessages(null); audio.stop(); speaker.shutdown(); super.onDestroy()
     }
 
@@ -208,6 +219,9 @@ class MainActivity : Activity() {
         when (screen) {
             Scr.MENU -> go(Scr.EXIT)
             Scr.CRASH -> closeCrash()
+            Scr.GAME -> pauseGame()
+            Scr.PAUSE -> resumeGame()
+            Scr.OVER -> toMenu()
             else -> go(Scr.MENU)
         }
     }
@@ -215,7 +229,7 @@ class MainActivity : Activity() {
     private fun render() {
         when (screen) {
             Scr.MENU -> menu(); Scr.VEHICLES -> vehicles(); Scr.MAPS -> maps(); Scr.GARAGE -> garage()
-            Scr.SETTINGS -> settings(); Scr.HELP -> help(); Scr.EXIT -> confirmExit(); Scr.GAME -> game()
+            Scr.SETTINGS -> settings(); Scr.HELP -> help(); Scr.EXIT -> confirmExit(); Scr.GAME -> game(); Scr.PAUSE -> pauseScreen(); Scr.OVER -> overScreen()
             Scr.CRASH -> crash()
         }
     }
@@ -367,12 +381,222 @@ class MainActivity : Activity() {
         c.addView(btn("Geri", primary = true) { go(Scr.MENU) }, lp(top = 18))
     }
 
-    /** Oyun ekranı: sonraki görev burayı gerçek oyunla değiştirir. */
-    fun startGame() { go(Scr.GAME) }
+
+    /* ================= Oyun ================= */
+    private var session: GameSession? = null
+    private var sonify: Sonify? = null
+    private var gameView: GameView? = null
+    private var brakePedal: PedalView? = null
+    private var gasPedal: PedalView? = null
+    private var keyGas = false
+    private var keyBrake = false
+    private var gasCur = 0.0
+    private var looping = false
+    private var lastFrame = 0L
+    private var overT = 0.0
+    private var settled = false
+    private var resMeters = 0
+    private var resCoins = 0
+    private var resBest = 0
+    private var resRecord = false
+
+    /** Testler false yaparak döngüyü kendisi [tick] ile sürer. */
+    var autoLoop = true
+
+    /** Oyunu (yeniden) başlatır. */
+    fun startGame() {
+        leaveGame()
+        val v = Vehicles.byId(store.vehicleId)
+        val s = GameSession(v, store.upgrades(v.id), Maps.byId(store.mapId))
+        val so = Sonify(mix, bank, store.audio) { speaker.say(it) }
+        so.start(s)
+        session = s; sonify = so
+        settled = false; overT = 0.0; gasCur = 0.0
+        screen = Scr.GAME
+        introSay = true
+        render()
+    }
+    private var introSay = false
+
+    /** Açık oyunu ve ses/döngü kaynaklarını bırakır. */
+    private fun leaveGame() {
+        stopLoop()
+        sonify?.stop(); sonify = null
+        session = null; gameView = null; brakePedal = null; gasPedal = null
+        keyGas = false; keyBrake = false; gasCur = 0.0
+        applyVolumes()
+    }
+
+    private fun startLoop() {
+        if (!autoLoop || looping) return
+        looping = true; lastFrame = 0L
+        Choreographer.getInstance().postFrameCallback(frameCb)
+    }
+    private fun stopLoop() {
+        looping = false; lastFrame = 0L
+        Choreographer.getInstance().removeFrameCallback(frameCb)
+    }
+    private val frameCb = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            if (!looping) return
+            val dt = if (lastFrame == 0L) 1.0 / 60 else (frameTimeNanos - lastFrame) / 1e9
+            lastFrame = frameTimeNanos
+            tick(dt)
+            if (looping) Choreographer.getInstance().postFrameCallback(this)
+        }
+    }
+
+    /** Bir oyun adımı: fizik, ses, çizim. Choreographer çağırır; testler de doğrudan çağırır. */
+    fun tick(dt0: Double) {
+        val s = session ?: return
+        if (screen != Scr.GAME) return
+        val dt = min(max(dt0, 0.0), 0.05)
+        val gasTarget = if (gasPedal?.active == true || keyGas) 1.0 else 0.0
+        val brake = if (brakePedal?.active == true || keyBrake) 1.0 else 0.0
+        val step = dt / 0.12                        // gaz yaklaşık 0.12 sn'de tam açılır
+        gasCur = if (gasTarget > gasCur) min(gasTarget, gasCur + step) else max(gasTarget, gasCur - step)
+        s.update(dt, gasCur, brake)
+        sonify?.update(dt)
+        gameView?.invalidate()
+        if (s.over) {
+            settle()
+            overT += dt
+            if (overT >= 2.5) showEnd()             // çarpma sesi ve son duyuru çalsın
+        }
+    }
+
+    /** Kazanılan altını ve en iyi mesafeyi bir kez kaydeder. */
+    private fun settle() {
+        val s = session ?: return
+        if (settled) return
+        settled = true
+        val m = s.distance.toInt()
+        val prev = store.best(s.map.id)
+        resRecord = m > prev && m > 0
+        resMeters = m; resCoins = s.coins; resBest = max(prev, m)
+        store.gold = store.gold + s.coins
+        store.setBest(s.map.id, m)
+    }
+
+    /** Oyunu bırakır (olaylar susturulur, ek duyuru yok) ve altını kaydeder. */
+    private fun quitRun() {
+        val s = session ?: return
+        s.events = null
+        s.end(EndReason.QUIT)
+        settle()
+    }
+
+    private fun showEnd() {
+        stopLoop(); sonify?.stop()
+        screen = Scr.OVER; render()
+    }
+
+    private fun pauseGame() {
+        if (screen != Scr.GAME) return
+        stopLoop()
+        gasPedal?.release(); brakePedal?.release(); keyGas = false; keyBrake = false; gasCur = 0.0
+        sonify?.stop()
+        screen = Scr.PAUSE; render()
+    }
+
+    private fun resumeGame() {
+        val s = session ?: return toMenu()
+        sonify?.start(s)
+        screen = Scr.GAME; render()
+    }
+
+    private fun toMenu() {
+        quitRun(); leaveGame(); go(Scr.MENU)
+    }
 
     private fun game() {
-        val c = page("Oyun")
-        c.addView(para("Oyun ekranı henüz hazır değil."))
-        c.addView(btn("Geri", primary = true) { go(Scr.MENU) }, lp(top = 18))
+        val s = session ?: return go(Scr.MENU)
+        val intro = introSay; introSay = false
+        val fl = FrameLayout(this)
+        val gv = GameView(this, s)
+        fl.addView(gv, FrameLayout.LayoutParams(-1, -1))
+        gameView = gv
+
+        val brake = pedal("Fren", 0xFFE53935.toInt())
+        val gas = pedal("Gaz", 0xFFFFC233.toInt())
+        brake.onActivate = { if (store.latch) gas.unlatch() }
+        gas.onActivate = { if (store.latch) brake.unlatch() }
+        brakePedal = brake; gasPedal = gas
+        syncPedal(brake, 0xFFE53935.toInt()); syncPedal(gas, 0xFFFFC233.toInt())
+
+        val durum = btn("Durum") {
+            val t = session?.statusText() ?: return@btn
+            say(t)
+        }
+        durum.gravity = Gravity.CENTER
+        val dur = btn("Duraklat") { pauseGame() }
+        dur.gravity = Gravity.CENTER
+        val center = LinearLayout(this); center.orientation = LinearLayout.VERTICAL; center.gravity = Gravity.CENTER
+        center.setPadding(dp(12f), dp(12f), dp(12f), dp(12f))
+        center.addView(durum, lp(top = 0)); center.addView(dur, lp(top = 14))
+
+        val row = LinearLayout(this); row.orientation = LinearLayout.HORIZONTAL
+        row.addView(brake, LinearLayout.LayoutParams(0, -1, 1f))
+        row.addView(center, LinearLayout.LayoutParams(0, -1, 1f))
+        row.addView(gas, LinearLayout.LayoutParams(0, -1, 1f))
+        fl.addView(row, FrameLayout.LayoutParams(-1, -1))
+
+        focusJob?.let { ui.removeCallbacks(it) }
+        root.removeAllViews()
+        root.addView(fl, FrameLayout.LayoutParams(-1, -1))
+        val job = Runnable {
+            gas.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+            gas.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
+            if (intro) ui.postDelayed({ if (screen == Scr.GAME) speaker.say("Başla! Gaz sağda, fren solda.") }, 600)
+        }
+        focusJob = job
+        ui.postDelayed(job, 250)
+        startLoop()
+    }
+
+    private fun pedal(label: String, color: Int): PedalView {
+        val p = PedalView(this, label)
+        p.gravity = Gravity.CENTER; p.setTextColor(cInk)
+        p.setTextSize(TypedValue.COMPLEX_UNIT_SP, 34f); p.typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+        p.latchOn = { store.latch }
+        p.onChange = { syncPedal(p, color) }
+        return p
+    }
+
+    private fun syncPedal(p: PedalView, color: Int) {
+        val on = p.active
+        val g = GradientDrawable(); g.cornerRadius = dp(22f).toFloat()
+        g.setColor(if (on) (color and 0x00FFFFFF) or 0x80000000.toInt() else 0x331E252D)
+        g.setStroke(dp(3f), if (on) color else cLine)
+        p.background = g
+    }
+
+    /** Ses tuşları: açıksa yukarı = gaz, aşağı = fren (basılı tutuldukça); sistem sesi değişmez. */
+    override fun dispatchKeyEvent(e: KeyEvent): Boolean {
+        if (screen == Scr.GAME && store.volumeKeys) {
+            val down = e.action == KeyEvent.ACTION_DOWN
+            when (e.keyCode) {
+                KeyEvent.KEYCODE_VOLUME_UP -> { keyGas = down; if (down && store.latch) brakePedal?.unlatch(); return true }
+                KeyEvent.KEYCODE_VOLUME_DOWN -> { keyBrake = down; if (down && store.latch) gasPedal?.unlatch(); return true }
+            }
+        }
+        return super.dispatchKeyEvent(e)
+    }
+
+    private fun pauseScreen() {
+        val c = page("Duraklatıldı")
+        c.addView(btn("Devam", primary = true) { resumeGame() }, lp(top = 14))
+        c.addView(btn("Yeniden başla") { quitRun(); startGame() }, lp())
+        c.addView(btn("Ana menü") { toMenu() }, lp())
+    }
+
+    private fun overScreen() {
+        val reason = session?.endReason ?: EndReason.QUIT
+        val c = page(reason.say)
+        val rec = if (resRecord) " Yeni rekor!" else ""
+        c.addView(para("$resMeters metre, $resCoins altın kazandın. En iyi: $resBest metre.$rec", cInk))
+        c.addView(btn("Tekrar", primary = true) { startGame() }, lp(top = 14))
+        c.addView(btn("Garaj") { leaveGame(); go(Scr.GARAGE) }, lp())
+        c.addView(btn("Ana menü") { toMenu() }, lp())
     }
 }
