@@ -2,8 +2,32 @@
 
 Bu rapor `bash yokus/android/test/run.sh PlayTest` tarafından otomatik üretilir (elle düzenlemeyin, yeniden çalıştırınca yazılır). Sürücü `BlindDriver`: yalnızca sesle algılanabilen bilgilere bakar (eğim açısı, 10-15 m ilerideki radar eğimi, duyurular, havada olma, yakıt uyarıları, hız), 0.25 sn tepki gecikmesi ve küçük gürültüyle oynar. Strateji: tam gaz, burun zemin eğiminden 35° fazla kalkarsa gazı kes, havada burnu iniş eğimine yatır, takılırsa kısa geri git. "Acemi" sürücü yalnızca takla bipi (>70°) çalınca gazı keser.
 
-- Koşu sayısı: 90 (matris 80, tohum 10); oyun zamanı sınırı 20 dk; gerçek süre 152 sn.
+- Koşu sayısı: 97 (matris 80, tohum 15); oyun zamanı sınırı 20 dk; gerçek süre 64 sn.
 - Hata dedektörü tetiklenen koşu: 0
+
+## 0. Kabul kapıları (PLAN2 F1-5)
+
+| Kapı | Sonuç | Değer |
+|---|---|---|
+| Acemi, jeep y0, Kır yolu: ortalama mesafe ≥ 1500 m | GEÇTİ | 3197 m (3196, 3197, 3197, 3197, 3197) |
+| Acemi: en az 4/5 koşu 3. bidona ulaşır | GEÇTİ | 5/5 |
+| Acemi: ilk 1000 m'de CRASH yok | GEÇTİ | yok |
+| İyi sürücü, jeep y0, Kır yolu: her koşu 15 dk'dan önce doğal biter | GEÇTİ | 6/6 (FUEL 3.6 dk, FUEL 3.6 dk, FUEL 3.6 dk, FUEL 3.7 dk, FUEL 3.6 dk, FUEL 3.6 dk) |
+| İyi sürücü: medyan mesafe 2500-8000 m | GEÇTİ | 3196 m (3196, 3196, 3196, 3196, 3196, 3196) |
+| Kır yolu: asıl araç (Cip) y3 ≥ 1000 m | GEÇTİ | Cip 4620 m FUEL |
+| Çöl: asıl araç (Cip) y3 ≥ 1000 m | GEÇTİ | Cip 3463 m FUEL |
+| Kutup: asıl araç (Cip ya da Kar motosikleti) y3 ≥ 1000 m | GEÇTİ | Cip 2614 m FUEL, Kar motosikleti 8872 m FUEL |
+| Ay: asıl araç (Cip ya da Ay aracı) y3 ≥ 1000 m | GEÇTİ | Cip 1266 m CRASH, Ay aracı 5793 m FUEL |
+| Orman: asıl araç (Cip) y3 ≥ 1000 m | GEÇTİ | Cip 3580 m FUEL |
+| Dağ: asıl araç (Cip) y3 ≥ 1000 m | GEÇTİ | Cip 4184 m FUEL |
+| Plaj: asıl araç (Cip) y3 ≥ 1000 m | GEÇTİ | Cip 3031 m FUEL |
+| Mağara: asıl araç (Cip) y3 ≥ 1000 m | GEÇTİ | Cip 3366 m FUEL |
+| Bataklık: asıl araç (Cip) y3 ≥ 1000 m | GEÇTİ | Cip 3990 m FUEL |
+| Şantiye: asıl araç (Cip) y3 ≥ 1000 m | GEÇTİ | Cip 3239 m FUEL |
+| Motosiklet y0, Kır yolu: medyan ≥ 1500 m | GEÇTİ | 4931 m (4933 FUEL, 4932 FUEL, 4931 FUEL, 4931 FUEL, 4931 FUEL, 4931 FUEL) |
+| Ekonomi: motosiklet (8000) 4-6 iyi koşuda | GEÇTİ | 4.5 koşu (1765 altın/koşu, medyan koşu 3.6 dk) |
+| Ekonomi: Çöl (5000) 2-3 koşuda | GEÇTİ | 2.8 koşu |
+| Ekonomi: tüm mağaza 15-25 saat | GEÇTİ | 16.4 saat (1350000 altın, 1370 altın/dk) |
 
 ## 1. Hata dedektörleri
 
@@ -20,111 +44,113 @@ Bu rapor `bash yokus/android/test/run.sh PlayTest` tarafından otomatik üretili
 
 | Harita | Araç | Mesafe (m) | Bitiş | Süre (sn) | Bidon | En az yakıt | Tepe açı | Takla | Altın | Bonus | Geri vites |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Kır yolu | Cip | 7934 | FUEL | 644 | 17 | 61% | 79° | 0 | 71745 | 350 | 0 |
-| Kır yolu | Motosiklet | 2828 | CRASH | 171 | 6 | 70% | 128° | 0 | 17095 | 0 | 0 |
-| Kır yolu | Pikap | 15061 | SÜRE | 1200 | 32 | 34% | 70° | 0 | 134295 | 700 | 0 |
-| Kır yolu | Traktör | 5680 | FUEL | 730 | 12 | 60% | 45° | 0 | 49295 | 0 | 0 |
-| Çöl | Cip | 4451 | FUEL | 426 | 8 | 20% | 73° | 0 | 34590 | 150 | 0 |
-| Çöl | Motosiklet | 2098 | CRASH | 127 | 4 | 67% | 113° | 0 | 11240 | 0 | 0 |
-| Çöl | Pikap | 4864 | FUEL | 488 | 9 | 62% | 48° | 0 | 38690 | 150 | 0 |
-| Çöl | Traktör | 1978 | FUEL | 373 | 4 | 61% | 37° | 0 | 9840 | 0 | 1 |
-| Kutup | Cip | 2256 | FUEL | 290 | 5 | 60% | 42° | 0 | 9645 | 0 | 0 |
-| Kutup | Motosiklet | 2250 | FUEL | 273 | 5 | 63% | 74° | 0 | 9645 | 0 | 1 |
-| Kutup | Pikap | 2252 | FUEL | 330 | 5 | 67% | 43° | 0 | 9645 | 0 | 0 |
-| Kutup | Traktör | 1016 | FUEL | 243 | 2 | 65% | 33° | 0 | 2445 | 0 | 2 |
-| Ay | Cip | 1211 | CRASH | 125 | 0 | - | 175° | 0 | 3370 | 1100 | 0 |
-| Ay | Motosiklet | 1599 | FUEL | 309 | 3 | 21% | 119° | 0 | 5245 | 1100 | 0 |
-| Ay | Pikap | 3815 | FUEL | 623 | 6 | 21% | 73° | 0 | 24345 | 4725 | 1 |
-| Ay | Traktör | 4908 | FUEL | 824 | 10 | 59% | 67° | 0 | 36720 | 4950 | 3 |
-| Orman | Cip | 9029 | FUEL | 783 | 18 | 57% | 63° | 0 | 76210 | 250 | 0 |
-| Orman | Motosiklet | 443 | CRASH | 26 | 1 | 82% | 117° | 0 | 275 | 0 | 0 |
-| Orman | Pikap | 10114 | FUEL | 998 | 21 | 63% | 52° | 0 | 89110 | 50 | 0 |
-| Orman | Traktör | 3064 | FUEL | 454 | 6 | 57% | 47° | 0 | 20860 | 0 | 1 |
-| Dağ | Cip | 8817 | FUEL | 843 | 20 | 30% | 72° | 0 | 76740 | 200 | 0 |
-| Dağ | Motosiklet | 1137 | CRASH | 70 | 3 | 74% | 133° | 0 | 3090 | 0 | 0 |
-| Dağ | Pikap | 2583 | FUEL | 359 | 7 | 73% | 49° | 0 | 17290 | 50 | 0 |
-| Dağ | Traktör | 1571 | FUEL | 336 | 4 | 69% | 46° | 0 | 5140 | 0 | 1 |
-| Plaj | Cip | 13056 | FUEL | 1054 | 21 | 0% | 65° | 0 | 116675 | 350 | 0 |
-| Plaj | Motosiklet | 3573 | CRASH | 212 | 6 | 59% | 114° | 0 | 28775 | 50 | 0 |
-| Plaj | Pikap | 13055 | FUEL | 1138 | 22 | 54% | 59° | 0 | 117625 | 0 | 0 |
-| Plaj | Traktör | 8312 | FUEL | 1028 | 14 | 52% | 47° | 0 | 74125 | 0 | 2 |
-| Mağara | Cip | 1654 | FUEL | 198 | 3 | 65% | 47° | 0 | 6140 | 0 | 0 |
-| Mağara | Motosiklet | 988 | CRASH | 56 | 2 | 71% | 128° | 0 | 2390 | 0 | 0 |
-| Mağara | Pikap | 2909 | FUEL | 340 | 5 | 41% | 55° | 0 | 13665 | 0 | 0 |
-| Mağara | Traktör | 1475 | FUEL | 312 | 3 | 65% | 41° | 0 | 4265 | 0 | 0 |
-| Bataklık | Cip | 4897 | FUEL | 455 | 9 | 51% | 65° | 0 | 39730 | 200 | 0 |
-| Bataklık | Motosiklet | 4284 | FUEL | 407 | 8 | 46% | 97° | 0 | 32680 | 50 | 0 |
-| Bataklık | Pikap | 4901 | FUEL | 493 | 9 | 59% | 47° | 0 | 40030 | 0 | 0 |
-| Bataklık | Traktör | 2867 | FUEL | 428 | 5 | 55% | 42° | 0 | 19630 | 0 | 0 |
-| Şantiye | Cip | 9344 | FUEL | 739 | 14 | 51% | 57° | 0 | 83760 | 500 | 0 |
-| Şantiye | Motosiklet | 8745 | CRASH | 633 | 14 | 13% | 122° | 0 | 78260 | 400 | 0 |
-| Şantiye | Pikap | 8776 | FUEL | 771 | 14 | 57% | 48° | 0 | 79110 | 50 | 0 |
-| Şantiye | Traktör | 8779 | FUEL | 1147 | 15 | 46% | 47° | 0 | 79660 | 0 | 0 |
+| Kır yolu | Cip | 3196 | FUEL | 218 | 4 | 11% | 51° | 0 | 1765 | 0 | 0 |
+| Kır yolu | Motosiklet | 4933 | FUEL | 307 | 5 | 16% | 81° | 0 | 3110 | 0 | 0 |
+| Kır yolu | Pikap | 4933 | FUEL | 374 | 5 | 18% | 47° | 0 | 3110 | 0 | 0 |
+| Kır yolu | Traktör | 3867 | FUEL | 486 | 5 | 4% | 51° | 0 | 2125 | 0 | 0 |
+| Çöl | Cip | 3083 | FUEL | 227 | 4 | 0% | 50° | 0 | 2135 | 0 | 0 |
+| Çöl | Motosiklet | 3391 | FUEL | 241 | 4 | 33% | 73° | 0 | 2510 | 0 | 0 |
+| Çöl | Pikap | 3486 | FUEL | 279 | 4 | 36% | 47° | 0 | 2575 | 0 | 0 |
+| Çöl | Traktör | 3448 | FUEL | 372 | 4 | 25% | 49° | 0 | 2575 | 0 | 0 |
+| Kutup | Cip | 2606 | FUEL | 217 | 4 | 1% | 47° | 0 | 1815 | 0 | 0 |
+| Kutup | Motosiklet | 2360 | FUEL | 221 | 4 | 29% | 64° | 0 | 1750 | 0 | 0 |
+| Kutup | Pikap | 2612 | FUEL | 269 | 4 | 41% | 46° | 0 | 1815 | 0 | 0 |
+| Kutup | Traktör | 2881 | FUEL | 351 | 4 | 34% | 48° | 0 | 2055 | 0 | 0 |
+| Ay | Cip | 2340 | FUEL | 248 | 2 | 12% | 180° | 0 | 3380 | 2300 | 0 |
+| Ay | Motosiklet | 1942 | FUEL | 319 | 3 | 40% | 94° | 0 | 2225 | 1100 | 0 |
+| Ay | Pikap | 5380 | FUEL | 573 | 3 | 12% | 77° | 0 | 10155 | 5775 | 0 |
+| Ay | Traktör | 5425 | FUEL | 668 | 5 | 1% | 55° | 0 | 9470 | 4525 | 0 |
+| Orman | Cip | 2234 | FUEL | 162 | 3 | 54% | 44° | 0 | 2640 | 0 | 0 |
+| Orman | Motosiklet | 5062 | FUEL | 348 | 5 | 0% | 76° | 0 | 10615 | 200 | 0 |
+| Orman | Pikap | 3665 | FUEL | 294 | 4 | 29% | 47° | 0 | 6625 | 0 | 0 |
+| Orman | Traktör | 2449 | FUEL | 388 | 4 | 13% | 46° | 0 | 2825 | 0 | 1 |
+| Dağ | Cip | 2788 | FUEL | 214 | 4 | 27% | 86° | 0 | 3810 | 0 | 0 |
+| Dağ | Motosiklet | 5654 | FUEL | 420 | 6 | 0% | 73° | 0 | 13690 | 250 | 0 |
+| Dağ | Pikap | 2347 | FUEL | 254 | 4 | 51% | 50° | 0 | 3370 | 0 | 0 |
+| Dağ | Traktör | 1932 | FUEL | 340 | 4 | 34% | 50° | 0 | 3095 | 0 | 0 |
+| Plaj | Cip | 2785 | FUEL | 192 | 3 | 25% | 40° | 0 | 5275 | 0 | 0 |
+| Plaj | Motosiklet | 3114 | FUEL | 193 | 3 | 51% | 58° | 0 | 7530 | 0 | 0 |
+| Plaj | Pikap | 4768 | FUEL | 349 | 4 | 5% | 48° | 0 | 12000 | 0 | 0 |
+| Plaj | Traktör | 3012 | FUEL | 314 | 3 | 44% | 45° | 0 | 6755 | 0 | 0 |
+| Mağara | Cip | 2428 | FUEL | 214 | 4 | 11% | 60° | 0 | 5820 | 0 | 0 |
+| Mağara | Motosiklet | 4881 | FUEL | 336 | 5 | 0% | 75° | 0 | 14105 | 100 | 0 |
+| Mağara | Pikap | 2426 | FUEL | 272 | 4 | 42% | 51° | 0 | 5820 | 0 | 0 |
+| Mağara | Traktör | 1475 | FUEL | 265 | 3 | 65% | 41° | 0 | 3200 | 0 | 0 |
+| Bataklık | Cip | 2602 | FUEL | 193 | 3 | 34% | 35° | 0 | 6560 | 0 | 0 |
+| Bataklık | Motosiklet | 3250 | FUEL | 272 | 4 | 0% | 73° | 0 | 8815 | 0 | 0 |
+| Bataklık | Pikap | 3942 | FUEL | 324 | 4 | 12% | 48° | 0 | 10390 | 0 | 0 |
+| Bataklık | Traktör | 3923 | FUEL | 431 | 4 | 0% | 50° | 0 | 10340 | 0 | 0 |
+| Şantiye | Cip | 2942 | FUEL | 207 | 3 | 20% | 53° | 0 | 10180 | 0 | 0 |
+| Şantiye | Motosiklet | 3281 | FUEL | 204 | 3 | 46% | 69° | 0 | 12130 | 100 | 0 |
+| Şantiye | Pikap | 4897 | FUEL | 370 | 4 | 2% | 48° | 0 | 18680 | 0 | 0 |
+| Şantiye | Traktör | 3222 | FUEL | 346 | 3 | 39% | 50° | 0 | 12230 | 0 | 0 |
 
 ## 3. Harita × araç, geliştirme hepsi 3. seviye (iyi sürücü)
 
 | Harita | Araç | Mesafe (m) | Bitiş | Süre (sn) | Bidon | En az yakıt | Tepe açı | Takla | Altın | Bonus | Geri vites |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Kır yolu | Cip | 16539 | SÜRE | 1200 | 34 | 46% | 73° | 0 | 144945 | 1150 | 0 |
-| Kır yolu | Motosiklet | 1562 | CRASH | 89 | 3 | 78% | 125° | 0 | 4995 | 0 | 0 |
-| Kır yolu | Pikap | 15701 | SÜRE | 1200 | 34 | 54% | 67° | 0 | 138945 | 750 | 0 |
-| Kır yolu | Traktör | 11299 | SÜRE | 1200 | 25 | 70% | 47° | 0 | 105695 | 0 | 0 |
-| Çöl | Cip | 12653 | FUEL | 1107 | 23 | 30% | 69° | 0 | 108940 | 700 | 1 |
-| Çöl | Motosiklet | 3568 | CRASH | 244 | 7 | 59% | 133° | 0 | 25640 | 200 | 0 |
-| Çöl | Pikap | 7282 | FUEL | 713 | 13 | 42% | 49° | 0 | 60890 | 250 | 1 |
-| Çöl | Traktör | 3790 | FUEL | 616 | 8 | 67% | 44° | 0 | 27040 | 0 | 1 |
-| Kutup | Cip | 3251 | FUEL | 389 | 7 | 68% | 46° | 0 | 16795 | 50 | 0 |
-| Kutup | Motosiklet | 3239 | FUEL | 365 | 7 | 67% | 102° | 0 | 17345 | 0 | 1 |
-| Kutup | Pikap | 2259 | FUEL | 354 | 5 | 75% | 43° | 0 | 9645 | 0 | 2 |
-| Kutup | Traktör | 1450 | FUEL | 351 | 3 | 70% | 38° | 0 | 4045 | 0 | 2 |
-| Ay | Cip | 3817 | FUEL | 620 | 6 | 21% | 75° | 0 | 22895 | 4850 | 2 |
-| Ay | Motosiklet | 838 | CRASH | 153 | 2 | 52% | 106° | 0 | 2245 | 1000 | 0 |
-| Ay | Pikap | 3818 | FUEL | 615 | 6 | 41% | 84° | 0 | 22995 | 4650 | 2 |
-| Ay | Traktör | 8492 | SÜRE | 1200 | 15 | 32% | 80° | 0 | 68845 | 10075 | 0 |
-| Orman | Cip | 15899 | SÜRE | 1200 | 31 | 46% | 59° | 0 | 147360 | 800 | 0 |
-| Orman | Motosiklet | 442 | CRASH | 25 | 1 | 86% | 117° | 0 | 275 | 0 | 0 |
-| Orman | Pikap | 15150 | SÜRE | 1200 | 31 | 73% | 50° | 0 | 140260 | 100 | 0 |
-| Orman | Traktör | 10867 | SÜRE | 1200 | 22 | 67% | 48° | 0 | 100560 | 0 | 0 |
-| Dağ | Cip | 14684 | SÜRE | 1200 | 34 | 51% | 94° | 0 | 134940 | 800 | 0 |
-| Dağ | Motosiklet | 619 | CRASH | 37 | 1 | 87% | 105° | 0 | 1190 | 0 | 0 |
-| Dağ | Pikap | 5945 | FUEL | 656 | 15 | 77% | 53° | 0 | 51840 | 100 | 0 |
-| Dağ | Traktör | 2910 | FUEL | 491 | 7 | 75% | 52° | 0 | 22040 | 0 | 1 |
-| Plaj | Cip | 14942 | FUEL | 1180 | 24 | 27% | 70° | 0 | 135075 | 650 | 1 |
-| Plaj | Motosiklet | 4480 | CRASH | 269 | 8 | 68% | 120° | 0 | 37125 | 200 | 0 |
-| Plaj | Pikap | 15695 | SÜRE | 1200 | 26 | 67% | 52° | 0 | 142775 | 50 | 0 |
-| Plaj | Traktör | 8603 | FUEL | 1100 | 15 | 64% | 47° | 0 | 77625 | 0 | 1 |
-| Mağara | Cip | 15192 | SÜRE | 1200 | 33 | 50% | 69° | 0 | 129040 | 1300 | 0 |
-| Mağara | Motosiklet | 1105 | CRASH | 65 | 2 | 79% | 116° | 0 | 2765 | 0 | 0 |
-| Mağara | Pikap | 14363 | SÜRE | 1200 | 31 | 57% | 62° | 0 | 122240 | 200 | 0 |
-| Mağara | Traktör | 2902 | FUEL | 483 | 6 | 69% | 52° | 0 | 14565 | 0 | 1 |
-| Bataklık | Cip | 9932 | FUEL | 898 | 18 | 59% | 61° | 0 | 87530 | 400 | 1 |
-| Bataklık | Motosiklet | 2637 | CRASH | 160 | 5 | 70% | 100° | 0 | 16630 | 0 | 0 |
-| Bataklık | Pikap | 5918 | FUEL | 659 | 11 | 68% | 46° | 0 | 50530 | 0 | 0 |
-| Bataklık | Traktör | 4279 | FUEL | 650 | 8 | 64% | 46° | 0 | 33730 | 0 | 0 |
-| Şantiye | Cip | 9799 | FUEL | 742 | 13 | 29% | 60° | 0 | 86360 | 600 | 0 |
-| Şantiye | Motosiklet | 2369 | CRASH | 139 | 4 | 71% | 90° | 0 | 16660 | 0 | 0 |
-| Şantiye | Pikap | 15340 | SÜRE | 1200 | 24 | 39% | 51° | 0 | 144010 | 350 | 0 |
-| Şantiye | Traktör | 11118 | SÜRE | 1200 | 19 | 63% | 49° | 0 | 101260 | 0 | 0 |
+| Kır yolu | Cip | 4620 | FUEL | 314 | 5 | 5% | 53° | 0 | 2695 | 0 | 0 |
+| Kır yolu | Motosiklet | 6904 | FUEL | 424 | 6 | 17% | 81° | 0 | 6055 | 100 | 0 |
+| Kır yolu | Pikap | 6924 | FUEL | 515 | 6 | 19% | 47° | 0 | 5955 | 0 | 0 |
+| Kır yolu | Traktör | 6384 | FUEL | 705 | 6 | 3% | 53° | 0 | 5360 | 0 | 0 |
+| Çöl | Cip | 3463 | FUEL | 243 | 4 | 24% | 50° | 0 | 2575 | 0 | 0 |
+| Çöl | Motosiklet | 5499 | CRASH | 351 | 5 | 14% | 146° | 0 | 4560 | 50 | 0 |
+| Çöl | Pikap | 4609 | FUEL | 418 | 5 | 26% | 47° | 0 | 3445 | 0 | 0 |
+| Çöl | Traktör | 5398 | FUEL | 580 | 5 | 14% | 51° | 0 | 4505 | 0 | 0 |
+| Kutup | Cip | 2614 | FUEL | 227 | 4 | 32% | 48° | 0 | 1815 | 0 | 0 |
+| Kutup | Motosiklet | 2887 | FUEL | 242 | 4 | 51% | 72° | 0 | 2055 | 0 | 0 |
+| Kutup | Pikap | 2624 | FUEL | 295 | 4 | 57% | 45° | 0 | 1815 | 0 | 0 |
+| Kutup | Traktör | 3915 | FUEL | 524 | 5 | 24% | 49° | 0 | 2770 | 0 | 0 |
+| Ay | Cip | 1266 | CRASH | 123 | 0 | - | 148° | 0 | 1785 | 1125 | 0 |
+| Ay | Motosiklet | 2589 | FUEL | 455 | 4 | 0% | 84° | 0 | 3480 | 2325 | 2 |
+| Ay | Pikap | 6164 | FUEL | 626 | 3 | 33% | 80° | 0 | 13230 | 6675 | 0 |
+| Ay | Traktör | 7970 | FUEL | 955 | 6 | 5% | 67° | 0 | 20825 | 6375 | 0 |
+| Orman | Cip | 3580 | FUEL | 254 | 4 | 21% | 51° | 0 | 6625 | 0 | 0 |
+| Orman | Motosiklet | 7627 | FUEL | 503 | 6 | 0% | 125° | 0 | 21155 | 350 | 0 |
+| Orman | Pikap | 7638 | FUEL | 599 | 6 | 0% | 51° | 0 | 20935 | 0 | 0 |
+| Orman | Traktör | 5432 | FUEL | 619 | 5 | 0% | 52° | 0 | 11860 | 0 | 1 |
+| Dağ | Cip | 4184 | FUEL | 312 | 5 | 16% | 58° | 0 | 7535 | 100 | 0 |
+| Dağ | Motosiklet | 9642 | FUEL | 681 | 8 | 0% | 83° | 0 | 29130 | 350 | 0 |
+| Dağ | Pikap | 3339 | FUEL | 372 | 5 | 46% | 54° | 0 | 4825 | 0 | 0 |
+| Dağ | Traktör | 2815 | FUEL | 369 | 4 | 57% | 50° | 0 | 3810 | 0 | 0 |
+| Plaj | Cip | 3031 | FUEL | 206 | 3 | 44% | 44° | 0 | 6755 | 0 | 0 |
+| Plaj | Motosiklet | 5071 | FUEL | 310 | 4 | 22% | 64° | 0 | 13325 | 0 | 0 |
+| Plaj | Pikap | 7613 | FUEL | 556 | 5 | 0% | 47° | 0 | 22190 | 0 | 0 |
+| Plaj | Traktör | 5045 | FUEL | 523 | 4 | 13% | 52° | 0 | 13425 | 0 | 0 |
+| Mağara | Cip | 3366 | FUEL | 245 | 4 | 34% | 59° | 0 | 9660 | 0 | 0 |
+| Mağara | Motosiklet | 7093 | FUEL | 473 | 6 | 15% | 82° | 0 | 23480 | 100 | 0 |
+| Mağara | Pikap | 4052 | FUEL | 416 | 5 | 25% | 52° | 0 | 11790 | 0 | 0 |
+| Mağara | Traktör | 2427 | FUEL | 401 | 4 | 46% | 53° | 0 | 5820 | 0 | 0 |
+| Bataklık | Cip | 3990 | FUEL | 283 | 4 | 0% | 51° | 0 | 10690 | 0 | 0 |
+| Bataklık | Motosiklet | 4345 | FUEL | 292 | 4 | 28% | 73° | 0 | 12420 | 0 | 0 |
+| Bataklık | Pikap | 4723 | FUEL | 492 | 5 | 6% | 47° | 0 | 13175 | 0 | 1 |
+| Bataklık | Traktör | 4301 | FUEL | 478 | 4 | 24% | 52° | 0 | 12195 | 0 | 1 |
+| Şantiye | Cip | 3239 | FUEL | 224 | 3 | 39% | 50° | 0 | 12030 | 0 | 0 |
+| Şantiye | Motosiklet | 5236 | FUEL | 327 | 4 | 21% | 76° | 0 | 20205 | 350 | 0 |
+| Şantiye | Pikap | 7582 | FUEL | 568 | 5 | 0% | 48° | 0 | 27105 | 0 | 0 |
+| Şantiye | Traktör | 5164 | FUEL | 544 | 4 | 10% | 53° | 0 | 19630 | 0 | 0 |
 
 ## 4. Kır yolu, jeep, geliştirme yok: tohumlar
 
 | Sürücü | Tohum | Mesafe (m) | Bitiş | Süre (sn) | Bidon | Bidon konumları (m, yakıt%) | Tepe açı | Altın | Duyuru | En uzun sessizlik (sn) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| iyi | 0 | 7934 | FUEL | 644 | 17 | 241 (80%), 676 (69%), 1089 (71%), 1531 (69%), 1976 (66%), 2420 (68%), 2893 (65%), 3362 (65%), 3849 (63%), 4301 (65%), 4786 (61%), 5235 (69%), 5685 (64%), 6141 (65%), 6563 (64%), 7015 (63%), 7501 (63%) | 79° | 71745 | 164 | 34 |
-| iyi | 1 | 16082 | SÜRE | 1200 | 33 | 241 (80%), 676 (69%), 1089 (70%), 1976 (35%), 2420 (68%), 2893 (65%), 3363 (66%), 3849 (64%), 4302 (65%), 4786 (60%), 5235 (69%), 5685 (65%), 6141 (66%), 6563 (64%), 7015 (62%), 7501 (63%), 7984 (60%), 8448 (64%), 8923 (61%), 9390 (62%), 9858 (61%), 10344 (64%), 10760 (66%), 11235 (62%), 11647 (69%), 12102 (63%), 13021 (25%), 13435 (68%), 13857 (65%), 14328 (63%), 14817 (59%), 15238 (66%), 15648 (67%) | 82° | 141645 | 409 | 14 |
-| iyi | 2 | 16051 | SÜRE | 1200 | 33 | 241 (80%), 676 (69%), 1089 (70%), 1976 (35%), 2420 (67%), 2893 (66%), 3362 (66%), 3849 (63%), 4301 (65%), 4786 (61%), 5235 (69%), 5685 (65%), 6141 (65%), 6563 (62%), 7015 (62%), 7501 (63%), 7984 (60%), 8448 (62%), 8923 (61%), 9391 (64%), 9858 (61%), 10344 (63%), 10760 (65%), 11235 (63%), 11647 (69%), 12102 (63%), 13021 (26%), 13435 (68%), 13857 (65%), 14328 (64%), 14817 (60%), 15238 (66%), 15649 (67%) | 73° | 140845 | 410 | 14 |
-| iyi | 3 | 16060 | SÜRE | 1200 | 33 | 241 (80%), 676 (69%), 1089 (70%), 1976 (34%), 2420 (68%), 2893 (66%), 3363 (66%), 3849 (63%), 4301 (65%), 4786 (60%), 5235 (69%), 5685 (65%), 6141 (65%), 6563 (63%), 7015 (61%), 7501 (63%), 7984 (59%), 8448 (64%), 8923 (61%), 9390 (64%), 9858 (61%), 10344 (63%), 10760 (65%), 11235 (63%), 11647 (68%), 12102 (63%), 13021 (25%), 13435 (68%), 13857 (65%), 14328 (63%), 14817 (59%), 15238 (67%), 15648 (66%) | 79° | 140245 | 405 | 14 |
-| iyi | 4 | 12428 | FUEL | 1029 | 27 | 241 (80%), 676 (69%), 1089 (71%), 1531 (68%), 1976 (66%), 2420 (67%), 2893 (65%), 3363 (66%), 3849 (63%), 4301 (66%), 4786 (61%), 5235 (69%), 5685 (64%), 6141 (65%), 6563 (64%), 7015 (61%), 7501 (63%), 7984 (59%), 8448 (64%), 8923 (62%), 9390 (62%), 9858 (61%), 10344 (63%), 10760 (66%), 11235 (61%), 11647 (68%), 12102 (63%) | 80° | 113395 | 298 | 60 |
-| iyi | 5 | 16046 | SÜRE | 1200 | 33 | 241 (80%), 676 (70%), 1089 (70%), 1976 (34%), 2419 (68%), 2893 (65%), 3363 (66%), 3849 (63%), 4301 (67%), 4786 (60%), 5235 (70%), 5685 (65%), 6141 (65%), 6563 (64%), 7015 (61%), 7501 (63%), 7984 (59%), 8448 (64%), 8923 (61%), 9391 (61%), 9858 (61%), 10344 (63%), 10760 (66%), 11235 (62%), 11647 (68%), 12102 (63%), 13021 (25%), 13435 (68%), 13857 (63%), 14328 (63%), 14817 (59%), 15238 (66%), 15649 (67%) | 73° | 140345 | 405 | 14 |
-| acemi | 1 | 3200 | CRASH | 208 | 7 | 241 (80%), 676 (69%), 1089 (70%), 1532 (69%), 1976 (67%), 2420 (68%), 2893 (67%) | 121° | 21795 | 43 | 14 |
-| acemi | 2 | 5264 | CRASH | 361 | 12 | 241 (80%), 676 (69%), 1089 (71%), 1532 (68%), 1976 (67%), 2420 (68%), 2893 (68%), 3363 (67%), 3849 (65%), 4301 (67%), 4786 (62%), 5235 (67%) | 138° | 43895 | 94 | 14 |
-| acemi | 3 | 5258 | CRASH | 365 | 12 | 241 (80%), 676 (69%), 1089 (70%), 1532 (68%), 1976 (67%), 2420 (69%), 2893 (69%), 3363 (68%), 3849 (65%), 4301 (66%), 4786 (62%), 5235 (61%) | 139° | 43995 | 94 | 15 |
-| acemi | 4 | 3206 | CRASH | 209 | 7 | 241 (80%), 676 (69%), 1089 (71%), 1531 (69%), 1976 (67%), 2420 (68%), 2893 (68%) | 132° | 21795 | 43 | 14 |
-| acemi | 5 | 3202 | CRASH | 208 | 7 | 241 (80%), 676 (70%), 1089 (70%), 1532 (68%), 1976 (66%), 2420 (69%), 2893 (68%) | 125° | 21795 | 43 | 14 |
+| iyi | 0 | 3196 | FUEL | 218 | 4 | 241 (73%), 681 (59%), 1115 (59%), 2035 (11%) | 51° | 1765 | 54 | 12 |
+| iyi | 1 | 3196 | FUEL | 217 | 4 | 241 (73%), 681 (58%), 1115 (58%), 2035 (9%) | 51° | 1765 | 54 | 12 |
+| iyi | 2 | 3196 | FUEL | 218 | 4 | 241 (73%), 681 (58%), 1115 (59%), 2035 (10%) | 51° | 1765 | 55 | 12 |
+| iyi | 3 | 3196 | FUEL | 220 | 4 | 241 (73%), 681 (59%), 1115 (58%), 2034 (9%) | 51° | 1765 | 55 | 12 |
+| iyi | 4 | 3196 | FUEL | 217 | 4 | 241 (73%), 681 (59%), 1115 (60%), 2034 (9%) | 45° | 1765 | 54 | 12 |
+| iyi | 5 | 3196 | FUEL | 218 | 4 | 241 (73%), 681 (60%), 1115 (58%), 2034 (9%) | 51° | 1765 | 55 | 12 |
+| acemi | 1 | 3196 | FUEL | 217 | 4 | 241 (73%), 681 (58%), 1115 (58%), 2034 (10%) | 63° | 1765 | 55 | 12 |
+| acemi | 2 | 3197 | FUEL | 217 | 4 | 241 (73%), 681 (58%), 1115 (59%), 2034 (10%) | 62° | 1765 | 55 | 12 |
+| acemi | 3 | 3197 | FUEL | 220 | 4 | 241 (73%), 681 (59%), 1115 (58%), 2035 (10%) | 62° | 1765 | 55 | 12 |
+| acemi | 4 | 3197 | FUEL | 217 | 4 | 241 (73%), 681 (59%), 1115 (60%), 2034 (10%) | 50° | 1765 | 54 | 12 |
+| acemi | 5 | 3197 | FUEL | 217 | 4 | 241 (73%), 681 (60%), 1115 (58%), 2035 (10%) | 62° | 1765 | 55 | 12 |
 
 İyi sürücü, tohum 1-5: 3. yakıt bidonuna ulaşan = **5/5** (PLAN2 F1 kuralı: en az 4/5).
 
-Haritadaki bidonlar (Kır yolu): 249, 683, 1096, 1537, 1983, 2427, 2901, 3370 m; ardışık aralıklar: 249, 434, 413, 440, 447, 444, 474, 469 m.
+Motosiklet, Kır yolu, geliştirme yok (iyi sürücü, tohum 0-5): 4933 m FUEL (tepe 81°), 4932 m FUEL (tepe 81°), 4931 m FUEL (tepe 81°), 4931 m FUEL (tepe 81°), 4931 m FUEL (tepe 81°), 4931 m FUEL (tepe 81°).
+
+Haritadaki bidonlar (Kır yolu): 248, 688, 1123, 2042, 3304, 4977, 7015, 9341 m; ardışık aralıklar: 248, 440, 434, 919, 1263, 1673, 2038, 2325 m.
 
 ## 5. Takılma, takla ve bitiş olayları
 
@@ -132,175 +158,121 @@ TAKILMA = yerde, yakıt var, hız < 0.5 m/s, 3 sn. TERS = yerde göreli açı > 
 
 | Koşu | Olay | x (m) | Eğim | Açı | Yakıt | t (sn) |
 |---|---|---|---|---|---|---|
-| Ay/Cip/y0/iyi/s0 | SON-CRASH | 1211 | -8° | -175° | 0% | 125 |
-| Ay/Cip/y3/iyi/s0 | TAKILMA | 3810 | 26° | 25° | 71% | 481 |
-| Ay/Cip/y3/iyi/s0 | TAKILMA | 3813 | 38° | 39° | 20% | 540 |
-| Ay/Cip/y3/iyi/s0 | SON-FUEL | 3768 | -4° | -5° | 0% | 620 |
-| Ay/Motosiklet/y0/iyi/s0 | TAKILMA | 1597 | 36° | 37° | 37% | 264 |
-| Ay/Motosiklet/y0/iyi/s0 | SON-FUEL | 1580 | -7° | -7° | 0% | 309 |
-| Ay/Motosiklet/y3/iyi/s0 | TERS | 798 | -5° | 95° | 81% | 152 |
-| Ay/Motosiklet/y3/iyi/s0 | SON-CRASH | 796 | -6° | 106° | 81% | 153 |
-| Ay/Pikap/y0/iyi/s0 | TAKILMA | 3808 | 16° | 17° | 69% | 482 |
-| Ay/Pikap/y0/iyi/s0 | SON-FUEL | 3768 | -6° | -6° | 0% | 623 |
-| Ay/Pikap/y3/iyi/s0 | TAKILMA | 3813 | 34° | 37° | 81% | 437 |
-| Ay/Pikap/y3/iyi/s0 | TAKILMA | 3813 | 38° | 39° | 47% | 487 |
-| Ay/Pikap/y3/iyi/s0 | TAKILMA | 3810 | 21° | 25° | 7% | 545 |
-| Ay/Pikap/y3/iyi/s0 | SON-FUEL | 3768 | -4° | -5° | 0% | 615 |
-| Ay/Traktör/y0/iyi/s0 | TAKILMA | 4895 | 33° | 33° | 59% | 695 |
-| Ay/Traktör/y0/iyi/s0 | TAKILMA | 4894 | 21° | 24° | 10% | 765 |
-| Ay/Traktör/y0/iyi/s0 | SON-FUEL | 4888 | -4° | -4° | 0% | 824 |
-| Bataklık/Cip/y0/iyi/s0 | SON-FUEL | 4804 | -7° | -7° | 0% | 455 |
-| Bataklık/Cip/y3/iyi/s0 | TAKILMA | 9909 | 19° | 22° | 10% | 834 |
-| Bataklık/Cip/y3/iyi/s0 | SON-FUEL | 9859 | -1° | -0° | 0% | 898 |
-| Bataklık/Motosiklet/y0/iyi/s0 | TERS | 3989 | 30° | -79° | 59% | 268 |
-| Bataklık/Motosiklet/y0/iyi/s0 | SON-FUEL | 4199 | -1° | -0° | 0% | 407 |
-| Bataklık/Motosiklet/y3/iyi/s0 | TERS | 2625 | 24° | -77° | 92% | 159 |
-| Bataklık/Motosiklet/y3/iyi/s0 | SON-CRASH | 2637 | 22° | -88° | 91% | 160 |
-| Bataklık/Pikap/y0/iyi/s0 | TAKILMA | 4838 | 19° | 20° | 28% | 433 |
-| Bataklık/Pikap/y0/iyi/s0 | SON-FUEL | 4835 | -2° | -1° | 0% | 493 |
-| Bataklık/Pikap/y3/iyi/s0 | TAKILMA | 5897 | 17° | 19° | 37% | 525 |
-| Bataklık/Pikap/y3/iyi/s0 | SON-FUEL | 5839 | -0° | -0° | 0% | 659 |
-| Bataklık/Traktör/y0/iyi/s0 | TAKILMA | 2841 | 14° | 15° | 9% | 384 |
-| Bataklık/Traktör/y0/iyi/s0 | SON-FUEL | 2794 | -3° | -5° | 0% | 428 |
-| Bataklık/Traktör/y3/iyi/s0 | TAKILMA | 4255 | 17° | 18° | 50% | 524 |
-| Bataklık/Traktör/y3/iyi/s0 | TAKILMA | 4255 | 17° | 18° | 32% | 555 |
-| Bataklık/Traktör/y3/iyi/s0 | TAKILMA | 4256 | 17° | 19° | 20% | 577 |
-| Bataklık/Traktör/y3/iyi/s0 | SON-FUEL | 4207 | -3° | -3° | 0% | 650 |
-| Dağ/Cip/y0/iyi/s0 | TAKILMA | 8802 | 21° | 23° | 3% | 796 |
-| Dağ/Cip/y0/iyi/s0 | SON-FUEL | 8761 | 3° | 3° | 0% | 843 |
-| Dağ/Motosiklet/y0/iyi/s0 | TERS | 1121 | -20° | -120° | 94% | 69 |
-| Dağ/Motosiklet/y0/iyi/s0 | SON-CRASH | 1137 | -6° | -114° | 93% | 70 |
-| Dağ/Motosiklet/y3/iyi/s0 | TERS | 609 | -3° | 98° | 84% | 36 |
-| Dağ/Motosiklet/y3/iyi/s0 | SON-CRASH | 619 | -12° | 98° | 84% | 37 |
-| Dağ/Pikap/y0/iyi/s0 | SON-FUEL | 2520 | -3° | -2° | 0% | 359 |
-| Dağ/Pikap/y3/iyi/s0 | TAKILMA | 5925 | 27° | 29° | 42% | 557 |
-| Dağ/Pikap/y3/iyi/s0 | TAKILMA | 5925 | 27° | 28° | 4% | 612 |
-| Dağ/Pikap/y3/iyi/s0 | SON-FUEL | 5917 | 2° | 1° | 0% | 656 |
-| Dağ/Traktör/y0/iyi/s0 | TAKILMA | 1551 | 24° | 25° | 57% | 206 |
-| Dağ/Traktör/y0/iyi/s0 | SON-FUEL | 1510 | 2° | -0° | 0% | 336 |
-| Dağ/Traktör/y3/iyi/s0 | TAKILMA | 2900 | 27° | 35° | 45% | 368 |
-| Dağ/Traktör/y3/iyi/s0 | SON-FUEL | 2855 | 0° | -1° | 0% | 491 |
-| Kutup/Cip/y0/iyi/s0 | TAKILMA | 2235 | 15° | 16° | 34% | 203 |
-| Kutup/Cip/y0/iyi/s0 | TAKILMA | 2228 | 14° | 15° | 7% | 225 |
-| Kutup/Cip/y0/iyi/s0 | SON-FUEL | 2171 | -2° | -1° | 0% | 290 |
-| Kutup/Cip/y3/iyi/s0 | TAKILMA | 3225 | 19° | 20° | 13% | 309 |
-| Kutup/Cip/y3/iyi/s0 | SON-FUEL | 3171 | 1° | 1° | 0% | 389 |
-| Kutup/Motosiklet/y0/iyi/s0 | SON-FUEL | 2179 | -2° | -1° | 0% | 273 |
-| Kutup/Motosiklet/y3/iyi/s0 | TERS | 3172 | 4° | -96° | 88% | 214 |
-| Kutup/Motosiklet/y3/iyi/s0 | TAKILMA | 3227 | 21° | 24° | 40% | 263 |
-| Kutup/Motosiklet/y3/iyi/s0 | SON-FUEL | 3169 | -1° | -1° | 0% | 365 |
-| Kutup/Pikap/y0/iyi/s0 | TAKILMA | 2221 | 12° | 13° | 51% | 210 |
-| Kutup/Pikap/y0/iyi/s0 | TAKILMA | 2229 | 14° | 18° | 22% | 241 |
-| Kutup/Pikap/y0/iyi/s0 | SON-FUEL | 2179 | -2° | -1° | 0% | 330 |
-| Kutup/Pikap/y3/iyi/s0 | TAKILMA | 2236 | 15° | 16° | 55% | 216 |
-| Kutup/Pikap/y3/iyi/s0 | TAKILMA | 2229 | 18° | 20° | 23% | 261 |
-| Kutup/Pikap/y3/iyi/s0 | SON-FUEL | 2179 | 1° | 1° | 0% | 354 |
-| Kutup/Traktör/y0/iyi/s0 | TAKILMA | 994 | 16° | 16° | 40% | 157 |
-| Kutup/Traktör/y0/iyi/s0 | TAKILMA | 994 | 16° | 16° | 13% | 194 |
-| Kutup/Traktör/y0/iyi/s0 | SON-FUEL | 984 | 3° | 1° | 0% | 243 |
-| Kutup/Traktör/y3/iyi/s0 | TAKILMA | 1448 | 17° | 24° | 73% | 173 |
-| Kutup/Traktör/y3/iyi/s0 | TAKILMA | 1422 | 17° | 17° | 21% | 265 |
-| Kutup/Traktör/y3/iyi/s0 | SON-FUEL | 1368 | -2° | -1° | 0% | 351 |
-| Kır yolu/Cip/y0/acemi/s1 | TERS | 3190 | -2° | 104° | 82% | 207 |
-| Kır yolu/Cip/y0/acemi/s1 | SON-CRASH | 3200 | 6° | 121° | 81% | 208 |
-| Kır yolu/Cip/y0/acemi/s2 | TERS | 4873 | -7° | 107° | 96% | 329 |
-| Kır yolu/Cip/y0/acemi/s2 | TERS | 5241 | -12° | 89° | 100% | 359 |
-| Kır yolu/Cip/y0/acemi/s2 | SON-CRASH | 5264 | 22° | 136° | 99% | 361 |
-| Kır yolu/Cip/y0/acemi/s3 | TERS | 4874 | -7° | 105° | 96% | 329 |
-| Kır yolu/Cip/y0/acemi/s3 | TERS | 5241 | -12° | 89° | 100% | 363 |
-| Kır yolu/Cip/y0/acemi/s3 | SON-CRASH | 5258 | 13° | 115° | 100% | 365 |
-| Kır yolu/Cip/y0/acemi/s4 | TERS | 3197 | -0° | 100° | 81% | 208 |
-| Kır yolu/Cip/y0/acemi/s4 | SON-CRASH | 3206 | 16° | 132° | 81% | 209 |
-| Kır yolu/Cip/y0/acemi/s5 | TERS | 3192 | -2° | 98° | 82% | 207 |
-| Kır yolu/Cip/y0/acemi/s5 | SON-CRASH | 3202 | 8° | 125° | 82% | 208 |
-| Kır yolu/Cip/y0/iyi/s0 | TAKILMA | 7932 | 20° | 31° | 50% | 573 |
-| Kır yolu/Cip/y0/iyi/s0 | SON-FUEL | 7891 | -1° | -1° | 0% | 644 |
-| Kır yolu/Cip/y0/iyi/s4 | SON-FUEL | 12401 | -0° | -1° | 0% | 1029 |
-| Kır yolu/Motosiklet/y0/iyi/s0 | TERS | 2014 | -17° | -119° | 98% | 117 |
-| Kır yolu/Motosiklet/y0/iyi/s0 | TERS | 2804 | -5° | -105° | 75% | 168 |
-| Kır yolu/Motosiklet/y0/iyi/s0 | SON-CRASH | 2828 | 27° | -81° | 71% | 171 |
-| Kır yolu/Motosiklet/y3/iyi/s0 | TERS | 1560 | 14° | 115° | 77% | 88 |
-| Kır yolu/Motosiklet/y3/iyi/s0 | SON-CRASH | 1562 | 16° | 125° | 77% | 89 |
-| Kır yolu/Traktör/y0/iyi/s0 | SON-FUEL | 5599 | -1° | -1° | 0% | 730 |
-| Mağara/Cip/y0/iyi/s0 | TAKILMA | 1644 | 27° | 31° | 14% | 155 |
-| Mağara/Cip/y0/iyi/s0 | SON-FUEL | 1640 | -2° | -1° | 0% | 198 |
-| Mağara/Motosiklet/y0/iyi/s0 | TERS | 969 | -17° | -118° | 83% | 55 |
-| Mağara/Motosiklet/y0/iyi/s0 | SON-CRASH | 988 | 12° | -94° | 82% | 56 |
-| Mağara/Motosiklet/y3/iyi/s0 | TERS | 913 | -6° | -108° | 91% | 51 |
-| Mağara/Motosiklet/y3/iyi/s0 | TERS | 1089 | 7° | -93° | 82% | 62 |
-| Mağara/Motosiklet/y3/iyi/s0 | SON-CRASH | 1105 | 17° | -93° | 80% | 65 |
-| Mağara/Pikap/y0/iyi/s0 | SON-FUEL | 2887 | 1° | -1° | 0% | 340 |
-| Mağara/Traktör/y0/iyi/s0 | SON-FUEL | 1397 | -0° | -0° | 0% | 312 |
-| Mağara/Traktör/y3/iyi/s0 | TAKILMA | 2892 | 24° | 31° | 7% | 438 |
-| Mağara/Traktör/y3/iyi/s0 | SON-FUEL | 2887 | -2° | -1° | 0% | 483 |
-| Orman/Cip/y0/iyi/s0 | SON-FUEL | 9006 | -1° | -1° | 0% | 783 |
-| Orman/Motosiklet/y0/iyi/s0 | TERS | 419 | -3° | -103° | 89% | 25 |
-| Orman/Motosiklet/y0/iyi/s0 | SON-CRASH | 443 | -8° | -117° | 88% | 26 |
-| Orman/Motosiklet/y3/iyi/s0 | TERS | 423 | -2° | -103° | 92% | 24 |
-| Orman/Motosiklet/y3/iyi/s0 | SON-CRASH | 442 | -7° | -114° | 91% | 25 |
-| Orman/Pikap/y0/iyi/s0 | SON-FUEL | 10056 | -2° | -2° | 0% | 998 |
-| Orman/Traktör/y0/iyi/s0 | TAKILMA | 3053 | 26° | 28° | 24% | 391 |
-| Orman/Traktör/y0/iyi/s0 | SON-FUEL | 3049 | 1° | -1° | 0% | 454 |
-| Plaj/Cip/y0/iyi/s0 | TAKILMA | 13031 | 21° | 25° | 27% | 987 |
-| Plaj/Cip/y0/iyi/s0 | SON-FUEL | 13015 | -1° | -1° | 0% | 1054 |
-| Plaj/Cip/y3/iyi/s0 | TAKILMA | 14931 | 23° | 28° | 43% | 1101 |
-| Plaj/Cip/y3/iyi/s0 | SON-FUEL | 14896 | -4° | -4° | 0% | 1180 |
-| Plaj/Motosiklet/y0/iyi/s0 | TERS | 3275 | 4° | -102° | 95% | 192 |
-| Plaj/Motosiklet/y0/iyi/s0 | TERS | 3565 | 4° | 105° | 77% | 211 |
-| Plaj/Motosiklet/y0/iyi/s0 | SON-CRASH | 3573 | 5° | 114° | 77% | 212 |
-| Plaj/Motosiklet/y3/iyi/s0 | TERS | 1058 | -1° | -101° | 89% | 58 |
-| Plaj/Motosiklet/y3/iyi/s0 | TERS | 3277 | 27° | -73° | 96% | 188 |
-| Plaj/Motosiklet/y3/iyi/s0 | TERS | 4480 | 29° | -71° | 95% | 268 |
-| Plaj/Motosiklet/y3/iyi/s0 | SON-CRASH | 4480 | 29° | -80° | 94% | 269 |
-| Plaj/Pikap/y0/iyi/s0 | TAKILMA | 13031 | 21° | 25° | 25% | 1066 |
-| Plaj/Pikap/y0/iyi/s0 | SON-FUEL | 13016 | -1° | -1° | 0% | 1138 |
-| Plaj/Traktör/y0/iyi/s0 | TAKILMA | 8293 | 24° | 25° | 50% | 898 |
-| Plaj/Traktör/y0/iyi/s0 | TAKILMA | 8293 | 24° | 25° | 23% | 935 |
-| Plaj/Traktör/y0/iyi/s0 | SON-FUEL | 8240 | -0° | 0° | 0% | 1028 |
-| Plaj/Traktör/y3/iyi/s0 | TAKILMA | 8587 | 22° | 24° | 69% | 932 |
-| Plaj/Traktör/y3/iyi/s0 | TAKILMA | 8587 | 22° | 24° | 25% | 1013 |
-| Plaj/Traktör/y3/iyi/s0 | TAKILMA | 8587 | 22° | 24° | 7% | 1045 |
-| Plaj/Traktör/y3/iyi/s0 | SON-FUEL | 8574 | -1° | -2° | 0% | 1100 |
-| Çöl/Cip/y0/iyi/s0 | TAKILMA | 4423 | 18° | 20° | 2% | 380 |
-| Çöl/Cip/y0/iyi/s0 | SON-FUEL | 4349 | -4° | -4° | 0% | 426 |
-| Çöl/Cip/y3/iyi/s0 | TAKILMA | 12636 | 24° | 28° | 48% | 1004 |
-| Çöl/Cip/y3/iyi/s0 | TAKILMA | 12631 | 19° | 19° | 15% | 1043 |
-| Çöl/Cip/y3/iyi/s0 | SON-FUEL | 12582 | -1° | -1° | 0% | 1107 |
-| Çöl/Motosiklet/y0/iyi/s0 | TERS | 2077 | -3° | -104° | 74% | 126 |
-| Çöl/Motosiklet/y0/iyi/s0 | SON-CRASH | 2098 | 2° | -109° | 73% | 127 |
-| Çöl/Motosiklet/y3/iyi/s0 | TERS | 2909 | -26° | -127° | 89% | 196 |
-| Çöl/Motosiklet/y3/iyi/s0 | TERS | 3559 | 3° | 112° | 82% | 243 |
-| Çöl/Motosiklet/y3/iyi/s0 | SON-CRASH | 3568 | 1° | 110° | 82% | 244 |
-| Çöl/Pikap/y0/iyi/s0 | TAKILMA | 4846 | 24° | 26° | 4% | 432 |
-| Çöl/Pikap/y0/iyi/s0 | SON-FUEL | 4764 | -6° | -6° | 0% | 488 |
-| Çöl/Pikap/y3/iyi/s0 | TAKILMA | 7271 | 23° | 26° | 35% | 616 |
-| Çöl/Pikap/y3/iyi/s0 | SON-FUEL | 7250 | -1° | -1° | 0% | 713 |
-| Çöl/Traktör/y0/iyi/s0 | TAKILMA | 1952 | 19° | 20° | 29% | 273 |
-| Çöl/Traktör/y0/iyi/s0 | SON-FUEL | 1894 | 1° | 1° | 0% | 373 |
-| Çöl/Traktör/y3/iyi/s0 | TAKILMA | 3772 | 25° | 26° | 50% | 486 |
-| Çöl/Traktör/y3/iyi/s0 | TAKILMA | 3768 | 22° | 24° | 9% | 559 |
-| Çöl/Traktör/y3/iyi/s0 | SON-FUEL | 3759 | 0° | 0° | 0% | 616 |
-| Şantiye/Cip/y0/iyi/s0 | SON-FUEL | 9336 | -1° | -1° | 0% | 739 |
-| Şantiye/Cip/y3/iyi/s0 | SON-FUEL | 9703 | -6° | -3° | 0% | 742 |
-| Şantiye/Motosiklet/y0/iyi/s0 | TERS | 3801 | 9° | -92° | 62% | 234 |
-| Şantiye/Motosiklet/y0/iyi/s0 | TERS | 4415 | -8° | -109° | 65% | 280 |
-| Şantiye/Motosiklet/y0/iyi/s0 | TERS | 7767 | 39° | -66° | 81% | 539 |
-| Şantiye/Motosiklet/y0/iyi/s0 | TERS | 8325 | 40° | -61° | 85% | 584 |
-| Şantiye/Motosiklet/y0/iyi/s0 | TERS | 8742 | 6° | 106° | 95% | 632 |
-| Şantiye/Motosiklet/y0/iyi/s0 | SON-CRASH | 8745 | -0° | 106° | 95% | 633 |
-| Şantiye/Motosiklet/y3/iyi/s0 | TERS | 2359 | -21° | 80° | 86% | 138 |
-| Şantiye/Motosiklet/y3/iyi/s0 | SON-CRASH | 2369 | -19° | 90° | 86% | 139 |
-| Şantiye/Pikap/y0/iyi/s0 | SON-FUEL | 8688 | -6° | -5° | 0% | 771 |
-| Şantiye/Traktör/y0/iyi/s0 | SON-FUEL | 8719 | -0° | -1° | 0% | 1147 |
+| Ay/Ay aracı/y3/iyi/s0 | SON-FUEL | 5771 | 7° | 8° | 0% | 691 |
+| Ay/Cip/y0/iyi/s0 | TERS | 2283 | -18° | 97° | 0% | 228 |
+| Ay/Cip/y0/iyi/s0 | SON-FUEL | 2317 | 23° | 23° | 0% | 248 |
+| Ay/Cip/y3/iyi/s0 | TERS | 1257 | -1° | -108° | 0% | 122 |
+| Ay/Cip/y3/iyi/s0 | SON-CRASH | 1266 | 19° | -148° | 0% | 123 |
+| Ay/Motosiklet/y0/iyi/s0 | SON-FUEL | 1920 | -8° | -8° | 0% | 319 |
+| Ay/Motosiklet/y3/iyi/s0 | TAKILMA | 2588 | 34° | 37° | 72% | 367 |
+| Ay/Motosiklet/y3/iyi/s0 | TAKILMA | 2572 | 36° | 36° | 42% | 401 |
+| Ay/Motosiklet/y3/iyi/s0 | SON-FUEL | 2539 | 2° | 2° | 0% | 455 |
+| Ay/Pikap/y0/iyi/s0 | SON-FUEL | 5358 | 26° | 25° | 0% | 573 |
+| Ay/Pikap/y3/iyi/s0 | SON-FUEL | 6138 | 24° | 25° | 0% | 626 |
+| Ay/Traktör/y0/iyi/s0 | SON-FUEL | 5417 | 11° | 11° | 0% | 668 |
+| Ay/Traktör/y3/iyi/s0 | SON-FUEL | 7949 | 17° | 17° | 0% | 955 |
+| Bataklık/Cip/y0/iyi/s0 | SON-FUEL | 2590 | 8° | 7° | 0% | 193 |
+| Bataklık/Cip/y3/iyi/s0 | SON-FUEL | 3941 | 25° | 25° | 0% | 283 |
+| Bataklık/Motosiklet/y0/iyi/s0 | SON-FUEL | 3175 | 4° | 4° | 0% | 272 |
+| Bataklık/Motosiklet/y3/iyi/s0 | SON-FUEL | 4259 | 21° | 22° | 0% | 292 |
+| Bataklık/Pikap/y0/iyi/s0 | SON-FUEL | 3857 | -5° | -5° | 0% | 324 |
+| Bataklık/Pikap/y3/iyi/s0 | TAKILMA | 4677 | 21° | 22° | 36% | 430 |
+| Bataklık/Pikap/y3/iyi/s0 | SON-FUEL | 4643 | -15° | -15° | 0% | 492 |
+| Bataklık/Traktör/y0/iyi/s0 | SON-FUEL | 3861 | -3° | -2° | 0% | 431 |
+| Bataklık/Traktör/y3/iyi/s0 | SON-FUEL | 4298 | -3° | -4° | 0% | 478 |
+| Dağ/Cip/y0/iyi/s0 | SON-FUEL | 2722 | -4° | -1° | 0% | 214 |
+| Dağ/Cip/y3/iyi/s0 | SON-FUEL | 4151 | -15° | -20° | 0% | 312 |
+| Dağ/Motosiklet/y0/iyi/s0 | SON-FUEL | 5610 | -14° | -13° | 0% | 420 |
+| Dağ/Motosiklet/y3/iyi/s0 | SON-FUEL | 9547 | 35° | 40° | 0% | 681 |
+| Dağ/Pikap/y0/iyi/s0 | SON-FUEL | 2311 | 18° | 15° | 0% | 254 |
+| Dağ/Pikap/y3/iyi/s0 | SON-FUEL | 3257 | 21° | 18° | 0% | 372 |
+| Dağ/Traktör/y0/iyi/s0 | SON-FUEL | 1855 | -20° | -20° | 0% | 340 |
+| Dağ/Traktör/y3/iyi/s0 | SON-FUEL | 2715 | -35° | -36° | 0% | 369 |
+| Kutup/Cip/y0/iyi/s0 | SON-FUEL | 2557 | -1° | -1° | 0% | 217 |
+| Kutup/Cip/y3/iyi/s0 | SON-FUEL | 2510 | 2° | 3° | 0% | 227 |
+| Kutup/Kar motosikleti/y3/iyi/s0 | SON-FUEL | 8796 | 8° | 5° | 0% | 606 |
+| Kutup/Motosiklet/y0/iyi/s0 | SON-FUEL | 2267 | 8° | 18° | 0% | 221 |
+| Kutup/Motosiklet/y3/iyi/s0 | SON-FUEL | 2831 | -5° | -5° | 0% | 242 |
+| Kutup/Pikap/y0/iyi/s0 | SON-FUEL | 2545 | -6° | -5° | 0% | 269 |
+| Kutup/Pikap/y3/iyi/s0 | TAKILMA | 2586 | 20° | 21° | 12% | 269 |
+| Kutup/Pikap/y3/iyi/s0 | SON-FUEL | 2541 | 38° | 30° | 0% | 295 |
+| Kutup/Traktör/y0/iyi/s0 | SON-FUEL | 2834 | -4° | -3° | 0% | 351 |
+| Kutup/Traktör/y3/iyi/s0 | TAKILMA | 3878 | 27° | 30° | 4% | 508 |
+| Kutup/Traktör/y3/iyi/s0 | SON-FUEL | 3796 | 22° | 25° | 0% | 524 |
+| Kır yolu/Cip/y0/acemi/s1 | SON-FUEL | 3125 | -13° | -13° | 0% | 217 |
+| Kır yolu/Cip/y0/acemi/s2 | SON-FUEL | 3125 | -13° | -13° | 0% | 217 |
+| Kır yolu/Cip/y0/acemi/s3 | SON-FUEL | 3125 | -13° | -13° | 0% | 220 |
+| Kır yolu/Cip/y0/acemi/s4 | SON-FUEL | 3125 | -13° | -13° | 0% | 217 |
+| Kır yolu/Cip/y0/acemi/s5 | SON-FUEL | 3125 | -13° | -13° | 0% | 217 |
+| Kır yolu/Cip/y0/iyi/s0 | SON-FUEL | 3125 | -13° | -13° | 0% | 218 |
+| Kır yolu/Cip/y0/iyi/s1 | SON-FUEL | 3125 | -13° | -13° | 0% | 217 |
+| Kır yolu/Cip/y0/iyi/s2 | SON-FUEL | 3125 | -13° | -13° | 0% | 218 |
+| Kır yolu/Cip/y0/iyi/s3 | SON-FUEL | 3125 | -13° | -13° | 0% | 220 |
+| Kır yolu/Cip/y0/iyi/s4 | SON-FUEL | 3125 | -13° | -13° | 0% | 217 |
+| Kır yolu/Cip/y0/iyi/s5 | SON-FUEL | 3125 | -13° | -13° | 0% | 218 |
+| Kır yolu/Cip/y3/iyi/s0 | SON-FUEL | 4540 | 17° | 17° | 0% | 314 |
+| Kır yolu/Motosiklet/y0/iyi/s0 | SON-FUEL | 4878 | -13° | -13° | 0% | 307 |
+| Kır yolu/Motosiklet/y0/iyi/s1 | SON-FUEL | 4880 | -13° | -13° | 0% | 310 |
+| Kır yolu/Motosiklet/y0/iyi/s2 | SON-FUEL | 4880 | -13° | -13° | 0% | 312 |
+| Kır yolu/Motosiklet/y0/iyi/s3 | SON-FUEL | 4880 | -17° | -14° | 0% | 312 |
+| Kır yolu/Motosiklet/y0/iyi/s4 | SON-FUEL | 4880 | -13° | -13° | 0% | 309 |
+| Kır yolu/Motosiklet/y0/iyi/s5 | SON-FUEL | 4880 | -13° | -13° | 0% | 310 |
+| Kır yolu/Motosiklet/y3/iyi/s0 | SON-FUEL | 6837 | -2° | -2° | 0% | 424 |
+| Kır yolu/Pikap/y0/iyi/s0 | SON-FUEL | 4876 | -18° | -18° | 0% | 374 |
+| Kır yolu/Pikap/y3/iyi/s0 | SON-FUEL | 6824 | 7° | 7° | 0% | 515 |
+| Kır yolu/Traktör/y0/iyi/s0 | SON-FUEL | 3795 | -6° | -6° | 0% | 486 |
+| Kır yolu/Traktör/y3/iyi/s0 | TAKILMA | 6362 | 28° | 30° | 7% | 683 |
+| Kır yolu/Traktör/y3/iyi/s0 | SON-FUEL | 6301 | -5° | -5° | 0% | 705 |
+| Mağara/Cip/y0/iyi/s0 | SON-FUEL | 2345 | 22° | 25° | 0% | 214 |
+| Mağara/Cip/y3/iyi/s0 | SON-FUEL | 3343 | 17° | 21° | 0% | 245 |
+| Mağara/Motosiklet/y0/iyi/s0 | SON-FUEL | 4790 | -13° | -13° | 0% | 336 |
+| Mağara/Motosiklet/y3/iyi/s0 | SON-FUEL | 7081 | -1° | -1° | 0% | 473 |
+| Mağara/Pikap/y0/iyi/s0 | SON-FUEL | 2321 | -13° | -19° | 0% | 272 |
+| Mağara/Pikap/y3/iyi/s0 | SON-FUEL | 3986 | -5° | -6° | 0% | 416 |
+| Mağara/Traktör/y0/iyi/s0 | SON-FUEL | 1419 | 5° | 6° | 0% | 265 |
+| Mağara/Traktör/y3/iyi/s0 | SON-FUEL | 2334 | -5° | -8° | 0% | 401 |
+| Orman/Cip/y0/iyi/s0 | SON-FUEL | 2186 | -23° | -24° | 0% | 162 |
+| Orman/Cip/y3/iyi/s0 | SON-FUEL | 3536 | -10° | -11° | 0% | 254 |
+| Orman/Motosiklet/y0/iyi/s0 | SON-FUEL | 5006 | -13° | -14° | 0% | 348 |
+| Orman/Motosiklet/y3/iyi/s0 | TERS | 5768 | -9° | -118° | 100% | 368 |
+| Orman/Motosiklet/y3/iyi/s0 | SON-FUEL | 7514 | 13° | -16° | 0% | 503 |
+| Orman/Pikap/y0/iyi/s0 | SON-FUEL | 3587 | 29° | 28° | 0% | 294 |
+| Orman/Pikap/y3/iyi/s0 | SON-FUEL | 7520 | -5° | 0° | 0% | 599 |
+| Orman/Traktör/y0/iyi/s0 | SON-FUEL | 2411 | -0° | -0° | 0% | 388 |
+| Orman/Traktör/y3/iyi/s0 | SON-FUEL | 5395 | -16° | -20° | 0% | 619 |
+| Plaj/Cip/y0/iyi/s0 | SON-FUEL | 2724 | -19° | -20° | 0% | 192 |
+| Plaj/Cip/y3/iyi/s0 | SON-FUEL | 2959 | -13° | -13° | 0% | 206 |
+| Plaj/Motosiklet/y0/iyi/s0 | SON-FUEL | 3082 | 4° | 4° | 0% | 193 |
+| Plaj/Motosiklet/y3/iyi/s0 | SON-FUEL | 5014 | -8° | -7° | 0% | 310 |
+| Plaj/Pikap/y0/iyi/s0 | SON-FUEL | 4710 | -2° | -2° | 0% | 349 |
+| Plaj/Pikap/y3/iyi/s0 | SON-FUEL | 7544 | -16° | -17° | 0% | 556 |
+| Plaj/Traktör/y0/iyi/s0 | SON-FUEL | 2972 | -10° | -10° | 0% | 314 |
+| Plaj/Traktör/y3/iyi/s0 | SON-FUEL | 5006 | 2° | 4° | 0% | 523 |
+| Çöl/Cip/y0/iyi/s0 | SON-FUEL | 3003 | -7° | -7° | 0% | 227 |
+| Çöl/Cip/y3/iyi/s0 | SON-FUEL | 3340 | -8° | -9° | 0% | 243 |
+| Çöl/Motosiklet/y0/iyi/s0 | SON-FUEL | 3329 | -16° | -23° | 0% | 241 |
+| Çöl/Motosiklet/y3/iyi/s0 | SON-CRASH | 5499 | 15° | -146° | 0% | 351 |
+| Çöl/Pikap/y0/iyi/s0 | SON-FUEL | 3372 | 13° | 13° | 0% | 279 |
+| Çöl/Pikap/y3/iyi/s0 | SON-FUEL | 4504 | 7° | 6° | 0% | 418 |
+| Çöl/Traktör/y0/iyi/s0 | SON-FUEL | 3361 | 22° | 25° | 0% | 372 |
+| Çöl/Traktör/y3/iyi/s0 | SON-FUEL | 5362 | -14° | -13° | 0% | 580 |
+| Şantiye/Cip/y0/iyi/s0 | SON-FUEL | 2898 | -5° | -5° | 0% | 207 |
+| Şantiye/Cip/y3/iyi/s0 | SON-FUEL | 3178 | -13° | -13° | 0% | 224 |
+| Şantiye/Motosiklet/y0/iyi/s0 | SON-FUEL | 3242 | 10° | 2° | 0% | 204 |
+| Şantiye/Motosiklet/y3/iyi/s0 | SON-FUEL | 5209 | 40° | 35° | 0% | 327 |
+| Şantiye/Pikap/y0/iyi/s0 | SON-FUEL | 4857 | 2° | 2° | 0% | 370 |
+| Şantiye/Pikap/y3/iyi/s0 | SON-FUEL | 7523 | -10° | -10° | 0% | 568 |
+| Şantiye/Traktör/y0/iyi/s0 | SON-FUEL | 3185 | -12° | -13° | 0% | 346 |
+| Şantiye/Traktör/y3/iyi/s0 | SON-FUEL | 5139 | -3° | -2° | 0% | 544 |
 
 ## 5b. Araç özeti (matris, her iki geliştirme düzeyi, iyi sürücü)
 
 | Araç | Ortalama mesafe (m) | Ortalama süre (sn) | CRASH | FUEL | SÜRE sınırı | Koşu |
 |---|---|---|---|---|---|---|
-| Cip | 8968 | 765 | 1 | 15 | 4 | 20 |
-| Motosiklet | 2440 | 191 | 16 | 4 | 0 | 20 |
-| Pikap | 8490 | 787 | 0 | 14 | 6 | 20 |
-| Traktör | 5268 | 718 | 0 | 16 | 4 | 20 |
+| Cip | 3018 | 226 | 1 | 19 | 0 | 20 |
+| Motosiklet | 4738 | 346 | 1 | 19 | 0 | 20 |
+| Pikap | 4686 | 411 | 0 | 20 | 0 | 20 |
+| Traktör | 4024 | 483 | 0 | 20 | 0 | 20 |
 
 ### Yakıt bitişleri
 
@@ -308,55 +280,84 @@ TAKILMA = yerde, yakıt var, hız < 0.5 m/s, 3 sn. TERS = yerde göreli açı > 
 
 | Koşu | Mesafe (m) | Eğim | Bidona kalan (m) | Son bidondan beri (m) | Yakında olan özellikler |
 |---|---|---|---|---|---|
-| Ay/Cip/y3/iyi/s0 | 3817 | -4° | 450 | 86 | dik iniş (3710-3740 m), rampa (3780-3785 m) |
-| Ay/Motosiklet/y0/iyi/s0 | 1599 | -7° | 173 | 343 | dik yokuş (1460-1470 m), çukur (1500-1507 m), rampa (1564-1569 m), dik yokuş (1600-1610 m) |
-| Ay/Pikap/y0/iyi/s0 | 3815 | -6° | 450 | 88 | dik iniş (3710-3740 m), rampa (3780-3785 m) |
-| Ay/Pikap/y3/iyi/s0 | 3818 | -4° | 450 | 92 | dik iniş (3710-3740 m), rampa (3780-3785 m) |
-| Ay/Traktör/y0/iyi/s0 | 4908 | -4° | 285 | 228 | tümsekler (4773-4787 m), rampa (4863-4868 m), dik yokuş (4900-4910 m) |
-| Bataklık/Cip/y0/iyi/s0 | 4897 | -7° | 402 | 275 | çukur (4696-4704 m), dik iniş (4750-4770 m), rampa (4810-4814 m) |
-| Bataklık/Cip/y3/iyi/s0 | 9932 | -1° | 326 | 306 | dik yokuş (9750-9760 m), çukur (9801-9812 m), dik iniş (9830-9860 m), rampa (9870-9875 m) |
-| Bataklık/Motosiklet/y0/iyi/s0 | 4284 | -1° | 425 | 202 | dik iniş (4130-4140 m), çukur (4146-4155 m), dik iniş (4180-4200 m), çukur (4209-4216 m) |
-| Bataklık/Pikap/y0/iyi/s0 | 4901 | -2° | 371 | 280 | dik iniş (4750-4770 m), rampa (4810-4814 m), dik yokuş (4840-4850 m) |
-| Bataklık/Pikap/y3/iyi/s0 | 5918 | -0° | 433 | 176 | çukur (5722-5730 m), dik iniş (5760-5780 m), çukur (5788-5799 m), dik yokuş (5850-5860 m) |
-| Bataklık/Traktör/y0/iyi/s0 | 2867 | -3° | 186 | 411 | rampa (2688-2692 m), dik iniş (2770-2780 m), çukur (2797-2803 m) |
-| Bataklık/Traktör/y3/iyi/s0 | 4279 | -3° | 417 | 197 | dik iniş (4130-4140 m), çukur (4146-4155 m), dik iniş (4180-4200 m), çukur (4209-4216 m) |
-| Dağ/Cip/y0/iyi/s0 | 8817 | 3° | 85 | 335 | çukur (8647-8656 m), dik yokuş (8670-8680 m), dik iniş (8700-8720 m), dik iniş (8740-8750 m), çukur (8759-8769 m), dik yokuş (8780-8790 m) |
-| Dağ/Pikap/y0/iyi/s0 | 2583 | -3° | 40 | 26 | rampa (2431-2436 m), dik iniş (2470-2510 m), çukur (2520-2528 m) |
-| Dağ/Pikap/y3/iyi/s0 | 5945 | 2° | 165 | 239 | dik yokuş (5800-5810 m), çukur (5830-5839 m), dik iniş (5860-5870 m), çukur (5882-5890 m), dik yokuş (5930-5950 m) |
-| Dağ/Traktör/y0/iyi/s0 | 1571 | 2° | 284 | 157 | rampa (1425-1429 m), dik iniş (1460-1470 m), dik iniş (1490-1510 m) |
-| Dağ/Traktör/y3/iyi/s0 | 2910 | 0° | 78 | 352 | çukur (2747-2756 m), dik yokuş (2770-2780 m), dik iniş (2800-2810 m), dik iniş (2830-2850 m), çukur (2856-2864 m) |
-| Kutup/Cip/y0/iyi/s0 | 2256 | -2° | 326 | 221 | rampa (2064-2069 m), dik iniş (2100-2110 m), dik iniş (2150-2160 m), çukur (2170-2179 m), dik yokuş (2190-2200 m) |
-| Kutup/Cip/y3/iyi/s0 | 3251 | 1° | 223 | 274 | rampa (3064-3068 m), dik iniş (3100-3110 m), dik iniş (3140-3160 m) |
-| Kutup/Motosiklet/y0/iyi/s0 | 2250 | -2° | 317 | 215 | rampa (2064-2069 m), dik iniş (2100-2110 m), dik iniş (2150-2160 m), çukur (2170-2179 m), dik yokuş (2190-2200 m) |
-| Kutup/Motosiklet/y3/iyi/s0 | 3239 | -1° | 224 | 262 | rampa (3064-3068 m), dik iniş (3100-3110 m), dik iniş (3140-3160 m) |
-| Kutup/Pikap/y0/iyi/s0 | 2252 | -2° | 318 | 218 | rampa (2064-2069 m), dik iniş (2100-2110 m), dik iniş (2150-2160 m), çukur (2170-2179 m), dik yokuş (2190-2200 m) |
-| Kutup/Pikap/y3/iyi/s0 | 2259 | 1° | 317 | 225 | rampa (2064-2069 m), dik iniş (2100-2110 m), dik iniş (2150-2160 m), çukur (2170-2179 m), dik yokuş (2190-2200 m) |
-| Kutup/Traktör/y0/iyi/s0 | 1016 | 3° | 173 | 331 | tümsekler (904-919 m), çukur (983-989 m), dik yokuş (1000-1010 m) |
-| Kutup/Traktör/y3/iyi/s0 | 1450 | -2° | 209 | 296 | dik yokuş (1250-1260 m), tümsekler (1284-1309 m), dik iniş (1340-1360 m), çukur (1368-1377 m) |
-| Kır yolu/Cip/y0/iyi/s0 | 7934 | -1° | 96 | 433 | dik iniş (7820-7840 m), çukur (7848-7855 m), dik yokuş (7910-7930 m) |
-| Kır yolu/Traktör/y0/iyi/s0 | 5680 | -1° | 89 | 445 | dik yokuş (5470-5490 m), rampa (5522-5527 m), dik iniş (5560-5590 m), çukur (5599-5607 m) |
-| Mağara/Cip/y0/iyi/s0 | 1654 | -2° | 420 | 466 | dik iniş (1550-1580 m), rampa (1616-1620 m), dik yokuş (1650-1660 m) |
-| Mağara/Pikap/y0/iyi/s0 | 2909 | 1° | 97 | 380 | dik iniş (2800-2830 m), rampa (2862-2866 m), dik yokuş (2900-2920 m) |
-| Mağara/Traktör/y0/iyi/s0 | 1475 | -0° | 231 | 286 | dik yokuş (1280-1300 m), çukur (1328-1335 m), dik iniş (1360-1390 m) |
-| Mağara/Traktör/y3/iyi/s0 | 2902 | -2° | 97 | 373 | dik iniş (2800-2830 m), rampa (2862-2866 m), dik yokuş (2900-2920 m) |
-| Orman/Cip/y0/iyi/s0 | 9029 | -1° | 125 | 389 | tümsekler (8912-8938 m), rampa (8983-8988 m), dik yokuş (9020-9040 m) |
-| Orman/Pikap/y0/iyi/s0 | 10114 | -2° | 51 | 10 | dik yokuş (9930-9950 m), çukur (9977-9984 m), dik iniş (10010-10020 m), rampa (10031-10035 m) |
-| Orman/Traktör/y0/iyi/s0 | 3064 | 1° | 93 | 413 | dik yokuş (2930-2940 m), rampa (2949-2954 m), dik iniş (2980-3000 m), dik iniş (3020-3030 m), çukur (3039-3050 m), dik yokuş (3060-3080 m) |
-| Plaj/Cip/y0/iyi/s0 | 13056 | -1° | 275 | 349 | çukur (12904-12911 m), dik iniş (12950-12960 m), rampa (12974-12979 m), çukur (13030-13039 m) |
-| Plaj/Cip/y3/iyi/s0 | 14942 | -4° | 256 | 412 | çukur (14784-14793 m), dik iniş (14850-14860 m), rampa (14901-14905 m) |
-| Plaj/Pikap/y0/iyi/s0 | 13055 | -1° | 275 | 347 | çukur (12904-12911 m), dik iniş (12950-12960 m), rampa (12974-12979 m), çukur (13030-13039 m) |
-| Plaj/Traktör/y0/iyi/s0 | 8312 | -0° | 252 | 431 | dik yokuş (8140-8150 m), çukur (8180-8189 m), dik iniş (8220-8230 m) |
-| Plaj/Traktör/y3/iyi/s0 | 8603 | -1° | 541 | 113 | dik iniş (8510-8520 m), çukur (8532-8540 m), dik yokuş (8590-8610 m) |
-| Çöl/Cip/y0/iyi/s0 | 4451 | -4° | 427 | 214 | çukur (4228-4235 m), dik iniş (4290-4310 m), rampa (4354-4359 m) |
-| Çöl/Cip/y3/iyi/s0 | 12653 | -1° | 315 | 227 | rampa (12469-12474 m), dik iniş (12540-12560 m), çukur (12575-12583 m) |
-| Çöl/Pikap/y0/iyi/s0 | 4864 | -6° | 12 | 628 | tümsekler (4650-4672 m), dik iniş (4710-4730 m), rampa (4770-4775 m) |
-| Çöl/Pikap/y3/iyi/s0 | 7282 | -1° | 65 | 508 | dik iniş (7180-7200 m), rampa (7209-7213 m), dik iniş (7240-7250 m), çukur (7259-7269 m) |
-| Çöl/Traktör/y0/iyi/s0 | 1978 | 1° | 320 | 278 | rampa (1786-1791 m), dik iniş (1820-1830 m), çukur (1836-1845 m) |
-| Çöl/Traktör/y3/iyi/s0 | 3790 | 0° | 481 | 88 | tümsekler (3628-3649 m), dik iniş (3680-3700 m), çukur (3711-3720 m), dik yokuş (3780-3800 m) |
-| Şantiye/Cip/y0/iyi/s0 | 9344 | -1° | 608 | 1241 | tümsekler (9232-9247 m), dik iniş (9260-9270 m), rampa (9311-9316 m), dik yokuş (9340-9350 m) |
-| Şantiye/Cip/y3/iyi/s0 | 9799 | -6° | 240 | 1695 | çukur (9591-9600 m), dik iniş (9650-9670 m), rampa (9709-9713 m) |
-| Şantiye/Pikap/y0/iyi/s0 | 8776 | -6° | 16 | 673 | çukur (8590-8598 m), dik iniş (8630-8650 m), rampa (8694-8698 m) |
-| Şantiye/Traktör/y0/iyi/s0 | 8779 | -0° | 599 | 77 | dik iniş (8630-8650 m), rampa (8694-8698 m), dik yokuş (8730-8740 m) |
+| Ay/Cip/y0/iyi/s0 | 2340 | 23° | 26 | 1064 | çukur (2237-2246 m), dik yokuş (2330-2340 m) |
+| Ay/Motosiklet/y0/iyi/s0 | 1942 | -8° | 423 | 665 | dik yokuş (1790-1810 m), çukur (1915-1922 m), dik yokuş (1940-1950 m) |
+| Ay/Motosiklet/y3/iyi/s0 | 2589 | 2° | 1373 | 249 | tümsekler (2412-2441 m), dik iniş (2450-2470 m), çukur (2484-2490 m) |
+| Ay/Pikap/y0/iyi/s0 | 5380 | 26° | 569 | 1470 | tümsekler (5232-5249 m), dik iniş (5260-5310 m), çukur (5318-5329 m), dik yokuş (5360-5400 m) |
+| Ay/Pikap/y3/iyi/s0 | 6164 | 24° | 2249 | 2254 | dik iniş (6040-6090 m), çukur (6098-6108 m), dik yokuş (6140-6200 m) |
+| Ay/Traktör/y0/iyi/s0 | 5425 | 11° | 510 | 1515 | dik iniş (5260-5310 m), çukur (5318-5329 m), dik yokuş (5360-5400 m), rampa (5430-5434 m) |
+| Ay/Traktör/y3/iyi/s0 | 7970 | 17° | 437 | 2045 | tümsekler (7839-7858 m), dik iniş (7870-7900 m), çukur (7914-7923 m), tümsekler (7971-7994 m) |
+| Bataklık/Cip/y0/iyi/s0 | 2602 | 8° | 194 | 1146 | çukur (2558-2566 m) |
+| Bataklık/Cip/y3/iyi/s0 | 3990 | 25° | 675 | 1208 | tümsekler (3897-3922 m), dik yokuş (3940-3950 m) |
+| Bataklık/Motosiklet/y0/iyi/s0 | 3250 | 4° | 1441 | 468 | dik iniş (3100-3110 m), rampa (3160-3164 m) |
+| Bataklık/Motosiklet/y3/iyi/s0 | 4345 | 21° | 357 | 1563 | dik iniş (4190-4200 m), çukur (4209-4217 m) |
+| Bataklık/Pikap/y0/iyi/s0 | 3942 | -5° | 759 | 1160 | dik iniş (3750-3790 m), çukur (3799-3807 m) |
+| Bataklık/Pikap/y3/iyi/s0 | 4723 | -15° | 2346 | 109 | dik iniş (4510-4560 m), çukur (4568-4577 m), çukur (4664-4672 m) |
+| Bataklık/Traktör/y0/iyi/s0 | 3923 | -3° | 755 | 1142 | dik iniş (3750-3790 m), çukur (3799-3807 m) |
+| Bataklık/Traktör/y3/iyi/s0 | 4301 | -3° | 318 | 1519 | dik iniş (4190-4200 m), çukur (4209-4217 m), çukur (4301-4307 m) |
+| Dağ/Cip/y0/iyi/s0 | 2788 | -4° | 97 | 1032 | dik yokuş (2590-2610 m), dik iniş (2640-2650 m), çukur (2665-2675 m), dik iniş (2690-2720 m), çukur (2733-2741 m) |
+| Dağ/Cip/y3/iyi/s0 | 4184 | -15° | 49 | 1367 | dik iniş (4040-4070 m), çukur (4084-4092 m), dik iniş (4130-4140 m), çukur (4153-4163 m) |
+| Dağ/Motosiklet/y0/iyi/s0 | 5654 | -14° | 208 | 1456 | dik iniş (5480-5510 m), çukur (5525-5535 m), dik iniş (5580-5610 m), çukur (5616-5625 m) |
+| Dağ/Motosiklet/y3/iyi/s0 | 9642 | 35° | 342 | 1931 | dik iniş (9440-9470 m), çukur (9482-9490 m), dik yokuş (9520-9580 m) |
+| Dağ/Pikap/y0/iyi/s0 | 2347 | 18° | 508 | 591 | dik iniş (2190-2210 m), çukur (2218-2226 m), dik iniş (2240-2270 m), dik yokuş (2290-2300 m), çukur (2311-2318 m), dik yokuş (2330-2360 m) |
+| Dağ/Pikap/y3/iyi/s0 | 3339 | 21° | 944 | 522 | dik iniş (3130-3150 m), çukur (3162-3170 m), dik iniş (3200-3230 m), rampa (3270-3275 m) |
+| Dağ/Traktör/y0/iyi/s0 | 1932 | -20° | 965 | 176 | dik yokuş (1720-1740 m), tümsekler (1757-1783 m), dik iniş (1800-1810 m), dik iniş (1840-1850 m), çukur (1864-1874 m) |
+| Dağ/Traktör/y3/iyi/s0 | 2815 | -35° | 105 | 1059 | dik yokuş (2590-2610 m), dik iniş (2640-2650 m), çukur (2665-2675 m), dik iniş (2690-2720 m), çukur (2733-2741 m) |
+| Kutup/Cip/y0/iyi/s0 | 2606 | -1° | 704 | 632 | dik iniş (2470-2500 m), rampa (2542-2547 m) |
+| Kutup/Cip/y3/iyi/s0 | 2614 | 2° | 751 | 640 | çukur (2418-2429 m), dik iniş (2470-2500 m) |
+| Kutup/Motosiklet/y0/iyi/s0 | 2360 | 8° | 994 | 386 | dik iniş (2160-2180 m), çukur (2188-2197 m), dik iniş (2230-2240 m), çukur (2255-2264 m) |
+| Kutup/Motosiklet/y3/iyi/s0 | 2887 | -5° | 430 | 913 | dik iniş (2730-2760 m), çukur (2819-2828 m) |
+| Kutup/Pikap/y0/iyi/s0 | 2612 | -6° | 716 | 638 | dik iniş (2470-2500 m), rampa (2542-2547 m) |
+| Kutup/Pikap/y3/iyi/s0 | 2624 | 38° | 720 | 650 | çukur (2418-2429 m), dik iniş (2470-2500 m), rampa (2542-2547 m) |
+| Kutup/Traktör/y0/iyi/s0 | 2881 | -4° | 427 | 907 | dik iniş (2730-2760 m), çukur (2819-2828 m) |
+| Kutup/Traktör/y3/iyi/s0 | 3915 | 22° | 1152 | 656 | dik iniş (3720-3760 m), çukur (3765-3773 m), dik yokuş (3800-3810 m), çukur (3821-3828 m) |
+| Kır yolu/Cip/y0/iyi/s0 | 3196 | -13° | 174 | 1162 | tümsekler (3004-3025 m), dik iniş (3050-3060 m), çukur (3074-3082 m) |
+| Kır yolu/Cip/y3/iyi/s0 | 4620 | 17° | 432 | 1323 | dik iniş (4420-4460 m), çukur (4473-4482 m), rampa (4556-4562 m) |
+| Kır yolu/Motosiklet/y0/iyi/s0 | 4933 | -13° | 94 | 1635 | çukur (4762-4771 m), dik iniş (4850-4880 m), çukur (4886-4896 m) |
+| Kır yolu/Motosiklet/y3/iyi/s0 | 6904 | -2° | 174 | 1934 | çukur (6725-6734 m), rampa (6800-6804 m), çukur (6859-6867 m) |
+| Kır yolu/Pikap/y0/iyi/s0 | 4933 | -18° | 96 | 1637 | çukur (4762-4771 m), dik iniş (4850-4880 m), çukur (4886-4896 m) |
+| Kır yolu/Pikap/y3/iyi/s0 | 6924 | 7° | 186 | 1955 | dik iniş (6650-6710 m), çukur (6725-6734 m), rampa (6800-6804 m) |
+| Kır yolu/Traktör/y0/iyi/s0 | 3867 | -6° | 1177 | 571 | dik iniş (3680-3710 m), çukur (3725-3733 m), rampa (3819-3824 m) |
+| Kır yolu/Traktör/y3/iyi/s0 | 6384 | -5° | 710 | 1415 | rampa (6220-6224 m), çukur (6325-6331 m) |
+| Mağara/Cip/y0/iyi/s0 | 2428 | 22° | 1060 | 344 | dik iniş (2230-2250 m), çukur (2261-2270 m), dik iniş (2290-2320 m), çukur (2328-2338 m), dik yokuş (2350-2360 m) |
+| Mağara/Cip/y3/iyi/s0 | 3366 | 17° | 62 | 1282 | çukur (3260-3270 m), dik yokuş (3290-3330 m), rampa (3344-3349 m) |
+| Mağara/Motosiklet/y0/iyi/s0 | 4881 | -13° | 306 | 1478 | tümsekler (4659-4679 m), dik iniş (4690-4730 m), çukur (4738-4748 m), çukur (4794-4801 m) |
+| Mağara/Motosiklet/y3/iyi/s0 | 7093 | -1° | 52 | 1998 | tümsekler (6982-7004 m), dik yokuş (7020-7060 m), rampa (7074-7079 m) |
+| Mağara/Pikap/y0/iyi/s0 | 2426 | -13° | 1083 | 341 | dik yokuş (2180-2210 m), dik iniş (2230-2250 m), çukur (2261-2270 m), dik iniş (2290-2320 m), çukur (2328-2338 m) |
+| Mağara/Pikap/y3/iyi/s0 | 4052 | -5° | 1110 | 649 | tümsekler (3862-3881 m), dik iniş (3890-3910 m), rampa (3947-3951 m), çukur (3997-4004 m) |
+| Mağara/Traktör/y0/iyi/s0 | 1475 | 5° | 667 | 296 | çukur (1328-1335 m), dik iniş (1360-1390 m) |
+| Mağara/Traktör/y3/iyi/s0 | 2427 | -5° | 1071 | 343 | dik iniş (2230-2250 m), çukur (2261-2270 m), dik iniş (2290-2320 m), çukur (2328-2338 m), dik yokuş (2350-2360 m) |
+| Orman/Cip/y0/iyi/s0 | 2234 | -23° | 72 | 1047 | dik yokuş (2070-2080 m), rampa (2086-2091 m), dik iniş (2120-2130 m), çukur (2145-2153 m), dik iniş (2180-2190 m) |
+| Orman/Cip/y3/iyi/s0 | 3580 | -10° | 228 | 1324 | dik iniş (3440-3450 m), çukur (3465-3474 m), dik iniş (3510-3530 m), çukur (3543-3550 m) |
+| Orman/Motosiklet/y0/iyi/s0 | 5062 | -13° | 762 | 1299 | tümsekler (4931-4952 m), dik iniş (4970-5000 m), çukur (5015-5024 m) |
+| Orman/Motosiklet/y3/iyi/s0 | 7627 | 13° | 630 | 1860 | dik iniş (7340-7410 m), çukur (7423-7432 m), çukur (7524-7531 m) |
+| Orman/Pikap/y0/iyi/s0 | 3665 | 29° | 177 | 1409 | çukur (3465-3474 m), dik iniş (3510-3530 m), çukur (3543-3550 m), dik yokuş (3570-3610 m) |
+| Orman/Pikap/y3/iyi/s0 | 7638 | -5° | 624 | 1872 | dik iniş (7340-7410 m), çukur (7423-7432 m), çukur (7524-7531 m) |
+| Orman/Traktör/y0/iyi/s0 | 2449 | -0° | 1353 | 193 | dik iniş (2320-2350 m), çukur (2358-2368 m), dik yokuş (2430-2460 m) |
+| Orman/Traktör/y3/iyi/s0 | 5432 | -16° | 374 | 1670 | dik iniş (5240-5280 m), çukur (5292-5300 m), dik iniş (5360-5380 m), çukur (5395-5405 m) |
+| Plaj/Cip/y0/iyi/s0 | 2785 | -19° | 425 | 1176 | çukur (2740-2748 m) |
+| Plaj/Cip/y3/iyi/s0 | 3031 | -13° | 190 | 1422 | rampa (2845-2850 m), çukur (2906-2915 m) |
+| Plaj/Motosiklet/y0/iyi/s0 | 3114 | 4° | 67 | 1505 | çukur (3060-3068 m) |
+| Plaj/Motosiklet/y3/iyi/s0 | 5071 | -8° | 281 | 1923 | dik iniş (4970-4990 m), çukur (5003-5013 m) |
+| Plaj/Pikap/y0/iyi/s0 | 4768 | -2° | 585 | 1621 | dik iniş (4600-4610 m), tümsekler (4652-4675 m) |
+| Plaj/Pikap/y3/iyi/s0 | 7613 | -16° | 501 | 2320 | tümsekler (7469-7492 m), tümsekler (7562-7586 m) |
+| Plaj/Traktör/y0/iyi/s0 | 3012 | -10° | 177 | 1403 | çukur (2906-2915 m) |
+| Plaj/Traktör/y3/iyi/s0 | 5045 | 2° | 289 | 1898 | dik iniş (4970-4990 m), çukur (5003-5013 m) |
+| Çöl/Cip/y0/iyi/s0 | 3083 | -7° | 655 | 897 | dik iniş (2920-2960 m), çukur (2967-2975 m) |
+| Çöl/Cip/y3/iyi/s0 | 3463 | -8° | 317 | 1276 | dik iniş (3230-3240 m), çukur (3246-3254 m), dik iniş (3300-3320 m), çukur (3334-3344 m) |
+| Çöl/Motosiklet/y0/iyi/s0 | 3391 | -16° | 329 | 1204 | dik iniş (3230-3240 m), çukur (3246-3254 m), dik iniş (3300-3320 m), çukur (3334-3344 m) |
+| Çöl/Pikap/y0/iyi/s0 | 3486 | 13° | 285 | 1300 | dik iniş (3300-3320 m), çukur (3334-3344 m) |
+| Çöl/Pikap/y3/iyi/s0 | 4609 | 7° | 1131 | 954 | tümsekler (4369-4399 m), dik iniş (4410-4430 m), çukur (4464-4470 m) |
+| Çöl/Traktör/y0/iyi/s0 | 3448 | 22° | 296 | 1262 | çukur (3246-3254 m), dik iniş (3300-3320 m), çukur (3334-3344 m) |
+| Çöl/Traktör/y3/iyi/s0 | 5398 | -14° | 273 | 1742 | dik iniş (5300-5350 m), çukur (5361-5371 m) |
+| Şantiye/Cip/y0/iyi/s0 | 2942 | -5° | 406 | 1231 | rampa (2882-2886 m) |
+| Şantiye/Cip/y3/iyi/s0 | 3239 | -13° | 126 | 1528 | çukur (3113-3123 m), çukur (3185-3195 m) |
+| Şantiye/Motosiklet/y0/iyi/s0 | 3281 | 10° | 63 | 1570 | çukur (3185-3195 m), rampa (3242-3246 m) |
+| Şantiye/Motosiklet/y3/iyi/s0 | 5236 | 40° | 313 | 1933 | çukur (5139-5147 m), rampa (5212-5217 m) |
+| Şantiye/Pikap/y0/iyi/s0 | 4897 | 2° | 666 | 1595 | tümsekler (4789-4808 m) |
+| Şantiye/Pikap/y3/iyi/s0 | 7582 | -10° | 821 | 2062 | dik yokuş (7400-7470 m), rampa (7484-7489 m) |
+| Şantiye/Traktör/y0/iyi/s0 | 3222 | -12° | 119 | 1512 | çukur (3113-3123 m), çukur (3185-3195 m) |
+| Şantiye/Traktör/y3/iyi/s0 | 5164 | -3° | 384 | 1862 | çukur (5028-5038 m), çukur (5139-5147 m) |
 
 ## 6. Yakıt: menzil ve bidon aralığı
 
@@ -364,64 +365,64 @@ Menzil = depo / ölçülen yakıt harcaması (m başına). Bu değer tam gazla v
 
 | Harita (jeep, y0) | Haritadaki bidon aralığı (m) | Menzil (m) | Aralık/menzil | En uzun gerçek aralık (m) | En düşük yakıt (alırken) |
 |---|---|---|---|---|---|
-| Kır yolu | 450 | 1186 | 38% | 487 | 61% |
-| Çöl | 500 | 1046 | 48% | 994 | 20% |
-| Kutup | 450 | 853 | 53% | 469 | 60% |
-| Ay | 500 | 1216 | 41% | - | - |
-| Orman | 500 | 1163 | 43% | 532 | 57% |
-| Dağ | 400 | 1071 | 37% | 816 | 30% |
-| Plaj | 600 | 1190 | 50% | 1250 | 0% |
-| Mağara | 450 | 886 | 51% | 484 | 65% |
-| Bataklık | 550 | 1050 | 52% | 584 | 51% |
-| Şantiye | 600 | 1315 | 46% | 620 | 51% |
+| Kır yolu | 450 | 1074 | 42% | 919 | 11% |
+| Çöl | 500 | 970 | 52% | 1006 | 0% |
+| Kutup | 450 | 828 | 54% | 867 | 1% |
+| Ay | 500 | 1001 | 50% | 756 | 12% |
+| Orman | 500 | 1030 | 49% | 473 | 54% |
+| Dağ | 400 | 1030 | 39% | 734 | 27% |
+| Plaj | 600 | 1087 | 55% | 783 | 25% |
+| Mağara | 450 | 798 | 56% | 906 | 11% |
+| Bataklık | 550 | 1056 | 52% | 651 | 34% |
+| Şantiye | 600 | 1112 | 54% | 846 | 20% |
 
 ## 7. En çok yakıt harcatan yokuşlar (jeep, geliştirme yok)
 
 | Harita | x aralığı (m) | Uzunluk (m) | Yükseklik (m) | En dik eğim | Depo payı |
 |---|---|---|---|---|---|
-| Kır yolu | 6200-6285 | 85 | 27.1 | 41° | 12% |
-| Kır yolu | 4475-4575 | 100 | 25.4 | 34° | 10% |
-| Kır yolu | 7135-7220 | 85 | 27.0 | 35° | 10% |
-| Çöl | 2505-2640 | 135 | 24.8 | 32° | 11% |
-| Çöl | 3555-3665 | 110 | 25.0 | 36° | 11% |
-| Çöl | 4180-4275 | 95 | 31.0 | 35° | 11% |
-| Kutup | 1565-1700 | 135 | 21.9 | 30° | 13% |
-| Kutup | 1990-2095 | 105 | 26.2 | 29° | 11% |
-| Kutup | 570-705 | 135 | 15.2 | 22° | 10% |
-| Ay | 1100-1175 | 75 | 15.2 | 28° | 8% |
-| Ay | 950-1035 | 85 | 18.3 | 22° | 6% |
-| Ay | 635-720 | 85 | 15.9 | 18° | 6% |
-| Orman | 7625-7710 | 85 | 22.4 | 45° | 11% |
-| Orman | 7180-7255 | 75 | 20.2 | 45° | 11% |
-| Orman | 7920-8020 | 100 | 23.2 | 39° | 10% |
-| Dağ | 6745-6825 | 80 | 32.8 | 41° | 16% |
-| Dağ | 3730-3795 | 65 | 30.3 | 47° | 14% |
-| Dağ | 5750-5815 | 65 | 28.4 | 41° | 13% |
-| Plaj | 8075-8165 | 90 | 19.1 | 29° | 11% |
-| Plaj | 11280-11350 | 70 | 21.7 | 42° | 10% |
-| Plaj | 9205-9290 | 85 | 21.0 | 34° | 10% |
-| Mağara | 1400-1540 | 140 | 29.1 | 39° | 12% |
-| Mağara | 1225-1310 | 85 | 30.2 | 37° | 9% |
-| Mağara | 1030-1120 | 90 | 25.6 | 31° | 8% |
-| Bataklık | 4210-4340 | 130 | 25.1 | 32° | 13% |
-| Bataklık | 4610-4740 | 130 | 25.6 | 34° | 12% |
-| Bataklık | 3415-3505 | 90 | 25.0 | 29° | 12% |
-| Şantiye | 8095-8225 | 130 | 28.4 | 36° | 13% |
-| Şantiye | 8325-8405 | 80 | 29.0 | 42° | 12% |
-| Şantiye | 9105-9235 | 130 | 30.0 | 45° | 12% |
+| Kır yolu | 2865-3010 | 145 | 36.0 | 25° | 17% |
+| Kır yolu | 2590-2720 | 130 | 33.4 | 25° | 14% |
+| Kır yolu | 2325-2450 | 125 | 27.7 | 27° | 14% |
+| Çöl | 2705-2900 | 195 | 36.3 | 32° | 27% |
+| Çöl | 2200-2325 | 125 | 30.7 | 35° | 19% |
+| Çöl | 2445-2570 | 125 | 37.5 | 28° | 17% |
+| Kutup | 2270-2390 | 120 | 37.3 | 30° | 22% |
+| Kutup | 1565-1710 | 145 | 22.8 | 29° | 19% |
+| Kutup | 2030-2145 | 115 | 34.6 | 27° | 16% |
+| Ay | 1730-1825 | 95 | 20.9 | 27° | 18% |
+| Ay | 1930-2025 | 95 | 23.0 | 34° | 14% |
+| Ay | 1405-1490 | 85 | 17.7 | 29° | 10% |
+| Orman | 2010-2120 | 110 | 26.8 | 41° | 13% |
+| Orman | 1510-1595 | 85 | 22.5 | 32° | 10% |
+| Orman | 1685-1765 | 80 | 26.1 | 36° | 10% |
+| Dağ | 2275-2395 | 120 | 37.6 | 43° | 17% |
+| Dağ | 1880-2000 | 120 | 30.8 | 47° | 16% |
+| Dağ | 2525-2625 | 100 | 45.9 | 42° | 16% |
+| Plaj | 2300-2415 | 115 | 15.5 | 27° | 12% |
+| Plaj | 2515-2630 | 115 | 19.1 | 19° | 12% |
+| Plaj | 2130-2235 | 105 | 14.5 | 20° | 11% |
+| Mağara | 1840-1995 | 155 | 36.2 | 37° | 18% |
+| Mağara | 1400-1540 | 140 | 29.3 | 38° | 16% |
+| Mağara | 2105-2220 | 115 | 45.9 | 36° | 15% |
+| Bataklık | 1800-1940 | 140 | 22.8 | 27° | 15% |
+| Bataklık | 2315-2435 | 120 | 27.5 | 28° | 14% |
+| Bataklık | 2045-2150 | 105 | 26.8 | 25° | 14% |
+| Şantiye | 2320-2490 | 170 | 22.9 | 24° | 18% |
+| Şantiye | 1840-1990 | 150 | 18.7 | 23° | 15% |
+| Şantiye | 2610-2735 | 125 | 28.4 | 32° | 15% |
 
 ## 8. Duyurular ve karıştırıcı
 
-Mixer.voiceCount en yüksek: **17** (sınır 60). Koşu başına duyuru: ortalama 152.8; en uzun sessizlik: 135 sn (Çöl/Traktör/y3/iyi/s0).
+Mixer.voiceCount en yüksek: **15** (sınır 60). Koşu başına duyuru: ortalama 87.1; en uzun sessizlik: 27 sn (Kutup/Traktör/y3/iyi/s0).
 
 | Koşu | En uzun sessizlik (sn) | Duyuru sayısı | Süre (sn) |
 |---|---|---|---|
-| Çöl/Traktör/y3/iyi/s0 | 135 | 70 | 616 |
-| Bataklık/Traktör/y3/iyi/s0 | 105 | 81 | 650 |
-| Şantiye/Traktör/y0/iyi/s0 | 95 | 160 | 1147 |
-| Bataklık/Pikap/y3/iyi/s0 | 94 | 120 | 659 |
-| Orman/Pikap/y0/iyi/s0 | 82 | 261 | 998 |
-| Dağ/Pikap/y0/iyi/s0 | 81 | 60 | 359 |
+| Kutup/Traktör/y3/iyi/s0 | 27 | 92 | 524 |
+| Ay/Motosiklet/y0/iyi/s0 | 27 | 54 | 319 |
+| Dağ/Traktör/y3/iyi/s0 | 26 | 74 | 369 |
+| Kır yolu/Traktör/y3/iyi/s0 | 26 | 122 | 705 |
+| Bataklık/Pikap/y3/iyi/s0 | 26 | 96 | 492 |
+| Ay/Motosiklet/y3/iyi/s0 | 26 | 84 | 455 |
 
 ## 9. Ekonomi
 
@@ -429,126 +430,113 @@ Sürücü yakıt bitene ya da 20 dk dolana kadar oynadığı için koşu başı 
 
 | Harita | Araç | Geliştirme | Koşu başı altın | Süre (sn) | Altın/dk | Sıradaki araç | Sıradaki harita |
 |---|---|---|---|---|---|---|---|
-| Kır yolu | Cip | y0 | 124703 | 1079 | 6936 | Motosiklet (8000): 1 koşu, 2 dk | Çöl (5000): 1 koşu, 1 dk |
-| Kır yolu | Cip | y3 | 144945 | 1200 | 7247 | Motosiklet (8000): 1 koşu, 2 dk | Çöl (5000): 1 koşu, 1 dk |
-| Kır yolu | Motosiklet | y0 | 17095 | 171 | 5981 | Pikap (15000): 1 koşu, 3 dk | Çöl (5000): 1 koşu, 1 dk |
-| Kır yolu | Motosiklet | y3 | 4995 | 89 | 3385 | Pikap (15000): 4 koşu, 5 dk | Çöl (5000): 2 koşu, 2 dk |
-| Kır yolu | Pikap | y0 | 134295 | 1200 | 6715 | Traktör (25000): 1 koşu, 4 dk | Çöl (5000): 1 koşu, 1 dk |
-| Kır yolu | Pikap | y3 | 138945 | 1200 | 6947 | Traktör (25000): 1 koşu, 4 dk | Çöl (5000): 1 koşu, 1 dk |
-| Kır yolu | Traktör | y0 | 49295 | 730 | 4054 | Kum arabası (35000): 1 koşu, 9 dk | Çöl (5000): 1 koşu, 2 dk |
-| Kır yolu | Traktör | y3 | 105695 | 1200 | 5285 | Kum arabası (35000): 1 koşu, 7 dk | Çöl (5000): 1 koşu, 1 dk |
-| Çöl | Cip | y0 | 34590 | 426 | 4877 | Motosiklet (8000): 1 koşu, 2 dk | Kutup (12000): 1 koşu, 3 dk |
-| Çöl | Cip | y3 | 108940 | 1107 | 5904 | Motosiklet (8000): 1 koşu, 2 dk | Kutup (12000): 1 koşu, 3 dk |
-| Çöl | Motosiklet | y0 | 11240 | 127 | 5323 | Pikap (15000): 2 koşu, 3 dk | Kutup (12000): 2 koşu, 3 dk |
-| Çöl | Motosiklet | y3 | 25640 | 244 | 6310 | Pikap (15000): 1 koşu, 3 dk | Kutup (12000): 1 koşu, 2 dk |
-| Çöl | Pikap | y0 | 38690 | 488 | 4761 | Traktör (25000): 1 koşu, 6 dk | Kutup (12000): 1 koşu, 3 dk |
-| Çöl | Pikap | y3 | 60890 | 713 | 5121 | Traktör (25000): 1 koşu, 5 dk | Kutup (12000): 1 koşu, 3 dk |
-| Çöl | Traktör | y0 | 9840 | 373 | 1584 | Kum arabası (35000): 4 koşu, 23 dk | Kutup (12000): 2 koşu, 8 dk |
-| Çöl | Traktör | y3 | 27040 | 616 | 2635 | Kum arabası (35000): 2 koşu, 14 dk | Kutup (12000): 1 koşu, 5 dk |
-| Kutup | Cip | y0 | 9645 | 290 | 1993 | Motosiklet (8000): 1 koşu, 5 dk | Ay (20000): 3 koşu, 11 dk |
-| Kutup | Cip | y3 | 16795 | 389 | 2589 | Motosiklet (8000): 1 koşu, 4 dk | Ay (20000): 2 koşu, 8 dk |
-| Kutup | Motosiklet | y0 | 9645 | 273 | 2123 | Pikap (15000): 2 koşu, 8 dk | Ay (20000): 3 koşu, 10 dk |
-| Kutup | Motosiklet | y3 | 17345 | 365 | 2850 | Pikap (15000): 1 koşu, 6 dk | Ay (20000): 2 koşu, 8 dk |
-| Kutup | Pikap | y0 | 9645 | 330 | 1755 | Traktör (25000): 3 koşu, 15 dk | Ay (20000): 3 koşu, 12 dk |
-| Kutup | Pikap | y3 | 9645 | 354 | 1633 | Traktör (25000): 3 koşu, 16 dk | Ay (20000): 3 koşu, 13 dk |
-| Kutup | Traktör | y0 | 2445 | 243 | 604 | Kum arabası (35000): 15 koşu, 58 dk | Ay (20000): 9 koşu, 34 dk |
-| Kutup | Traktör | y3 | 4045 | 351 | 691 | Kum arabası (35000): 9 koşu, 51 dk | Ay (20000): 5 koşu, 29 dk |
-| Ay | Cip | y0 | 3370 | 125 | 1620 | Motosiklet (8000): 3 koşu, 5 dk | Orman (30000): 9 koşu, 19 dk |
-| Ay | Cip | y3 | 22895 | 620 | 2214 | Motosiklet (8000): 1 koşu, 4 dk | Orman (30000): 2 koşu, 14 dk |
-| Ay | Motosiklet | y0 | 5245 | 309 | 1019 | Pikap (15000): 3 koşu, 15 dk | Orman (30000): 6 koşu, 30 dk |
-| Ay | Motosiklet | y3 | 2245 | 153 | 883 | Pikap (15000): 7 koşu, 17 dk | Orman (30000): 14 koşu, 34 dk |
-| Ay | Pikap | y0 | 24345 | 623 | 2346 | Traktör (25000): 2 koşu, 11 dk | Orman (30000): 2 koşu, 13 dk |
-| Ay | Pikap | y3 | 22995 | 615 | 2244 | Traktör (25000): 2 koşu, 12 dk | Orman (30000): 2 koşu, 14 dk |
-| Ay | Traktör | y0 | 36720 | 824 | 2674 | Kum arabası (35000): 1 koşu, 14 dk | Orman (30000): 1 koşu, 12 dk |
-| Ay | Traktör | y3 | 68845 | 1200 | 3442 | Kum arabası (35000): 1 koşu, 11 dk | Orman (30000): 1 koşu, 9 dk |
-| Orman | Cip | y0 | 76210 | 783 | 5843 | Motosiklet (8000): 1 koşu, 2 dk | Dağ (40000): 1 koşu, 7 dk |
-| Orman | Cip | y3 | 147360 | 1200 | 7368 | Motosiklet (8000): 1 koşu, 2 dk | Dağ (40000): 1 koşu, 6 dk |
-| Orman | Motosiklet | y0 | 275 | 26 | 632 | Pikap (15000): 55 koşu, 24 dk | Dağ (40000): 146 koşu, 64 dk |
-| Orman | Motosiklet | y3 | 275 | 25 | 650 | Pikap (15000): 55 koşu, 24 dk | Dağ (40000): 146 koşu, 62 dk |
-| Orman | Pikap | y0 | 89110 | 998 | 5359 | Traktör (25000): 1 koşu, 5 dk | Dağ (40000): 1 koşu, 8 dk |
-| Orman | Pikap | y3 | 140260 | 1200 | 7013 | Traktör (25000): 1 koşu, 4 dk | Dağ (40000): 1 koşu, 6 dk |
-| Orman | Traktör | y0 | 20860 | 454 | 2758 | Kum arabası (35000): 2 koşu, 13 dk | Dağ (40000): 2 koşu, 15 dk |
-| Orman | Traktör | y3 | 100560 | 1200 | 5028 | Kum arabası (35000): 1 koşu, 7 dk | Dağ (40000): 1 koşu, 8 dk |
-| Dağ | Cip | y0 | 76740 | 843 | 5464 | Motosiklet (8000): 1 koşu, 2 dk | Plaj (50000): 1 koşu, 10 dk |
-| Dağ | Cip | y3 | 134940 | 1200 | 6747 | Motosiklet (8000): 1 koşu, 2 dk | Plaj (50000): 1 koşu, 8 dk |
-| Dağ | Motosiklet | y0 | 3090 | 70 | 2645 | Pikap (15000): 5 koşu, 6 dk | Plaj (50000): 17 koşu, 19 dk |
-| Dağ | Motosiklet | y3 | 1190 | 37 | 1912 | Pikap (15000): 13 koşu, 8 dk | Plaj (50000): 43 koşu, 27 dk |
-| Dağ | Pikap | y0 | 17290 | 359 | 2889 | Traktör (25000): 2 koşu, 9 dk | Plaj (50000): 3 koşu, 18 dk |
-| Dağ | Pikap | y3 | 51840 | 656 | 4743 | Traktör (25000): 1 koşu, 6 dk | Plaj (50000): 1 koşu, 11 dk |
-| Dağ | Traktör | y0 | 5140 | 336 | 918 | Kum arabası (35000): 7 koşu, 39 dk | Plaj (50000): 10 koşu, 55 dk |
-| Dağ | Traktör | y3 | 22040 | 491 | 2693 | Kum arabası (35000): 2 koşu, 13 dk | Plaj (50000): 3 koşu, 19 dk |
-| Plaj | Cip | y0 | 116675 | 1054 | 6643 | Motosiklet (8000): 1 koşu, 2 dk | Mağara (60000): 1 koşu, 10 dk |
-| Plaj | Cip | y3 | 135075 | 1180 | 6866 | Motosiklet (8000): 1 koşu, 2 dk | Mağara (60000): 1 koşu, 9 dk |
-| Plaj | Motosiklet | y0 | 28775 | 212 | 8141 | Pikap (15000): 1 koşu, 2 dk | Mağara (60000): 3 koşu, 8 dk |
-| Plaj | Motosiklet | y3 | 37125 | 269 | 8282 | Pikap (15000): 1 koşu, 2 dk | Mağara (60000): 2 koşu, 8 dk |
-| Plaj | Pikap | y0 | 117625 | 1138 | 6204 | Traktör (25000): 1 koşu, 5 dk | Mağara (60000): 1 koşu, 10 dk |
-| Plaj | Pikap | y3 | 142775 | 1200 | 7139 | Traktör (25000): 1 koşu, 4 dk | Mağara (60000): 1 koşu, 9 dk |
-| Plaj | Traktör | y0 | 74125 | 1028 | 4327 | Kum arabası (35000): 1 koşu, 9 dk | Mağara (60000): 1 koşu, 14 dk |
-| Plaj | Traktör | y3 | 77625 | 1100 | 4235 | Kum arabası (35000): 1 koşu, 9 dk | Mağara (60000): 1 koşu, 15 dk |
-| Mağara | Cip | y0 | 6140 | 198 | 1865 | Motosiklet (8000): 2 koşu, 5 dk | Bataklık (70000): 12 koşu, 38 dk |
-| Mağara | Cip | y3 | 129040 | 1200 | 6452 | Motosiklet (8000): 1 koşu, 2 dk | Bataklık (70000): 1 koşu, 11 dk |
-| Mağara | Motosiklet | y0 | 2390 | 56 | 2566 | Pikap (15000): 7 koşu, 6 dk | Bataklık (70000): 30 koşu, 28 dk |
-| Mağara | Motosiklet | y3 | 2765 | 65 | 2569 | Pikap (15000): 6 koşu, 6 dk | Bataklık (70000): 26 koşu, 28 dk |
-| Mağara | Pikap | y0 | 13665 | 340 | 2411 | Traktör (25000): 2 koşu, 11 dk | Bataklık (70000): 6 koşu, 30 dk |
-| Mağara | Pikap | y3 | 122240 | 1200 | 6112 | Traktör (25000): 1 koşu, 5 dk | Bataklık (70000): 1 koşu, 12 dk |
-| Mağara | Traktör | y0 | 4265 | 312 | 821 | Kum arabası (35000): 9 koşu, 43 dk | Bataklık (70000): 17 koşu, 86 dk |
-| Mağara | Traktör | y3 | 14565 | 483 | 1809 | Kum arabası (35000): 3 koşu, 20 dk | Bataklık (70000): 5 koşu, 39 dk |
-| Bataklık | Cip | y0 | 39730 | 455 | 5236 | Motosiklet (8000): 1 koşu, 2 dk | Şantiye (90000): 3 koşu, 18 dk |
-| Bataklık | Cip | y3 | 87530 | 898 | 5850 | Motosiklet (8000): 1 koşu, 2 dk | Şantiye (90000): 2 koşu, 16 dk |
-| Bataklık | Motosiklet | y0 | 32680 | 407 | 4822 | Pikap (15000): 1 koşu, 4 dk | Şantiye (90000): 3 koşu, 19 dk |
-| Bataklık | Motosiklet | y3 | 16630 | 160 | 6249 | Pikap (15000): 1 koşu, 3 dk | Şantiye (90000): 6 koşu, 15 dk |
-| Bataklık | Pikap | y0 | 40030 | 493 | 4869 | Traktör (25000): 1 koşu, 6 dk | Şantiye (90000): 3 koşu, 19 dk |
-| Bataklık | Pikap | y3 | 50530 | 659 | 4598 | Traktör (25000): 1 koşu, 6 dk | Şantiye (90000): 2 koşu, 20 dk |
-| Bataklık | Traktör | y0 | 19630 | 428 | 2749 | Kum arabası (35000): 2 koşu, 13 dk | Şantiye (90000): 5 koşu, 33 dk |
-| Bataklık | Traktör | y3 | 33730 | 650 | 3115 | Kum arabası (35000): 2 koşu, 12 dk | Şantiye (90000): 3 koşu, 29 dk |
-| Şantiye | Cip | y0 | 83760 | 739 | 6803 | Motosiklet (8000): 1 koşu, 2 dk | - |
-| Şantiye | Cip | y3 | 86360 | 742 | 6988 | Motosiklet (8000): 1 koşu, 2 dk | - |
-| Şantiye | Motosiklet | y0 | 78260 | 633 | 7415 | Pikap (15000): 1 koşu, 3 dk | - |
-| Şantiye | Motosiklet | y3 | 16660 | 139 | 7175 | Pikap (15000): 1 koşu, 3 dk | - |
-| Şantiye | Pikap | y0 | 79110 | 771 | 6158 | Traktör (25000): 1 koşu, 5 dk | - |
-| Şantiye | Pikap | y3 | 144010 | 1200 | 7200 | Traktör (25000): 1 koşu, 4 dk | - |
-| Şantiye | Traktör | y0 | 79660 | 1147 | 4169 | Kum arabası (35000): 1 koşu, 9 dk | - |
-| Şantiye | Traktör | y3 | 101260 | 1200 | 5063 | Kum arabası (35000): 1 koşu, 7 dk | - |
+| Kır yolu | Cip | y0 | 1765 | 218 | 486 | Motosiklet (8000): 5 koşu, 17 dk | Çöl (5000): 3 koşu, 11 dk |
+| Kır yolu | Cip | y3 | 2695 | 314 | 515 | Motosiklet (8000): 3 koşu, 16 dk | Çöl (5000): 2 koşu, 10 dk |
+| Kır yolu | Motosiklet | y0 | 3110 | 310 | 602 | Pikap (15000): 5 koşu, 25 dk | Çöl (5000): 2 koşu, 9 dk |
+| Kır yolu | Motosiklet | y3 | 6055 | 424 | 856 | Pikap (15000): 3 koşu, 18 dk | Çöl (5000): 1 koşu, 6 dk |
+| Kır yolu | Pikap | y0 | 3110 | 374 | 499 | Traktör (25000): 9 koşu, 51 dk | Çöl (5000): 2 koşu, 11 dk |
+| Kır yolu | Pikap | y3 | 5955 | 515 | 693 | Traktör (25000): 5 koşu, 37 dk | Çöl (5000): 1 koşu, 8 dk |
+| Kır yolu | Traktör | y0 | 2125 | 486 | 262 | Kum arabası (35000): 17 koşu, 134 dk | Çöl (5000): 3 koşu, 20 dk |
+| Kır yolu | Traktör | y3 | 5360 | 705 | 456 | Kum arabası (35000): 7 koşu, 77 dk | Çöl (5000): 1 koşu, 11 dk |
+| Çöl | Cip | y0 | 2135 | 227 | 563 | Motosiklet (8000): 4 koşu, 15 dk | Kutup (12000): 6 koşu, 22 dk |
+| Çöl | Cip | y3 | 2575 | 243 | 635 | Motosiklet (8000): 4 koşu, 13 dk | Kutup (12000): 5 koşu, 19 dk |
+| Çöl | Motosiklet | y0 | 2510 | 241 | 625 | Pikap (15000): 6 koşu, 24 dk | Kutup (12000): 5 koşu, 20 dk |
+| Çöl | Motosiklet | y3 | 4560 | 351 | 779 | Pikap (15000): 4 koşu, 20 dk | Kutup (12000): 3 koşu, 16 dk |
+| Çöl | Pikap | y0 | 2575 | 279 | 555 | Traktör (25000): 10 koşu, 46 dk | Kutup (12000): 5 koşu, 22 dk |
+| Çöl | Pikap | y3 | 3445 | 418 | 494 | Traktör (25000): 8 koşu, 51 dk | Kutup (12000): 4 koşu, 25 dk |
+| Çöl | Traktör | y0 | 2575 | 372 | 416 | Kum arabası (35000): 14 koşu, 85 dk | Kutup (12000): 5 koşu, 29 dk |
+| Çöl | Traktör | y3 | 4505 | 580 | 466 | Kum arabası (35000): 8 koşu, 76 dk | Kutup (12000): 3 koşu, 26 dk |
+| Kutup | Cip | y0 | 1815 | 217 | 501 | Motosiklet (8000): 5 koşu, 16 dk | Ay (20000): 12 koşu, 40 dk |
+| Kutup | Cip | y3 | 1815 | 227 | 479 | Motosiklet (8000): 5 koşu, 17 dk | Ay (20000): 12 koşu, 42 dk |
+| Kutup | Motosiklet | y0 | 1750 | 221 | 474 | Pikap (15000): 9 koşu, 32 dk | Ay (20000): 12 koşu, 43 dk |
+| Kutup | Motosiklet | y3 | 2055 | 242 | 509 | Pikap (15000): 8 koşu, 30 dk | Ay (20000): 10 koşu, 40 dk |
+| Kutup | Pikap | y0 | 1815 | 269 | 405 | Traktör (25000): 14 koşu, 62 dk | Ay (20000): 12 koşu, 50 dk |
+| Kutup | Pikap | y3 | 1815 | 295 | 369 | Traktör (25000): 14 koşu, 68 dk | Ay (20000): 12 koşu, 55 dk |
+| Kutup | Traktör | y0 | 2055 | 351 | 352 | Kum arabası (35000): 18 koşu, 100 dk | Ay (20000): 10 koşu, 57 dk |
+| Kutup | Traktör | y3 | 2770 | 524 | 317 | Kum arabası (35000): 13 koşu, 111 dk | Ay (20000): 8 koşu, 64 dk |
+| Ay | Cip | y0 | 3380 | 248 | 816 | Motosiklet (8000): 3 koşu, 10 dk | Orman (30000): 9 koşu, 37 dk |
+| Ay | Cip | y3 | 1785 | 123 | 873 | Motosiklet (8000): 5 koşu, 10 dk | Orman (30000): 17 koşu, 35 dk |
+| Ay | Motosiklet | y0 | 2225 | 319 | 419 | Pikap (15000): 7 koşu, 36 dk | Orman (30000): 14 koşu, 72 dk |
+| Ay | Motosiklet | y3 | 3480 | 455 | 459 | Pikap (15000): 5 koşu, 33 dk | Orman (30000): 9 koşu, 66 dk |
+| Ay | Pikap | y0 | 10155 | 573 | 1064 | Traktör (25000): 3 koşu, 24 dk | Orman (30000): 3 koşu, 29 dk |
+| Ay | Pikap | y3 | 13230 | 626 | 1268 | Traktör (25000): 2 koşu, 20 dk | Orman (30000): 3 koşu, 24 dk |
+| Ay | Traktör | y0 | 9470 | 668 | 850 | Kum arabası (35000): 4 koşu, 42 dk | Orman (30000): 4 koşu, 36 dk |
+| Ay | Traktör | y3 | 20825 | 955 | 1309 | Kum arabası (35000): 2 koşu, 27 dk | Orman (30000): 2 koşu, 23 dk |
+| Orman | Cip | y0 | 2640 | 162 | 976 | Motosiklet (8000): 4 koşu, 9 dk | Dağ (40000): 16 koşu, 41 dk |
+| Orman | Cip | y3 | 6625 | 254 | 1565 | Motosiklet (8000): 2 koşu, 6 dk | Dağ (40000): 7 koşu, 26 dk |
+| Orman | Motosiklet | y0 | 10615 | 348 | 1830 | Pikap (15000): 2 koşu, 9 dk | Dağ (40000): 4 koşu, 22 dk |
+| Orman | Motosiklet | y3 | 21155 | 503 | 2523 | Pikap (15000): 1 koşu, 6 dk | Dağ (40000): 2 koşu, 16 dk |
+| Orman | Pikap | y0 | 6625 | 294 | 1354 | Traktör (25000): 4 koşu, 19 dk | Dağ (40000): 7 koşu, 30 dk |
+| Orman | Pikap | y3 | 20935 | 599 | 2099 | Traktör (25000): 2 koşu, 12 dk | Dağ (40000): 2 koşu, 20 dk |
+| Orman | Traktör | y0 | 2825 | 388 | 437 | Kum arabası (35000): 13 koşu, 81 dk | Dağ (40000): 15 koşu, 92 dk |
+| Orman | Traktör | y3 | 11860 | 619 | 1150 | Kum arabası (35000): 3 koşu, 31 dk | Dağ (40000): 4 koşu, 35 dk |
+| Dağ | Cip | y0 | 3810 | 214 | 1071 | Motosiklet (8000): 3 koşu, 8 dk | Plaj (50000): 14 koşu, 47 dk |
+| Dağ | Cip | y3 | 7535 | 312 | 1449 | Motosiklet (8000): 2 koşu, 6 dk | Plaj (50000): 7 koşu, 35 dk |
+| Dağ | Motosiklet | y0 | 13690 | 420 | 1955 | Pikap (15000): 2 koşu, 8 dk | Plaj (50000): 4 koşu, 26 dk |
+| Dağ | Motosiklet | y3 | 29130 | 681 | 2565 | Pikap (15000): 1 koşu, 6 dk | Plaj (50000): 2 koşu, 20 dk |
+| Dağ | Pikap | y0 | 3370 | 254 | 795 | Traktör (25000): 8 koşu, 32 dk | Plaj (50000): 15 koşu, 63 dk |
+| Dağ | Pikap | y3 | 4825 | 372 | 777 | Traktör (25000): 6 koşu, 33 dk | Plaj (50000): 11 koşu, 65 dk |
+| Dağ | Traktör | y0 | 3095 | 340 | 546 | Kum arabası (35000): 12 koşu, 65 dk | Plaj (50000): 17 koşu, 92 dk |
+| Dağ | Traktör | y3 | 3810 | 369 | 619 | Kum arabası (35000): 10 koşu, 57 dk | Plaj (50000): 14 koşu, 81 dk |
+| Plaj | Cip | y0 | 5275 | 192 | 1647 | Motosiklet (8000): 2 koşu, 5 dk | Mağara (60000): 12 koşu, 37 dk |
+| Plaj | Cip | y3 | 6755 | 206 | 1969 | Motosiklet (8000): 2 koşu, 5 dk | Mağara (60000): 9 koşu, 31 dk |
+| Plaj | Motosiklet | y0 | 7530 | 193 | 2335 | Pikap (15000): 2 koşu, 7 dk | Mağara (60000): 8 koşu, 26 dk |
+| Plaj | Motosiklet | y3 | 13325 | 310 | 2578 | Pikap (15000): 2 koşu, 6 dk | Mağara (60000): 5 koşu, 24 dk |
+| Plaj | Pikap | y0 | 12000 | 349 | 2064 | Traktör (25000): 3 koşu, 13 dk | Mağara (60000): 5 koşu, 30 dk |
+| Plaj | Pikap | y3 | 22190 | 556 | 2394 | Traktör (25000): 2 koşu, 11 dk | Mağara (60000): 3 koşu, 26 dk |
+| Plaj | Traktör | y0 | 6755 | 314 | 1292 | Kum arabası (35000): 6 koşu, 28 dk | Mağara (60000): 9 koşu, 47 dk |
+| Plaj | Traktör | y3 | 13425 | 523 | 1539 | Kum arabası (35000): 3 koşu, 23 dk | Mağara (60000): 5 koşu, 39 dk |
+| Mağara | Cip | y0 | 5820 | 214 | 1630 | Motosiklet (8000): 2 koşu, 5 dk | Bataklık (70000): 13 koşu, 43 dk |
+| Mağara | Cip | y3 | 9660 | 245 | 2368 | Motosiklet (8000): 1 koşu, 4 dk | Bataklık (70000): 8 koşu, 30 dk |
+| Mağara | Motosiklet | y0 | 14105 | 336 | 2520 | Pikap (15000): 2 koşu, 6 dk | Bataklık (70000): 5 koşu, 28 dk |
+| Mağara | Motosiklet | y3 | 23480 | 473 | 2979 | Pikap (15000): 1 koşu, 6 dk | Bataklık (70000): 3 koşu, 24 dk |
+| Mağara | Pikap | y0 | 5820 | 272 | 1284 | Traktör (25000): 5 koşu, 20 dk | Bataklık (70000): 13 koşu, 55 dk |
+| Mağara | Pikap | y3 | 11790 | 416 | 1700 | Traktör (25000): 3 koşu, 15 dk | Bataklık (70000): 6 koşu, 42 dk |
+| Mağara | Traktör | y0 | 3200 | 265 | 725 | Kum arabası (35000): 11 koşu, 49 dk | Bataklık (70000): 22 koşu, 97 dk |
+| Mağara | Traktör | y3 | 5820 | 401 | 870 | Kum arabası (35000): 7 koşu, 41 dk | Bataklık (70000): 13 koşu, 81 dk |
+| Bataklık | Cip | y0 | 6560 | 193 | 2039 | Motosiklet (8000): 2 koşu, 4 dk | Şantiye (90000): 14 koşu, 45 dk |
+| Bataklık | Cip | y3 | 10690 | 283 | 2264 | Motosiklet (8000): 1 koşu, 4 dk | Şantiye (90000): 9 koşu, 40 dk |
+| Bataklık | Motosiklet | y0 | 8815 | 272 | 1945 | Pikap (15000): 2 koşu, 8 dk | Şantiye (90000): 11 koşu, 47 dk |
+| Bataklık | Motosiklet | y3 | 12420 | 292 | 2555 | Pikap (15000): 2 koşu, 6 dk | Şantiye (90000): 8 koşu, 36 dk |
+| Bataklık | Pikap | y0 | 10390 | 324 | 1926 | Traktör (25000): 3 koşu, 13 dk | Şantiye (90000): 9 koşu, 47 dk |
+| Bataklık | Pikap | y3 | 13175 | 492 | 1608 | Traktör (25000): 2 koşu, 16 dk | Şantiye (90000): 7 koşu, 56 dk |
+| Bataklık | Traktör | y0 | 10340 | 431 | 1440 | Kum arabası (35000): 4 koşu, 25 dk | Şantiye (90000): 9 koşu, 63 dk |
+| Bataklık | Traktör | y3 | 12195 | 478 | 1532 | Kum arabası (35000): 3 koşu, 23 dk | Şantiye (90000): 8 koşu, 59 dk |
+| Şantiye | Cip | y0 | 10180 | 207 | 2947 | Motosiklet (8000): 1 koşu, 3 dk | - |
+| Şantiye | Cip | y3 | 12030 | 224 | 3223 | Motosiklet (8000): 1 koşu, 3 dk | - |
+| Şantiye | Motosiklet | y0 | 12130 | 204 | 3572 | Pikap (15000): 2 koşu, 5 dk | - |
+| Şantiye | Motosiklet | y3 | 20205 | 327 | 3709 | Pikap (15000): 1 koşu, 5 dk | - |
+| Şantiye | Pikap | y0 | 18680 | 370 | 3027 | Traktör (25000): 2 koşu, 9 dk | - |
+| Şantiye | Pikap | y3 | 27105 | 568 | 2862 | Traktör (25000): 1 koşu, 9 dk | - |
+| Şantiye | Traktör | y0 | 12230 | 346 | 2124 | Kum arabası (35000): 3 koşu, 17 dk | - |
+| Şantiye | Traktör | y3 | 19630 | 544 | 2164 | Kum arabası (35000): 2 koşu, 17 dk | - |
 
-Kır yolu + jeep ortalaması (6 koşu): 124703 altın/koşu. Jeep için 4 geliştirmenin 3. seviyeye maliyeti: 8256 altın = 1 koşu; motosiklet (8000): 1 koşu; Çöl haritası (5000): 1 koşu.
+Kır yolu + jeep ortalaması (6 koşu): 1765 altın/koşu. Jeep için 4 geliştirmenin 3. seviyeye maliyeti: 8256 altın = 5 koşu; motosiklet (8000): 5 koşu; Çöl haritası (5000): 3 koşu.
 
-Tüm araçlar ve haritalar toplam 1350000 altın. Kır yolu + jeep hızıyla (6936 altın/dk) hepsini almak ≈ 3 saat oyun sürer. Motosiklet gibi devrilgen araçlarla altın/dk 3-5 kat düşer (bkz. tablo).
+**İlerleme özeti (kapılarla aynı hesap):** Kır yolu + jeep (geliştirme yok) iyi koşu ortalaması 1765 altın, medyan koşu süresi 3.6 dk. Motosiklet (8000) = 4.5 koşu, Çöl (5000) = 2.8 koşu. Matristeki tüm iyi sürücü koşularının ortalama hızı 1370 altın/dk; tüm araçlar ve haritalar (1350000 altın) ≈ 16.4 saat. Hedef: motosiklet 4-6 koşu, Çöl 2-3 koşu, tüm mağaza 15-25 saat.
+
+Tüm araçlar ve haritalar toplam 1350000 altın. Kır yolu + jeep hızıyla (486 altın/dk) hepsini almak ≈ 46 saat oyun sürer. Motosiklet gibi devrilgen araçlarla altın/dk 3-5 kat düşer (bkz. tablo).
 
 ## 10. Sorunlar (ciddiyet sırasıyla)
 
-1. **[Yüksek]** İlk 1500 m içinde biten 11 koşu: Orman/Motosiklet/y3/iyi/s0 442 m CRASH (eğim -7°); Orman/Motosiklet/y0/iyi/s0 443 m CRASH (eğim -8°); Dağ/Motosiklet/y3/iyi/s0 619 m CRASH (eğim -12°); Ay/Motosiklet/y3/iyi/s0 838 m CRASH (eğim -6°); Mağara/Motosiklet/y0/iyi/s0 988 m CRASH (eğim 12°); Kutup/Traktör/y0/iyi/s0 1016 m FUEL (eğim 3°); Mağara/Motosiklet/y3/iyi/s0 1105 m CRASH (eğim 17°); Dağ/Motosiklet/y0/iyi/s0 1137 m CRASH (eğim -6°); Ay/Cip/y0/iyi/s0 1211 m CRASH (eğim -8°); Kutup/Traktör/y3/iyi/s0 1450 m FUEL (eğim -2°); Mağara/Traktör/y0/iyi/s0 1475 m FUEL (eğim -0°).
-2. **[Yüksek]** Cip: 20 koşunun 15 tanesi yakıt bitişiyle sonlanıyor, ortalama mesafe 8968 m; çoğunda araç yokuşta ya da kumda çok yavaşlıyor, yakıt bidona yetmiyor.
-3. **[Yüksek]** Motosiklet: 20 koşunun 16 tanesi CRASH ile bitiyor, ortalama mesafe 2440 m. Araç aşırı devrilgen (denge/atalet/havada tork ayarı gerekir).
-4. **[Yüksek]** Pikap: 20 koşunun 14 tanesi yakıt bitişiyle sonlanıyor, ortalama mesafe 8490 m; çoğunda araç yokuşta ya da kumda çok yavaşlıyor, yakıt bidona yetmiyor.
-5. **[Yüksek]** Traktör: 20 koşunun 16 tanesi yakıt bitişiyle sonlanıyor, ortalama mesafe 5268 m; çoğunda araç yokuşta ya da kumda çok yavaşlıyor, yakıt bidona yetmiyor.
-6. **[Yüksek]** Yakıt bitişiyle sonlanan koşu: 50/90. Haritalara göre: Kır yolu 3, Çöl 6, Kutup 8, Ay 5, Orman 3, Dağ 5, Plaj 5, Mağara 4, Bataklık 7, Şantiye 4. Bunların 13 tanesi bir sonraki bidona 150 m'den az kala bitiyor (menzil marjı çok dar), 36 tanesinde bitişten önce yamaçta takılma olayı var (yani yakıt, yamaçta çıkamayıp beklerken yanmış). "Yakıt bitti" duyurusu oyuncuya nedeni söylemez.
-7. **[Yüksek]** Takılma 53 kez görüldü. En sık noktalar: Kutup x≈2200 m (eğim 15°, 6 kez); Ay x≈3800 m (eğim 26°, 6 kez); Plaj x≈8550 m (eğim 22°, 3 kez); Bataklık x≈4250 m (eğim 17°, 3 kez); Çöl x≈12600 m (eğim 24°, 2 kez); Çöl x≈3750 m (eğim 25°, 2 kez).
-8. **[Yüksek]** Yerde göreli açı 100°'yi geçen (ters dönme) olay 35. En sık: Kır yolu x≈3100 m (eğim -2°, açı 104°, 3 kez); Orman x≈400 m (eğim -3°, açı -103°, 2 kez); Plaj x≈3200 m (eğim 4°, açı -102°, 2 kez); Mağara x≈900 m (eğim -17°, açı -118°, 2 kez); Kır yolu x≈4800 m (eğim -7°, açı 107°, 2 kez).
-9. **[Orta]** Bidona %5'ten az yakıtla ulaşılan 1 koşu var (marj çok dar): Plaj/Cip/y0/iyi/s0.
-10. **[Orta]** Acemi sürücü (yalnızca takla bipiyle) Kır yolunda ortalama 4026 m gidiyor, iyi sürücü 15333 m. Denge yardımı ve eğim duyuruları olmadan ilk oyun çok zor.
-11. **[Orta]** Ekonomi çok hızlı: Kır yolunda jeepin altını 6685 altın/dk. İlk araç (motosiklet 8000) 2 dk, Çöl haritası 1 dk, tüm mağaza (1350000 altın) ≈ 3.4 saat. Altın değerleri düşürülür ya da fiyatlar artırılırsa ilerleme uzar.
-12. **[Düşük]** 20 dk sınırına dayanan 18 koşu (oyun doğal bitmedi; sürücü sorunsuz ilerliyor, harita uzunluğu 20 km): Kır yolu/Cip/y3/iyi/s0 16539 m; Kır yolu/Pikap/y0/iyi/s0 15061 m; Kır yolu/Pikap/y3/iyi/s0 15701 m; Kır yolu/Traktör/y3/iyi/s0 11299 m; Ay/Traktör/y3/iyi/s0 8492 m; Orman/Cip/y3/iyi/s0 15899 m.
-13. **[Düşük]** 30 sn'den uzun duyurusuz süre olan 50 koşu (en uzunu 135 sn). Oyuncu ilerlediğini bilemiyor olabilir: mesafe duyurusu varsayılan kapalı.
+1. **[Yüksek]** İlk 1500 m içinde biten 2 koşu: Ay/Cip/y3/iyi/s0 1266 m CRASH (eğim 19°); Mağara/Traktör/y0/iyi/s0 1475 m FUEL (eğim 5°).
+2. **[Yüksek]** Yerde göreli açı 100°'yi geçen (ters dönme) olay 3. En sık: Ay x≈2200 m (eğim -18°, açı 97°, 1 kez); Ay x≈1200 m (eğim -1°, açı -108°, 1 kez); Orman x≈5700 m (eğim -9°, açı -118°, 1 kez).
+3. **[Orta]** Takılma 6 kez görüldü. En sık noktalar: Ay x≈2550 m (eğim 34°, 2 kez); Kır yolu x≈6350 m (eğim 28°, 1 kez); Kutup x≈2550 m (eğim 20°, 1 kez); Kutup x≈3850 m (eğim 27°, 1 kez); Bataklık x≈4650 m (eğim 21°, 1 kez).
+4. **[Orta]** Bidona %5'ten az yakıtla ulaşılan 23 koşu var (marj çok dar): Kır yolu/Cip/y3/iyi/s0; Kır yolu/Traktör/y0/iyi/s0; Kır yolu/Traktör/y3/iyi/s0; Çöl/Cip/y0/iyi/s0; Kutup/Cip/y0/iyi/s0.
+5. **[Düşük]** (Tasarım gereği: bidon aralığı mesafeyle uzadığı için iyi koşular çoğunlukla yakıtla biter.) Yakıt bitişiyle sonlanan koşu: 95/97. Haritalara göre: Kır yolu 23, Çöl 7, Kutup 9, Ay 8, Orman 8, Dağ 8, Plaj 8, Mağara 8, Bataklık 8, Şantiye 8. Bunların 18 tanesi bir sonraki bidona 150 m'den az kala bitiyor (menzil marjı çok dar), 5 tanesinde bitişten önce yamaçta takılma olayı var (yani yakıt, yamaçta çıkamayıp beklerken yanmış). "Yakıt bitti" duyurusu oyuncuya nedeni söylemez.
 
 ## 11. Ayar önerileri
 
-- Kutup x≈2200 m: 6 takılma/ters olayı (Cip/Pikap), zemin eğimi 15°. Bu yamacın en dik kısmını 10° civarına indirin (`Terrain` genliği ya da `maxSlopeAt`); alternatif olarak yamacın başına yakıt bidonu koyun.
-- Ay x≈3800 m: 6 takılma/ters olayı (Cip/Pikap), zemin eğimi 26°. Bu yamacın en dik kısmını 18° civarına indirin (`Terrain` genliği ya da `maxSlopeAt`); alternatif olarak yamacın başına yakıt bidonu koyun.
-- Plaj x≈8550 m: 3 takılma/ters olayı (Traktör), zemin eğimi 22°. Bu yamacın en dik kısmını 14° civarına indirin (`Terrain` genliği ya da `maxSlopeAt`); alternatif olarak yamacın başına yakıt bidonu koyun.
-- Bataklık x≈4250 m: 3 takılma/ters olayı (Traktör), zemin eğimi 17°. Bu yamacın en dik kısmını 10° civarına indirin (`Terrain` genliği ya da `maxSlopeAt`); alternatif olarak yamacın başına yakıt bidonu koyun.
-- Kır yolu x≈3150 m: 3 takılma/ters olayı (Cip); olay noktasında zemin eğimi düşük (-2°) ama önceki 60 m'de en dik yamaç 31°: araç yamaçta burnunu çok kaldırıp düzlükte arkaya devriliyor (gaz-burun yukarı). Yakındaki özellikler: çukur (3072-3079 m), dik iniş (3120-3130 m), rampa (3140-3145 m). Denge yardımının eşiğini (40°) ve gaz kısma eğrisini bu parçada sınayın; yamaç sonu eğimini yumuşatın.
-- Çöl x≈12600 m: 2 takılma/ters olayı (Cip), zemin eğimi 24°. Bu yamacın en dik kısmını 16° civarına indirin (`Terrain` genliği ya da `maxSlopeAt`); alternatif olarak yamacın başına yakıt bidonu koyun.
-- Çöl: 6 koşu yakıtla bitiyor, 6 tanesinde önce yamaçta takılma var (takılma eğimleri 18-25°, mesafeler 12653, 1978, 3790, 4451, 4864, 7282 m). Asıl sorun yakıt değil tırmanış: yüzeyin tutunması (kum, μ=0.6) bu eğim için yetersiz; 18°'nin üstündeki yamaçları azaltın, ya da bu yüzeyin μ değerini/araç torkunu artırın. Takılınca yakıt boşa yanıyor: "yokuşu çıkamıyorsun" ipucu ve geri vites daha erken devreye girmeli.
-- Kutup: 8 koşu yakıtla bitiyor, 7 tanesinde önce yamaçta takılma var (takılma eğimleri 12-21°, mesafeler 1016, 1450, 2252, 2256, 2259, 3239, 3251 m). Asıl sorun yakıt değil tırmanış: yüzeyin tutunması (kar, μ=0.45) bu eğim için yetersiz; 12°'nin üstündeki yamaçları azaltın, ya da bu yüzeyin μ değerini/araç torkunu artırın. Takılınca yakıt boşa yanıyor: "yokuşu çıkamıyorsun" ipucu ve geri vites daha erken devreye girmeli.
-- Ay: 5 koşu yakıtla bitiyor, 5 tanesinde önce yamaçta takılma var (takılma eğimleri 16-38°, mesafeler 1599, 3815, 3817, 3818, 4908 m). Asıl sorun yakıt değil tırmanış: yüzeyin tutunması (ay tozu, μ=0.7) bu eğim için yetersiz; 16°'nin üstündeki yamaçları azaltın, ya da bu yüzeyin μ değerini/araç torkunu artırın. Takılınca yakıt boşa yanıyor: "yokuşu çıkamıyorsun" ipucu ve geri vites daha erken devreye girmeli.
-- Orman: 2 koşu takılmadan yakıtla bitiyor (mesafeler 10114, 9029 m); bidon aralığı `fuelEvery`=500 m menzile göre geniş. `fuelEvery` değerini 350 m'ye indirmeyi deneyin.
-- Dağ: 5 koşu yakıtla bitiyor, 4 tanesinde önce yamaçta takılma var (takılma eğimleri 21-27°, mesafeler 1571, 2910, 5945, 8817 m). Asıl sorun yakıt değil tırmanış: yüzeyin tutunması (kaya, μ=0.95) bu eğim için yetersiz; 21°'nin üstündeki yamaçları azaltın, ya da bu yüzeyin μ değerini/araç torkunu artırın. Takılınca yakıt boşa yanıyor: "yokuşu çıkamıyorsun" ipucu ve geri vites daha erken devreye girmeli.
-- Plaj: 5 koşu yakıtla bitiyor, 5 tanesinde önce yamaçta takılma var (takılma eğimleri 21-24°, mesafeler 13055, 13056, 14942, 8312, 8603 m). Asıl sorun yakıt değil tırmanış: yüzeyin tutunması (kum, μ=0.6) bu eğim için yetersiz; 21°'nin üstündeki yamaçları azaltın, ya da bu yüzeyin μ değerini/araç torkunu artırın. Takılınca yakıt boşa yanıyor: "yokuşu çıkamıyorsun" ipucu ve geri vites daha erken devreye girmeli.
-- Mağara: 4 koşu yakıtla bitiyor, 2 tanesinde önce yamaçta takılma var (takılma eğimleri 24-27°, mesafeler 1654, 2902 m). Asıl sorun yakıt değil tırmanış: yüzeyin tutunması (kaya, μ=0.95) bu eğim için yetersiz; 24°'nin üstündeki yamaçları azaltın, ya da bu yüzeyin μ değerini/araç torkunu artırın. Takılınca yakıt boşa yanıyor: "yokuşu çıkamıyorsun" ipucu ve geri vites daha erken devreye girmeli.
-- Mağara: 2 koşu takılmadan yakıtla bitiyor (mesafeler 1475, 2909 m); bidon aralığı `fuelEvery`=450 m menzile göre geniş. `fuelEvery` değerini 315 m'ye indirmeyi deneyin.
-- Bataklık: 7 koşu yakıtla bitiyor, 5 tanesinde önce yamaçta takılma var (takılma eğimleri 14-19°, mesafeler 2867, 4279, 4901, 5918, 9932 m). Asıl sorun yakıt değil tırmanış: yüzeyin tutunması (çamur, μ=0.5) bu eğim için yetersiz; 14°'nin üstündeki yamaçları azaltın, ya da bu yüzeyin μ değerini/araç torkunu artırın. Takılınca yakıt boşa yanıyor: "yokuşu çıkamıyorsun" ipucu ve geri vites daha erken devreye girmeli.
-- Bataklık: 2 koşu takılmadan yakıtla bitiyor (mesafeler 4284, 4897 m); bidon aralığı `fuelEvery`=550 m menzile göre geniş. `fuelEvery` değerini 385 m'ye indirmeyi deneyin.
-- Şantiye: 4 koşu takılmadan yakıtla bitiyor (mesafeler 8776, 8779, 9344, 9799 m); bidon aralığı `fuelEvery`=600 m menzile göre geniş. `fuelEvery` değerini 420 m'ye indirmeyi deneyin.
+- Ay x≈2550 m: 2 takılma/ters olayı (Motosiklet), zemin eğimi 34°. Bu yamacın en dik kısmını 26° civarına indirin (`Terrain` genliği ya da `maxSlopeAt`); alternatif olarak yamacın başına yakıt bidonu koyun.
+- Kır yolu x≈6350 m: 1 takılma/ters olayı (Traktör), zemin eğimi 28°. Bu yamacın en dik kısmını 20° civarına indirin (`Terrain` genliği ya da `maxSlopeAt`); alternatif olarak yamacın başına yakıt bidonu koyun.
+- Kutup x≈2550 m: 1 takılma/ters olayı (Pikap), zemin eğimi 20°. Bu yamacın en dik kısmını 12° civarına indirin (`Terrain` genliği ya da `maxSlopeAt`); alternatif olarak yamacın başına yakıt bidonu koyun.
+- Kutup x≈3850 m: 1 takılma/ters olayı (Traktör), zemin eğimi 27°. Bu yamacın en dik kısmını 19° civarına indirin (`Terrain` genliği ya da `maxSlopeAt`); alternatif olarak yamacın başına yakıt bidonu koyun.
+- Ay x≈2250 m: 1 takılma/ters olayı (Cip), zemin eğimi -18°. Bu yamacın en dik kısmını 10° civarına indirin (`Terrain` genliği ya da `maxSlopeAt`); alternatif olarak yamacın başına yakıt bidonu koyun.
+- Ay x≈1250 m: 1 takılma/ters olayı (Cip); olay noktasında zemin eğimi düşük (-1°) ama önceki 60 m'de en dik yamaç 18°: araç yamaçta burnunu çok kaldırıp düzlükte arkaya devriliyor (gaz-burun yukarı). Yakındaki özellikler: dik yokuş (1140-1160 m), rampa (1193-1198 m). Denge yardımının eşiğini (40°) ve gaz kısma eğrisini bu parçada sınayın; yamaç sonu eğimini yumuşatın.
+- Kutup: 8 koşu yakıtla bitiyor, 2 tanesinde önce yamaçta takılma var (takılma eğimleri 20-27°, mesafeler 2624, 3915 m). Asıl sorun yakıt değil tırmanış: yüzeyin tutunması (kar, μ=0.45) bu eğim için yetersiz; 20°'nin üstündeki yamaçları azaltın, ya da bu yüzeyin μ değerini/araç torkunu artırın. Takılınca yakıt boşa yanıyor: "yokuşu çıkamıyorsun" ipucu ve geri vites daha erken devreye girmeli.
+- Ay: 6 koşu takılmadan yakıtla bitiyor (mesafeler 1942, 2340, 5380, 5425, 6164, 7970 m); 2 km'den kısa olanlar için ilk bidon aralıkları (`fuelEvery`=500 m, `Terrain.fuelGapAt`) bu araçların menziline göre geniş.
+- Dağ: 8 koşu takılmadan yakıtla bitiyor (mesafeler 1932, 2347, 2788, 2815, 3339, 4184, 5654, 9642 m); 2 km'den kısa olanlar için ilk bidon aralıkları (`fuelEvery`=400 m, `Terrain.fuelGapAt`) bu araçların menziline göre geniş.
+- Mağara: 8 koşu takılmadan yakıtla bitiyor (mesafeler 1475, 2426, 2427, 2428, 3366, 4052, 4881, 7093 m); 2 km'den kısa olanlar için ilk bidon aralıkları (`fuelEvery`=450 m, `Terrain.fuelGapAt`) bu araçların menziline göre geniş.
 
 ## 12. Karşılaştırma: düzeltmeden önceki çekirdek (commit d417faf)
 
@@ -560,3 +548,19 @@ Bu bölüm sabit metindir (aynı test, eski çekirdekle bir kez çalıştırıld
 - `TAKILI`: Ay/Traktör/y3, 20 dk sonunda araç duruyor, yakıt var, oyun bitmiyor (kaçırılan bir bitiş koşulu).
 - NaN ve voiceCount dedektörleri hiç tetiklenmedi.
 - Kır yolu + jeep (iyi sürücü) eski çekirdekte de 5/5 tohumda ~16.2 km gidip 20 dk sınırına ulaştı: ilk haritadaki yokuş, dikkatli sürücü için sorun değil. Sorun, gazı kesmeyen/yalnızca bipe tepki veren oyuncuda (acemi sürücü: 1546 m'de ters dönüp CRASH).
+
+## 13. Karşılaştırma: F1-5 dengelemesinden önce (commit 6c82840)
+
+Bu bölüm sabit metindir (aynı test, F1-5 öncesi çekirdekle). Güncel değerler 0. bölümdedir.
+
+| Kapı | Önce | Sonra (bkz. 0. bölüm) |
+|---|---|---|
+| Acemi jeep y0 Kır yolu: ortalama mesafe | 4026 m (hepsi CRASH, 3.2-5.3 km) | yakıtla biter, kaza yok |
+| Acemi: 3. bidon / ilk 1000 m'de CRASH | 5/5 / yok | 5/5 / yok |
+| İyi sürücü jeep y0: 15 dk'dan önce doğal bitiş | 1/6 (4 koşu 20 dk sınırında, biri 17 dk) | 6/6 |
+| İyi sürücü jeep y0: medyan mesafe | 16049 m | ~3.2 km |
+| Harita asıl aracı y3 ≥ 1000 m | 10/10 (Kır yolu, Orman, Mağara, Dağ 20 dk sınırında) | 10/10, hepsi doğal bitiş |
+| Motosiklet y0 Kır yolu medyan | 3568 m, 6 koşunun 6'sı CRASH; matriste 20 koşunun 16'sı CRASH | ~4.9 km, yakıtla |
+| Ekonomi: altın/koşu (Kır yolu jeep y0) | 124703 (motosiklet < 1 koşu) | ~1750 (motosiklet 4.5 koşu, Çöl 2.8 koşu) |
+| Ekonomi: tüm mağaza | ≈ 3.2 saat (6936 altın/dk) | ≈ 16 saat |
+| En uzun sessizlik | 135 sn | < 30 sn |

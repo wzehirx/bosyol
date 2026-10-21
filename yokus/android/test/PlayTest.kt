@@ -501,6 +501,19 @@ fun writeReport(all: List<Res>, quick: Boolean, secs: Long, gates: List<Gate> = 
     sb.append("- `TAKILI`: Ay/Traktör/y3, 20 dk sonunda araç duruyor, yakıt var, oyun bitmiyor (kaçırılan bir bitiş koşulu).\n")
     sb.append("- NaN ve voiceCount dedektörleri hiç tetiklenmedi.\n")
     sb.append("- Kır yolu + jeep (iyi sürücü) eski çekirdekte de 5/5 tohumda ~16.2 km gidip 20 dk sınırına ulaştı: ilk haritadaki yokuş, dikkatli sürücü için sorun değil. Sorun, gazı kesmeyen/yalnızca bipe tepki veren oyuncuda (acemi sürücü: 1546 m'de ters dönüp CRASH).\n")
+    sb.append("\n## 13. Karşılaştırma: F1-5 dengelemesinden önce (commit 6c82840)\n\n")
+    sb.append("Bu bölüm sabit metindir (aynı test, F1-5 öncesi çekirdekle). Güncel değerler 0. bölümdedir.\n\n")
+    sb.append(mdTable(listOf("Kapı", "Önce", "Sonra (bkz. 0. bölüm)"), listOf(
+        listOf("Acemi jeep y0 Kır yolu: ortalama mesafe", "4026 m (hepsi CRASH, 3.2-5.3 km)", "yakıtla biter, kaza yok"),
+        listOf("Acemi: 3. bidon / ilk 1000 m'de CRASH", "5/5 / yok", "5/5 / yok"),
+        listOf("İyi sürücü jeep y0: 15 dk'dan önce doğal bitiş", "1/6 (4 koşu 20 dk sınırında, biri 17 dk)", "6/6"),
+        listOf("İyi sürücü jeep y0: medyan mesafe", "16049 m", "~3.2 km"),
+        listOf("Harita asıl aracı y3 ≥ 1000 m", "10/10 (Kır yolu, Orman, Mağara, Dağ 20 dk sınırında)", "10/10, hepsi doğal bitiş"),
+        listOf("Motosiklet y0 Kır yolu medyan", "3568 m, 6 koşunun 6'sı CRASH; matriste 20 koşunun 16'sı CRASH", "~4.9 km, yakıtla"),
+        listOf("Ekonomi: altın/koşu (Kır yolu jeep y0)", "124703 (motosiklet < 1 koşu)", "~1750 (motosiklet 4.5 koşu, Çöl 2.8 koşu)"),
+        listOf("Ekonomi: tüm mağaza", "≈ 3.2 saat (6936 altın/dk)", "≈ 16 saat"),
+        listOf("En uzun sessizlik", "135 sn", "< 30 sn")
+    )))
     File(REPORT).writeText(sb.toString())
 }
 
@@ -537,18 +550,18 @@ fun buildIssues(all: List<Res>, mat: List<Res>, seeds: List<Res>, goodC: List<Re
         val cr = l.count { it.end == "CRASH" }
         if (l.isNotEmpty() && cr * 2 > l.size) out.add(Pair("Yüksek", "${Vehicles.byId(v).name}: ${l.size} koşunun $cr tanesi CRASH ile bitiyor, ortalama mesafe ${f0(avg(l.map { it.dist }))} m. Araç aşırı devrilgen (denge/atalet/havada tork ayarı gerekir)."))
         val fu = l.count { it.end == "FUEL" }
-        if (l.isNotEmpty() && fu * 2 > l.size) out.add(Pair("Yüksek", "${Vehicles.byId(v).name}: ${l.size} koşunun $fu tanesi yakıt bitişiyle sonlanıyor, ortalama mesafe ${f0(avg(l.map { it.dist }))} m; çoğunda araç yokuşta ya da kumda çok yavaşlıyor, yakıt bidona yetmiyor."))
+        if (l.isNotEmpty() && fu * 2 > l.size && avg(l.map { it.dist }) < 2000) out.add(Pair("Yüksek", "${Vehicles.byId(v).name}: ${l.size} koşunun $fu tanesi yakıt bitişiyle sonlanıyor, ortalama mesafe ${f0(avg(l.map { it.dist }))} m; çoğunda araç yokuşta ya da kumda çok yavaşlıyor, yakıt bidona yetmiyor."))
     }
     val fuelEnd = all.filter { it.end == "FUEL" }
     if (fuelEnd.isNotEmpty()) {
         val byMap = fuelEnd.groupBy { it.spec.map }
-        out.add(Pair("Yüksek", "Yakıt bitişiyle sonlanan koşu: ${fuelEnd.size}/${all.size}. Haritalara göre: " + byMap.entries.joinToString(", ") { "${Maps.byId(it.key).name} ${it.value.size}" } + ". Bunların ${fuelEnd.count { it.nextCan in 0.0..150.0 }} tanesi bir sonraki bidona 150 m'den az kala bitiyor (menzil marjı çok dar), ${fuelEnd.count { r -> r.events.any { it.kind == "TAKILMA" } }} tanesinde bitişten önce yamaçta takılma olayı var (yani yakıt, yamaçta çıkamayıp beklerken yanmış). \"Yakıt bitti\" duyurusu oyuncuya nedeni söylemez."))
+        out.add(Pair("Düşük", "(Tasarım gereği: bidon aralığı mesafeyle uzadığı için iyi koşular çoğunlukla yakıtla biter.) Yakıt bitişiyle sonlanan koşu: ${fuelEnd.size}/${all.size}. Haritalara göre: " + byMap.entries.joinToString(", ") { "${Maps.byId(it.key).name} ${it.value.size}" } + ". Bunların ${fuelEnd.count { it.nextCan in 0.0..150.0 }} tanesi bir sonraki bidona 150 m'den az kala bitiyor (menzil marjı çok dar), ${fuelEnd.count { r -> r.events.any { it.kind == "TAKILMA" } }} tanesinde bitişten önce yamaçta takılma olayı var (yani yakıt, yamaçta çıkamayıp beklerken yanmış). \"Yakıt bitti\" duyurusu oyuncuya nedeni söylemez."))
     }
     // 4. takılma kümeleri
     val stuck = all.flatMap { r -> r.events.filter { it.kind == "TAKILMA" }.map { r to it } }
     if (stuck.isNotEmpty()) {
         val cl = stuck.groupBy { Pair(it.first.spec.map, (it.second.x / 50).toInt()) }.entries.sortedByDescending { it.value.size }.take(6)
-        out.add(Pair("Yüksek", "Takılma ${stuck.size} kez görüldü. En sık noktalar: " + cl.joinToString("; ") { e ->
+        out.add(Pair("Orta", "Takılma ${stuck.size} kez görüldü. En sık noktalar: " + cl.joinToString("; ") { e ->
             val ev = e.value.first().second
             "${Maps.byId(e.key.first).name} x≈${e.key.second * 50} m (eğim ${f0(ev.slopeDeg)}°, ${e.value.size} kez)" } + "."))
     }
@@ -635,8 +648,8 @@ fun buildTips(all: List<Res>, mat: List<Res>, goodC: List<Res>, jc: Double): Lis
             val sl = withStuck.flatMap { r -> r.events.filter { it.kind == "TAKILMA" }.map { it.slopeDeg } }
             out.add("${md.name}: ${l.size} koşu yakıtla bitiyor, ${withStuck.size} tanesinde önce yamaçta takılma var (takılma eğimleri ${f0(sl.minOrNull()!!)}-${f0(sl.maxOrNull()!!)}°, mesafeler ${withStuck.map { f0(it.dist) }.sorted().joinToString(", ")} m). Asıl sorun yakıt değil tırmanış: yüzeyin tutunması (${md.surface.label}, μ=${md.surface.mu}) bu eğim için yetersiz; ${f0(sl.minOrNull()!!)}°'nin üstündeki yamaçları azaltın, ya da bu yüzeyin μ değerini/araç torkunu artırın. Takılınca yakıt boşa yanıyor: \"yokuşu çıkamıyorsun\" ipucu ve geri vites daha erken devreye girmeli.")
         }
-        if (noStuck.size >= 2) {
-            out.add("${md.name}: ${noStuck.size} koşu takılmadan yakıtla bitiyor (mesafeler ${noStuck.map { f0(it.dist) }.sorted().joinToString(", ")} m); bidon aralığı `fuelEvery`=${f0(md.fuelEvery)} m menzile göre geniş. `fuelEvery` değerini ${f0(md.fuelEvery * 0.7)} m'ye indirmeyi deneyin.")
+        if (noStuck.size >= 2 && noStuck.any { it.dist < 2000 }) {
+            out.add("${md.name}: ${noStuck.size} koşu takılmadan yakıtla bitiyor (mesafeler ${noStuck.map { f0(it.dist) }.sorted().joinToString(", ")} m); 2 km'den kısa olanlar için ilk bidon aralıkları (`fuelEvery`=${f0(md.fuelEvery)} m, `Terrain.fuelGapAt`) bu araçların menziline göre geniş.")
         }
     }
     if (goodC.isNotEmpty() && goodC.count { it.canCount >= 3 } < 4)
