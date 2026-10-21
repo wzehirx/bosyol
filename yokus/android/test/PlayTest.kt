@@ -189,6 +189,57 @@ fun featNear(map: String, x: Double): String {
 }
 
 fun avg(l: List<Double>) = if (l.isEmpty()) 0.0 else l.sum() / l.size
+fun median(l: List<Double>): Double { if (l.isEmpty()) return 0.0; val s = l.sorted(); val n = s.size; return if (n % 2 == 1) s[n / 2] else (s[n / 2 - 1] + s[n / 2]) / 2 }
+
+/** Kutup ve Ay'ın asıl araçları (öbür haritalarda asıl araç jeep). */
+val INTENDED_EXTRA = listOf("arctic" to "snowmobile", "moon" to "rover")
+fun intendedFor(map: String): List<String> = listOf("jeep") + INTENDED_EXTRA.filter { it.first == map }.map { it.second }
+
+class Gate(val name: String, val ok: Boolean, val value: String)
+
+/** Ekonomi ölçüleri (raporda ve kapılarda aynı hesap). */
+class Eco(val perRun: Double, val runMin: Double, val runsMoto: Double, val runsDesert: Double, val rate: Double, val shopHours: Double, val shop: Int)
+fun economy(all: List<Res>): Eco {
+    val cj = all.filter { it.spec.map == "country" && it.spec.veh == "jeep" && it.spec.upg == 0 && !it.spec.novice }
+    val k = avg(cj.map { it.coins.toDouble() })
+    val good = all.filter { (it.spec.group == "matris" || it.spec.group == "asil") && !it.spec.novice }
+    val rate = good.sumOf { it.coins.toDouble() } / max(1.0, good.sumOf { it.endT }) * 60.0
+    val shop = Vehicles.all.sumOf { it.price } + Maps.all.sumOf { it.price }
+    return Eco(k, median(cj.map { it.endT / 60.0 }), if (k > 0) 8000 / k else 1e9, if (k > 0) 5000 / k else 1e9, rate,
+        if (rate > 0) shop / rate / 60.0 else 1e9, shop)
+}
+
+/** PLAN2 F1-5 kabul kapıları. */
+fun gateResults(all: List<Res>): List<Gate> {
+    val out = ArrayList<Gate>()
+    val nov = all.filter { it.spec.map == "country" && it.spec.veh == "jeep" && it.spec.upg == 0 && it.spec.novice }
+    val nMean = avg(nov.map { it.dist })
+    out.add(Gate("Acemi, jeep y0, Kır yolu: ortalama mesafe ≥ 1500 m", nov.isNotEmpty() && nMean >= 1500, f0(nMean) + " m (" + nov.joinToString(", ") { f0(it.dist) } + ")"))
+    val n3 = nov.count { it.canCount >= 3 }
+    out.add(Gate("Acemi: en az 4/5 koşu 3. bidona ulaşır", n3 >= 4, "$n3/${nov.size}"))
+    val early = nov.filter { it.end == "CRASH" && it.dist < 1000 }
+    out.add(Gate("Acemi: ilk 1000 m'de CRASH yok", early.isEmpty(), if (early.isEmpty()) "yok" else early.joinToString { "${it.spec.label} ${f0(it.dist)} m" }))
+    val good = all.filter { it.spec.map == "country" && it.spec.veh == "jeep" && it.spec.upg == 0 && !it.spec.novice }
+    val nat = good.filter { it.end != "SÜRE" && it.endT < 900.0 }
+    out.add(Gate("İyi sürücü, jeep y0, Kır yolu: her koşu 15 dk'dan önce doğal biter", nat.size == good.size && good.isNotEmpty(),
+        "${nat.size}/${good.size} (" + good.joinToString(", ") { "${it.end} ${f1(it.endT / 60)} dk" } + ")"))
+    val gMed = median(good.map { it.dist })
+    out.add(Gate("İyi sürücü: medyan mesafe 2500-8000 m", gMed in 2500.0..8000.0, f0(gMed) + " m (" + good.joinToString(", ") { f0(it.dist) } + ")"))
+    for (m in Maps.all) {
+        val l = all.filter { it.spec.map == m.id && it.spec.upg == 3 && !it.spec.novice && it.spec.veh in intendedFor(m.id) }
+        val best = l.maxByOrNull { it.dist }
+        out.add(Gate("${m.name}: asıl araç (${intendedFor(m.id).joinToString(" ya da ") { Vehicles.byId(it).name }}) y3 ≥ 1000 m",
+            best != null && best.dist >= 1000, l.joinToString(", ") { "${Vehicles.byId(it.spec.veh).name} ${f0(it.dist)} m ${it.end}" }))
+    }
+    val moto = all.filter { it.spec.map == "country" && it.spec.veh == "moto" && it.spec.upg == 0 && !it.spec.novice }
+    val mMed = median(moto.map { it.dist })
+    out.add(Gate("Motosiklet y0, Kır yolu: medyan ≥ 1500 m", moto.isNotEmpty() && mMed >= 1500, f0(mMed) + " m (" + moto.joinToString(", ") { "${f0(it.dist)} ${it.end}" } + ")"))
+    val e = economy(all)
+    out.add(Gate("Ekonomi: motosiklet (8000) 4-6 iyi koşuda", e.runsMoto in 4.0..6.0, "${f1(e.runsMoto)} koşu (${f0(e.perRun)} altın/koşu, medyan koşu ${f1(e.runMin)} dk)"))
+    out.add(Gate("Ekonomi: Çöl (5000) 2-3 koşuda", e.runsDesert in 2.0..3.0, "${f1(e.runsDesert)} koşu"))
+    out.add(Gate("Ekonomi: tüm mağaza 15-25 saat", e.shopHours in 15.0..25.0, "${f1(e.shopHours)} saat (${e.shop} altın, ${f0(e.rate)} altın/dk)"))
+    return out
+}
 
 fun main(args: Array<String>) {
     val quick = args.contains("hizli")
@@ -197,10 +248,20 @@ fun main(args: Array<String>) {
     // ses dosyalarını önceden çöz (önbellek iş parçacığı güvenli değil)
     File(FBank.DEFAULT_DIR).listFiles()?.map { it.nameWithoutExtension }?.distinct()?.forEach { bank.get(it) }
 
-    val specs = ArrayList<Spec>()
+    var specs = ArrayList<Spec>()
     val maps = if (quick) listOf("country") else Maps.all.map { it.id }
     for (m in maps) for (v in listOf("jeep", "moto", "pickup", "tractor")) for (u in listOf(0, 3)) specs.add(Spec(m, v, u, false, 0, "matris"))
+    // haritanın asıl aracı (kapı: her harita, asıl aracıyla 3. seviyede ≥ 1000 m)
+    if (!quick) for ((m, v) in INTENDED_EXTRA) specs.add(Spec(m, v, 3, false, 0, "asil"))
     for (seed in 1..5) for (nov in listOf(false, true)) specs.add(Spec("country", "jeep", 0, nov, seed, "tohum"))
+    for (seed in 1..5) specs.add(Spec("country", "moto", 0, false, seed, "tohum"))
+    // ayar için: filtre=harita:araç:geliştirme (ör. filtre=country:moto:0) yalnızca eşleşen koşuları çalıştırır, rapor yazmaz
+    val filt = args.firstOrNull { it.startsWith("filtre=") }?.removePrefix("filtre=")?.split(":")
+    if (filt != null) {
+        specs = ArrayList(specs.filter { sp -> (filt.getOrNull(0).isNullOrEmpty() || filt[0] == "*" || sp.map == filt[0]) &&
+            (filt.getOrNull(1).isNullOrEmpty() || filt[1] == "*" || sp.veh == filt[1]) &&
+            (filt.getOrNull(2).isNullOrEmpty() || filt[2] == "*" || sp.upg.toString() == filt[2]) })
+    }
     println("PlayTest: ${specs.size} koşu, süre sınırı ${CAP_S / 60} dk oyun zamanı")
 
     val pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors())
@@ -226,9 +287,22 @@ fun main(args: Array<String>) {
     if (kinds.isEmpty()) println("  hiçbiri tetiklenmedi")
     for ((k, v) in kinds) println("  $k: ${v.size} koşu, örnek: ${v.first().spec.label} -> ${v.first().faults.first()}")
 
-    writeReport(results, quick, (System.currentTimeMillis() - t0) / 1000)
+    if (filt != null) {
+        for (r in results) println("  ${r.spec.label}: " + r.events.takeLast(4).joinToString("; ") { "${it.kind} x=${f0(it.x)} eğim=${f0(it.slopeDeg)}° yakıt=${f0(it.fuelPct)}%" } +
+            " | bidon: " + r.pick.takeLast(3).joinToString(", ") { "${f0(it.first)} (${f0(it.second)}%)" })
+        val ds = results.map { it.dist }.sorted()
+        println("filtre: medyan ${f0(ds[ds.size / 2])} m, ortalama ${f0(avg(ds))} m, altın/koşu ${f0(avg(results.map { it.coins.toDouble() }))}, " +
+            "altın/dk ${f0(results.sumOf { it.coins.toDouble() } / max(1.0, results.sumOf { it.endT }) * 60)}")
+        return
+    }
+    val gates = if (quick) emptyList() else gateResults(results)
+    writeReport(results, quick, (System.currentTimeMillis() - t0) / 1000, gates)
     println("Rapor: $REPORT")
+    println("Kabul kapıları:")
+    for (g in gates) println("  [${if (g.ok) "OK" else "FAIL"}] ${g.name}: ${g.value}")
     if (fails.isNotEmpty()) { println("FAIL: ${fails.size} koşuda hata dedektörü tetiklendi"); System.exit(1) }
+    val bad = gates.filter { !it.ok }
+    if (bad.isNotEmpty()) { println("FAIL: ${bad.size} kabul kapısı geçmedi"); System.exit(1) }
     println("OK")
 }
 
@@ -242,7 +316,7 @@ fun mdTable(head: List<String>, rows: List<List<String>>): String {
     return sb.toString()
 }
 
-fun writeReport(all: List<Res>, quick: Boolean, secs: Long) {
+fun writeReport(all: List<Res>, quick: Boolean, secs: Long, gates: List<Gate> = emptyList()) {
     val sb = StringBuilder()
     val mat = all.filter { it.spec.group == "matris" }
     val seeds = all.filter { it.spec.group == "tohum" }
@@ -256,6 +330,12 @@ fun writeReport(all: List<Res>, quick: Boolean, secs: Long) {
     sb.append("- Koşu sayısı: ${all.size} (matris ${mat.size}, tohum ${seeds.size}); oyun zamanı sınırı 20 dk; gerçek süre ${secs} sn.\n")
     sb.append("- Hata dedektörü tetiklenen koşu: ${fails.size}\n\n")
 
+    // --- kapılar
+    if (gates.isNotEmpty()) {
+        sb.append("## 0. Kabul kapıları (PLAN2 F1-5)\n\n")
+        sb.append(mdTable(listOf("Kapı", "Sonuç", "Değer"), gates.map { listOf(it.name, if (it.ok) "GEÇTİ" else "**KALDI**", it.value) }))
+        sb.append("\n")
+    }
     // --- dedektörler
     sb.append("## 1. Hata dedektörleri\n\n")
     val groups = HashMap<String, MutableList<Res>>()
@@ -291,6 +371,8 @@ fun writeReport(all: List<Res>, quick: Boolean, secs: Long) {
     val goodC = cj.filter { !it.spec.novice && it.spec.seed >= 1 }
     val reach3 = goodC.count { it.canCount >= 3 }
     sb.append("\nİyi sürücü, tohum 1-5: 3. yakıt bidonuna ulaşan = **$reach3/${goodC.size}** (PLAN2 F1 kuralı: en az 4/5).\n\n")
+    val motoS = all.filter { it.spec.map == "country" && it.spec.veh == "moto" && it.spec.upg == 0 }.sortedBy { it.spec.seed }
+    if (motoS.isNotEmpty()) sb.append("Motosiklet, Kır yolu, geliştirme yok (iyi sürücü, tohum 0-5): " + motoS.joinToString(", ") { "${f0(it.dist)} m ${it.end} (tepe ${f0(it.peakTilt)}°)" } + ".\n\n")
     val ter = Terrain(Maps.byId("country"))
     sb.append("Haritadaki bidonlar (Kır yolu): " + ter.fuels.take(8).joinToString(", ") { f0(it.x) } + " m; ardışık aralıklar: " +
         ter.fuels.take(8).let { l -> l.indices.map { i -> f0(l[i].x - (if (i == 0) 0.0 else l[i - 1].x)) } }.joinToString(", ") + " m.\n\n")
@@ -386,6 +468,12 @@ fun writeReport(all: List<Res>, quick: Boolean, secs: Long) {
     sb.append("\nKır yolu + jeep ortalaması (${jeepC.size} koşu): ${f0(jc)} altın/koşu. Jeep için 4 geliştirmenin 3. seviyeye maliyeti: $upgAll altın = ${if (jc > 0) Math.ceil(upgAll / jc).toInt() else -1} koşu; ")
     sb.append("motosiklet (8000): ${if (jc > 0) Math.ceil(8000 / jc).toInt() else -1} koşu; Çöl haritası (5000): ${if (jc > 0) Math.ceil(5000 / jc).toInt() else -1} koşu.\n\n")
 
+    run {
+        val e = economy(all)
+        sb.append("**İlerleme özeti (kapılarla aynı hesap):** Kır yolu + jeep (geliştirme yok) iyi koşu ortalaması ${f0(e.perRun)} altın, medyan koşu süresi ${f1(e.runMin)} dk. ")
+        sb.append("Motosiklet (8000) = ${f1(e.runsMoto)} koşu, Çöl (5000) = ${f1(e.runsDesert)} koşu. Matristeki tüm iyi sürücü koşularının ortalama hızı ${f0(e.rate)} altın/dk; ")
+        sb.append("tüm araçlar ve haritalar (${e.shop} altın) ≈ ${f1(e.shopHours)} saat. Hedef: motosiklet 4-6 koşu, Çöl 2-3 koşu, tüm mağaza 15-25 saat.\n\n")
+    }
     val shopTotal = Vehicles.all.sumOf { it.price } + Maps.all.sumOf { it.price }
     val jMin = if (jeepC.isNotEmpty()) jc / max(1.0, avg(jeepC.map { it.endT })) * 60.0 else 0.0
     sb.append("Tüm araçlar ve haritalar toplam $shopTotal altın. Kır yolu + jeep hızıyla (${f0(jMin)} altın/dk) hepsini almak ≈ ${if (jMin > 0) f0(shopTotal / jMin / 60.0) else "?"} saat oyun sürer. ")
@@ -477,7 +565,7 @@ fun buildIssues(all: List<Res>, mat: List<Res>, seeds: List<Res>, goodC: List<Re
     val capped = all.filter { it.end == "SÜRE" }
     if (capped.isNotEmpty()) out.add(Pair("Düşük", "20 dk sınırına dayanan ${capped.size} koşu (oyun doğal bitmedi; sürücü sorunsuz ilerliyor, harita uzunluğu 20 km): " + capped.take(6).joinToString("; ") { "${it.spec.label} ${f0(it.dist)} m" } + "."))
     // 8. acemi - iyi farkı
-    val gn = avg(seeds.filter { it.spec.novice }.map { it.dist }); val gi = avg(seeds.filter { !it.spec.novice }.map { it.dist })
+    val gn = avg(seeds.filter { it.spec.novice }.map { it.dist }); val gi = avg(seeds.filter { !it.spec.novice && it.spec.veh == "jeep" }.map { it.dist })
     if (seeds.isNotEmpty() && gn < gi * 0.5) out.add(Pair("Orta", "Acemi sürücü (yalnızca takla bipiyle) Kır yolunda ortalama ${f0(gn)} m gidiyor, iyi sürücü ${f0(gi)} m. Denge yardımı ve eğim duyuruları olmadan ilk oyun çok zor."))
     // 9. ekonomi
     if (jc > 0 && 8000 / jc > 40) out.add(Pair("Orta", "Ekonomi yavaş: Kır yolunda jeepin ortalama ${f0(jc)} altını var; motosiklet (8000) ${Math.ceil(8000 / jc).toInt()} koşu, Çöl (5000) ${Math.ceil(5000 / jc).toInt()} koşu sürüyor."))

@@ -60,6 +60,13 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
         return if (x <= HARD_FROM || map.maxSlope <= m1) a else a + (map.maxSlope - m1) * ss((x - HARD_FROM) / 1000.0)
     }
 
+    /** x'teki bidondan sonraki bidona beklenen aralık: [FUEL_GROW_FROM] m'ye dek [MapDef.fuelEvery], sonra kare kökle uzar
+     *  (fuelEvery × (1 + [FUEL_GROW]·√km)). HCR gibi: ileride bidonlar seyrekleşir; geliştirilmiş depo daha uzağa götürür. */
+    fun fuelGapAt(x: Double): Double = map.fuelEvery * (1.0 + FUEL_GROW * sqrt(maxOf(0.0, x - FUEL_GROW_FROM) / 1000.0))
+
+    /** Büyük tepelerin dalga boyu çarpanı: [STRETCH_FROM] m'ye dek 1, sonra km başına [STRETCH_PER_KM] artar, en çok [STRETCH_MAX]. */
+    fun hillStretch(x: Double): Double = 1.0 + minOf(STRETCH_MAX - 1.0, STRETCH_PER_KM * maxOf(0.0, x - STRETCH_FROM) / 1000.0)
+
     /** 0..1 zorluk: 300 m'ye dek 0, sonra mesafe, genlik ve büyümeyle artar. */
     fun difficulty(x: Double): Double =
         ((x - GENTLE_END) / 2500.0 * sqrt(map.amp / 3.0) * sqrt(map.growth / 0.15)).coerceIn(0.0, 1.0)
@@ -82,11 +89,16 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
             return minOf(sx, cap, if (x < GENTLE_END) 0.4 else 9.0)
         }
         val base = DoubleArray(n)
+        // büyük tepeler mesafeyle uzar (dalga boyu × [hillStretch]); eğim payı aynı kaldığından yokuşlar hem uzar hem yükselir.
+        // Faz, dalga boyunun tersinin integrali: uzama sırasında tepeler sıkışıp kopmaz.
+        var ph1 = 0.0; var ph2 = 0.0
         for (i in 0 until n) {
             val x = i.toDouble()
+            val w = hillStretch(x)
+            ph1 += 2 * PI / (l1 * w); ph2 += 2 * PI / (l2 * w)
             if (x <= FLAT) continue
             val e = ss((x - FLAT) / 60.0)
-            val s = 0.47 * l1 / (2 * PI) * sin(2 * PI * x / l1 + p1) + 0.33 * l2 / (2 * PI) * sin(2 * PI * x / l2 + p2) +
+            val s = 0.47 * l1 * w / (2 * PI) * sin(ph1 + p1) + 0.33 * l2 * w / (2 * PI) * sin(ph2 + p2) +
                 0.10 * l3 / (2 * PI) * sin(2 * PI * x / l3 + p3) + 0.10 * kn / 3.0 * noise(x)
             base[i] = e * bigS(x) * s
         }
@@ -266,18 +278,27 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
         // --- altın grupları ---
         val cs = ArrayList<Coin>()
         val vr = Random(map.seed xor 0x5DEECE66DL)    // değerler için ayrı akış: bidon ve rampa yerleşimi değişmez
-        // değer, gruptaki her altın için mesafeye göre karışık seçilir
-        fun coinValue(x: Double): Int {
+        // değer, gruptaki her altın için mesafeye göre karışık seçilir (HCR gibi: başta çoğu 5, ileride 25/100, uzakta 500).
+        // Kır yolunda geliştirmesiz iyi bir koşu (~3-4 km) ~1800 altın getirir: ilk araç (8000) 4-6 koşuda.
+        // Pahalı haritalar daha çok öder: değer tablosu, harita fiyatının [COIN_SHIFT] katı metre ileriden okunur
+        // (Çöl +500 m, Şantiye +9000 m).
+        val shift = map.price * COIN_SHIFT
+        fun coinValue(x0: Double): Int {
+            val x = x0 + shift
             val u = vr.nextDouble()
-            return if (x < 500) { if (u < 0.8) 5 else 25 }
-            else if (x < 1500) { if (u < 0.65) 25 else 100 }
-            else { if (u < 0.92) 100 else 500 }
+            return when {
+                x < 1000 -> if (u < 0.90) 5 else 25
+                x < 2500 -> if (u < 0.66) 5 else if (u < 0.985) 25 else 100
+                x < 4500 -> if (u < 0.62) 5 else if (u < 0.95) 25 else 100
+                x < 7000 -> if (u < 0.45) 5 else if (u < 0.85) 25 else if (u < 0.98) 100 else 500
+                else -> if (u < 0.04) 5 else if (u < 0.54) 25 else if (u < 0.94) 100 else 500
+            }
         }
         var gx = 40.0 + rnd.nextDouble() * 40
         while (gx + 20 < length) {
-            val cnt = 5 + rnd.nextInt(6)
+            val cnt = 5 + rnd.nextInt(5)
             for (j in 0 until cnt) { val x = gx + 2.0 * j; if (badZone(x) == null) cs.add(Coin(x, height(x) + 1.2, coinValue(x))) }
-            gx += 60 + rnd.nextDouble() * 60
+            gx += 110 + rnd.nextDouble() * 60
         }
         coins = cs
         // --- yakıt bidonları ---
@@ -288,7 +309,7 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
             val z = badZone(fx)
             val px2 = if (z == null) fx else if (fx - z[0] < z[1] - fx) z[0] - 0.5 else z[1] + 0.5
             fs.add(FuelCan(px2, height(px2) + 0.8))
-            fx += map.fuelEvery + (rnd.nextDouble() * 2 - 1) * 40
+            fx += fuelGapAt(fx) + (rnd.nextDouble() * 2 - 1) * 40
         }
         fuels = fs
     }
@@ -303,5 +324,11 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
         const val MAX_PIT_DEPTH = 1.2
         const val LAND_MAX = 0.45
         const val FLAT_BLEND = 18
+        const val COIN_SHIFT = 0.1
+        const val FUEL_GROW_FROM = 800.0
+        const val FUEL_GROW = 1.7
+        const val STRETCH_FROM = 1500.0
+        const val STRETCH_PER_KM = 0.35
+        const val STRETCH_MAX = 3.0
     }
 }

@@ -137,10 +137,11 @@ fun fuelCansReachable() {
     val ev = Rec()
     val s = GameSession(jeep, Upgrades(), country, ev)
     val drv = SmartDriver()
-    for (i in 0 until 300 * 60) { drv.control(s.car); s.update(DT, s.car.gas, s.car.brake); if (s.over) break }
-    println("  300 s: distance=${"%.0f".format(s.distance)} t=${"%.0f".format(s.time)} cans=${ev.fuelCount} over=${s.over} ${s.endReason} fuel=${"%.2f".format(s.fuel)}")
+    // bidon aralığı mesafeyle uzar (Terrain.fuelGapAt): geliştirmesiz jeep ilk 2 km'de yakıtsız kalmamalı, ilk 3 bidonu almalı
+    for (i in 0 until 180 * 60) { drv.control(s.car); s.update(DT, s.car.gas, s.car.brake); if (s.over) break }
+    println("  180 s: distance=${"%.0f".format(s.distance)} t=${"%.0f".format(s.time)} cans=${ev.fuelCount} over=${s.over} ${s.endReason} fuel=${"%.2f".format(s.fuel)}")
     req(s.endReason != EndReason.FUEL) { "yakıt bitti: x=${s.distance}, t=${s.time}" }
-    req(ev.fuelCount >= 1) { "hiç kutu alınmadı" }
+    req(ev.fuelCount >= 3) { "ilk 3 kutu alınmadı (${ev.fuelCount})" }
 }
 
 /** Aracı düz zemine, sırtüstü ya da verilen açıda, en alçak noktası zeminin hemen üstünde bırakır. */

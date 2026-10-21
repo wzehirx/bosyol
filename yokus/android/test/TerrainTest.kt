@@ -105,7 +105,10 @@ fun fuelSpacing() {
         req(abs(t.fuels[0].x - 250.0) <= 5.0) { "${m.id}: ilk bidon ${t.fuels[0].x}" }
         for (i in 1 until t.fuels.size) {
             val d = t.fuels[i].x - t.fuels[i - 1].x
-            req(abs(d - m.fuelEvery) <= 60.0) { "${m.id}: bidon aralığı $d, beklenen ${m.fuelEvery}" }
+            val want = t.fuelGapAt(t.fuels[i - 1].x)
+            req(abs(d - want) <= 60.0) { "${m.id}: bidon aralığı $d, beklenen $want" }
+            if (t.fuels[i - 1].x < Terrain.FUEL_GROW_FROM) req(abs(d - m.fuelEvery) <= 60.0) { "${m.id}: ilk bidon aralığı $d" }
+            req(d >= t.fuels.getOrNull(i - 2)?.let { t.fuels[i - 1].x - it.x - 80.0 } ?: 0.0) { "${m.id}: bidon aralığı kısalıyor" }
             val f = t.fuels[i]
             val dy = f.y - t.height(f.x)
             req(abs(dy - 0.8) < 0.3) { "${m.id}: bidon yüksekliği $dy" }
@@ -122,9 +125,7 @@ fun coinsAboveGround() {
             req(dy in 1.0..1.5) { "${m.id}: altın x=${c.x} dy=$dy" }
             req(c.value in setOf(5, 25, 100, 500)) { "değer ${c.value}" }
         }
-        req(t.coins.filter { it.x < 500 }.all { it.value == 5 || it.value == 25 }) { "ilk 500 m değeri 5 ya da 25 olmalı" }
-        req(t.coins.filter { it.x < 500 }.count { it.value == 5 } > t.coins.count { it.x < 500 } / 2) { "ilk 500 m çoğunlukla 5 olmalı" }
-        req(t.coins.any { it.x > 1500 && it.value >= 100 }) { "1500 m sonrası 100+ yok" }
+        req(t.coins.any { it.x > 1500 && it.value >= 100 }) { "${m.id}: 1500 m sonrası 100+ yok" }
     }
 }
 
@@ -133,15 +134,22 @@ fun coinValuesMixed() {
     val t = Terrain(m)
     val first = t.coins.filter { it.x < 3000 }
     req(first.map { it.value }.toSet().size >= 2) { "ilk 3 km değerleri: ${first.map { it.value }.toSet()}" }
-    val a = first.filter { it.x < 500 }.map { it.value }
-    val b = first.filter { it.x in 500.0..1500.0 }.map { it.value }
-    val c = first.filter { it.x >= 1500.0 }.map { it.value }
-    req(a.toSet() == setOf(5, 25)) { "0-500 m: ${a.toSet()}" }
-    req(a.count { it == 5 } > a.size * 0.6) { "0-500 m 5 payı ${a.count { it == 5 }}/${a.size}" }
-    req(b.toSet() == setOf(25, 100)) { "500-1500 m: ${b.toSet()}" }
-    req(c.toSet() == setOf(100, 500)) { "1500+ m: ${c.toSet()}" }
+    // HCR gibi: başta çoğu 5, mesafeyle 25 ve 100 artar, uzakta 500
+    val a = t.coins.filter { it.x < 1000 }.map { it.value }
+    val b = t.coins.filter { it.x in 1000.0..2500.0 }.map { it.value }
+    val c = t.coins.filter { it.x >= 7000.0 }.map { it.value }
+    req(a.toSet() == setOf(5, 25)) { "0-1000 m: ${a.toSet()}" }
+    req(a.count { it == 5 } > a.size * 0.8) { "0-1000 m 5 payı ${a.count { it == 5 }}/${a.size}" }
+    req(b.toSet().containsAll(setOf(5, 25)) && b.all { it <= 100 }) { "1000-2500 m: ${b.toSet()}" }
+    req(b.count { it == 5 } > b.size / 2) { "1000-2500 m 5 payı ${b.count { it == 5 }}/${b.size}" }
+    req(c.toSet().containsAll(setOf(25, 100, 500))) { "7000+ m: ${c.toSet()}" }
     val share500 = c.count { it == 500 }.toDouble() / c.size
-    req(share500 in 0.02..0.2) { "500 payı $share500" }
+    req(share500 in 0.02..0.15) { "500 payı $share500" }
+    fun meanVal(l: List<Int>) = l.sum().toDouble() / l.size
+    req(meanVal(a) < meanVal(b) && meanVal(b) < meanVal(c)) { "değer mesafeyle artmalı" }
+    // pahalı haritalar daha çok öder
+    fun first3(id: String) = meanVal(Terrain(Maps.byId(id)).coins.filter { it.x < 3000 }.map { it.value })
+    req(first3("country") < first3("desert") && first3("desert") < first3("site")) { "harita değer sırası" }
     // aynı grupta karışık değerler
     val g = first.sortedBy { it.x }.let { l -> l.zipWithNext().filter { it.second.x - it.first.x < 3.0 } }
     req(g.any { it.first.value != it.second.value }) { "grup içinde karışım yok" }
