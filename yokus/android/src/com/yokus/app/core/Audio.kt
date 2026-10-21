@@ -8,6 +8,7 @@ class AudioSettings {
     var tiltTone = true
     var radar = true
     var distanceCalls = false
+    var balanceAssist = true      // Denge yardımı: burun çok kalkınca gazı kısar, uyarır
     var volMaster = 80
     var volEngine = 80
     var volWorld = 70

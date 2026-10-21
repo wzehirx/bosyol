@@ -122,8 +122,35 @@ fun coinsAboveGround() {
             req(dy in 1.0..1.5) { "${m.id}: altın x=${c.x} dy=$dy" }
             req(c.value in setOf(5, 25, 100, 500)) { "değer ${c.value}" }
         }
-        req(t.coins.filter { it.x < 500 }.all { it.value == 5 }) { "ilk 500 m değeri 5 olmalı" }
+        req(t.coins.filter { it.x < 500 }.all { it.value == 5 || it.value == 25 }) { "ilk 500 m değeri 5 ya da 25 olmalı" }
+        req(t.coins.filter { it.x < 500 }.count { it.value == 5 } > t.coins.count { it.x < 500 } / 2) { "ilk 500 m çoğunlukla 5 olmalı" }
         req(t.coins.any { it.x > 1500 && it.value >= 100 }) { "1500 m sonrası 100+ yok" }
+    }
+}
+
+fun coinValuesMixed() {
+    val m = Maps.byId("country")
+    val t = Terrain(m)
+    val first = t.coins.filter { it.x < 3000 }
+    req(first.map { it.value }.toSet().size >= 2) { "ilk 3 km değerleri: ${first.map { it.value }.toSet()}" }
+    val a = first.filter { it.x < 500 }.map { it.value }
+    val b = first.filter { it.x in 500.0..1500.0 }.map { it.value }
+    val c = first.filter { it.x >= 1500.0 }.map { it.value }
+    req(a.toSet() == setOf(5, 25)) { "0-500 m: ${a.toSet()}" }
+    req(a.count { it == 5 } > a.size * 0.6) { "0-500 m 5 payı ${a.count { it == 5 }}/${a.size}" }
+    req(b.toSet() == setOf(25, 100)) { "500-1500 m: ${b.toSet()}" }
+    req(c.toSet() == setOf(100, 500)) { "1500+ m: ${c.toSet()}" }
+    val share500 = c.count { it == 500 }.toDouble() / c.size
+    req(share500 in 0.02..0.2) { "500 payı $share500" }
+    // aynı grupta karışık değerler
+    val g = first.sortedBy { it.x }.let { l -> l.zipWithNext().filter { it.second.x - it.first.x < 3.0 } }
+    req(g.any { it.first.value != it.second.value }) { "grup içinde karışım yok" }
+    // deterministik
+    val t2 = Terrain(m)
+    req(t.coins.map { it.value } == t2.coins.map { it.value }) { "değerler deterministik değil" }
+    for (mm in Maps.all) {
+        val tt = Terrain(mm)
+        req(tt.coins.map { it.value }.toSet().size >= 2) { "${mm.id}: tek değer" }
     }
 }
 
@@ -226,6 +253,7 @@ fun main() {
     pitsAndRamps(); println("pitsAndRamps ok")
     fuelSpacing(); println("fuelSpacing ok")
     coinsAboveGround(); println("coinsAboveGround ok")
+    coinValuesMixed(); println("coinValuesMixed ok")
     twelveVehiclesTenMaps(); println("twelveVehiclesTenMaps ok")
     upgradeCostGrows(); println("upgradeCostGrows ok")
     featuresFound(); println("featuresFound ok")

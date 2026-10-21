@@ -36,6 +36,11 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         private set
     @Volatile var engineKind = "none"
         private set
+    /** Testler için: son altın sesinin örnek hızı ve 500'lük çift ışıltı sayacı. */
+    @Volatile var lastCoinRate = 0.0
+        private set
+    @Volatile var doubleGlints = 0
+        private set
 
     // --- zamanlayıcılar ---
     private var nextBeep = 0.0
@@ -78,6 +83,7 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
     fun start(s: GameSession) {
         this.s = s
         s.events = this
+        s.balanceAssist = set.balanceAssist
         ended = false
         applyVolumes()
         val def = s.vehicle
@@ -224,8 +230,7 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         }
 
         // eğim tonu ve takla bipi
-        var a = car.angle % (2 * PI)
-        if (a > PI) a -= 2 * PI else if (a < -PI) a += 2 * PI
+        val a = wrapAngle(car.angle)
         tilt?.let { v ->
             v.freq = (330.0 * 2.0.pow(a / (PI / 2))).toFloat()
             v.fadeTo(if (set.tiltTone) 0.05f else 0f, 0.1f)
@@ -253,7 +258,12 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
                 if (coin != null) {
                     val dx = coin.x - car.x; val dy = coin.y - car.y
                     val g = max(0.15, distGain(dx, dy))
-                    pulse(OscVoice.SINE, 1800.0 * 2.0.pow(dy / 12.0), (0.1 * g).toFloat(), panOf(dx), 0.06)
+                    val k = 2.0.pow(dy / 12.0)
+                    pulse(OscVoice.SINE, 1800.0 * k, (0.1 * g).toFloat(), panOf(dx), 0.06)
+                    if (coin.value >= 500) {      // 500'lük: biraz daha parlak çift ışıltı
+                        doubleGlints++
+                        later(0.09) { pulse(OscVoice.SINE, 2400.0 * k, (0.1 * g).toFloat(), panOf(dx), 0.06) }
+                    }
                 }
             }
             if (clock >= nextFuelBeacon) {
@@ -272,8 +282,16 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
     // ---------------------------------------------------------------- olaylar
 
     override fun onCoin(value: Int, streak: Int) {
-        shot("coin", BUS_FX, 0.7f, 1.0 + 0.06 * min(streak, 12))
+        // her değerin kendi sesi vardır, perde değişmez; dosya yoksa genel "coin"
+        val key = when { value >= 500 -> "coin_xl"; value >= 100 -> "coin_l"; value >= 25 -> "coin_m"; else -> "coin_s" }
+        val p = pcm(key) ?: pcm("coin") ?: return
+        lastCoinRate = 1.0
+        shot(p, BUS_FX, 0.7f, 1.0, 0f)
     }
+
+    override fun onTipWarning() { say("Dikkat, devrilmek üzeresin") }
+
+    override fun onStuck() { say("Yokuşu çıkamıyorsun, biraz geri gidip hızlan") }
 
     override fun onFuel() {
         shot("fuel_pick", BUS_FX, 0.8f)
@@ -332,7 +350,8 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         }
         pending = null
         // son duyuru aynı metin kısıtına takılmaz; yalnızca 0.8 sn aralığı korunur
-        lastSaid.remove(reason.say)
-        say(reason.say)
+        val msg = s?.endMessage?.takeIf { it.isNotEmpty() } ?: reason.say
+        lastSaid.remove(msg)
+        say(msg)
     }
 }

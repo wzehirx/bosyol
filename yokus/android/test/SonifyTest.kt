@@ -207,6 +207,50 @@ fun landingRules() {
     check("impact 6 -> thud + creak", n("land_thud") == 1 && n("creak") == 1)
 }
 
+fun coinSoundPerValue() {
+    println("coinSoundPerValue")
+    fun keys(inner: Bank, value: Int, streak: Int): Map<String, Int> {
+        val cb = CountBank(inner)
+        val (son, _, _) = newSonify(cb, ArrayList())
+        cb.counts.clear()
+        son.onCoin(value, streak)
+        return cb.counts.filter { it.key.startsWith("coin") && it.value > 0 }
+    }
+    val tone = FBank().get("coin")!!
+    val full = object : Bank { override fun get(key: String): Pcm? = if (key.startsWith("coin")) tone else null }
+    for ((v, k) in listOf(5 to "coin_s", 25 to "coin_m", 100 to "coin_l", 500 to "coin_xl")) {
+        val got = keys(full, v, 1)
+        check("value $v -> $k", got.keys.contains(k) && got.keys.none { it != k }, got.toString())
+    }
+    // anahtar yoksa "coin"
+    val onlyCoin = object : Bank { override fun get(key: String): Pcm? = if (key == "coin") tone else null }
+    for (v in listOf(5, 25, 100, 500)) {
+        val got = keys(onlyCoin, v, 1)
+        check("value $v w/o specific key -> coin", got.keys.contains("coin"), got.toString())
+    }
+    // perde yükselmez: seri toplamada örnek hızı hep 1.0
+    val rates = ArrayList<Double>()
+    val mix = Mixer()
+    val son = Sonify(mix, full, AudioSettings()) { }
+    son.start(GameSession(Vehicles.byId("jeep"), Upgrades(), Maps.byId("country")))
+    for (st in 1..10) { son.onCoin(5, st); rates.add(son.lastCoinRate) }
+    check("no pitch rise with streak", rates.all { it == 1.0 }, rates.toString())
+    // 500'lük altının işaret sesi çift ışıltı; küçük değerler tek
+    fun glints(value: Int): Int {
+        val m = Mixer()
+        val sn = Sonify(m, full, AudioSettings()) { }
+        val se = GameSession(Vehicles.byId("jeep"), Upgrades(), Maps.byId("country"))
+        val target = se.terrain.coins.first { it.value == value && it.x > 300 }
+        se.terrain.coins.filter { it.x < target.x }.forEach { it.taken = true }
+        se.car.x = target.x - 12.0
+        sn.start(se)
+        repeat(60) { sn.update(1.0 / 60) }
+        return sn.doubleGlints
+    }
+    check("500 coin beacon double glint", glints(500) >= 1)
+    check("100 coin beacon single glint", glints(100) == 0)
+}
+
 fun endFadesWorld() {
     println("endFadesWorld")
     val said = ArrayList<String>()
@@ -354,6 +398,7 @@ fun main() {
     announceThrottle()
     tiltBeepAbove70()
     landingRules()
+    coinSoundPerValue()
     endFadesWorld()
     statusTextLevel()
     fullRunAllVehicles()

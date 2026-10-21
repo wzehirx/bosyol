@@ -355,6 +355,7 @@ class MainActivity : Activity() {
         c.addView(sw("Yol radarı", a.radar) { a.radar = it; save() }, lp(top = 4))
         c.addView(sw("Mesafe duyurusu", a.distanceCalls) { a.distanceCalls = it; save() }, lp(top = 4))
         c.addView(heading("Kontroller"))
+        c.addView(sw("Denge yardımı", a.balanceAssist) { a.balanceAssist = it; save() }, lp(top = 4))
         c.addView(sw("Ses tuşları gaz/fren", store.volumeKeys) { store.volumeKeys = it }, lp(top = 4))
         c.addView(sw("Pedal kilidi", store.latch) { store.latch = it }, lp(top = 4))
         c.addView(heading("Ses düzeyi"))
@@ -425,7 +426,7 @@ class MainActivity : Activity() {
     /** Oyun sırasında ilk kez kullanılacak kısa sesleri önceden çözer (UI iş parçacığında takılma olmasın). */
     private fun warmSounds() {
         val b = bank
-        val t = Thread { for (k in arrayOf("coin", "fuel_pick", "fuel_low", "land_thud", "creak", "flip", "crash", "crash_car")) b.get(k) }
+        val t = Thread { for (k in arrayOf("coin", "coin_s", "coin_m", "coin_l", "coin_xl", "fuel_pick", "fuel_low", "land_thud", "creak", "flip", "crash", "crash_car")) b.get(k) }
         t.isDaemon = true; t.start()
     }
 
@@ -611,9 +612,10 @@ class MainActivity : Activity() {
 
     private fun overScreen() {
         val reason = session?.endReason ?: EndReason.QUIT
-        val c = page(reason.say)
+        val c = page("Oyun bitti")   // başlık odaklanınca okunur; neden Sonify'dan zaten söylendi, metinde yazılı kalır
+        val why = session?.endMessage?.takeIf { it.isNotEmpty() } ?: reason.say
         val rec = if (resRecord) " Yeni rekor!" else ""
-        c.addView(para("$resMeters metre, $resCoins altın kazandın. En iyi: $resBest metre.$rec", cInk))
+        c.addView(para("$why. $resMeters metre, $resCoins altın kazandın. En iyi: $resBest metre.$rec", cInk))
         c.addView(btn("Tekrar", primary = true) { startGame() }, lp(top = 14))
         c.addView(btn("Garaj") { leaveGame(); go(Scr.GARAGE) }, lp())
         c.addView(btn("Ana menü") { toMenu() }, lp())

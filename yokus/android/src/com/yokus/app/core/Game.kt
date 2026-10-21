@@ -2,10 +2,14 @@ package com.yokus.app.core
 
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.atan
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
 enum class EndReason(val say: String) { CRASH("Kaza yaptın"), FUEL("Yakıt bitti"), QUIT("Bırakıldı") }
+
+/** Açıyı [-π, π) aralığına getirir. */
+fun wrapAngle(a: Double): Double = a - 2 * PI * floor((a + PI) / (2 * PI))
 
 interface GameEvents {
     fun onCoin(value: Int, streak: Int) {}
@@ -16,6 +20,8 @@ interface GameEvents {
     fun onAirBonus(sec: Double, bonus: Int) {}
     fun onFeature(f: Feature) {}
     fun onDistance(m: Int) {}
+    fun onTipWarning() {}               // denge yardımı: araç devrilmek üzere
+    fun onStuck() {}                    // gaz veriyor ama ilerleyemiyor
     fun onEnd(reason: EndReason) {}
 }
 
@@ -32,6 +38,10 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
     var flips = 0            // toplam takla
     var over = false
     var endReason: EndReason? = null
+    /** Bitişin duyurulan/yazılan nedeni: "Ters döndün", "Kafa üstü düştün", yoksa [EndReason.say]. */
+    var endMessage: String = ""
+    /** Denge yardımı: yerde burun zemine göre 40°'yi aşınca gazı yumuşakça kısar (60°'de 0.3). */
+    var balanceAssist = true
     var time = 0.0
 
     private val startX = car.x
@@ -46,7 +56,11 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
     private var low25 = false
     private var low10 = false
     private var stillFuel = 0.0
-    private var stillFlip = 0.0
+    private var flipT = 0.0
+    private var lastTipT = -1e9
+    private var stuckT = 0.0
+    private var stuckX = 0.0
+    private var lastStuckT = -1e9
     private var wasAir = false
     private var airStreak = 0.0
     private var angAcc = 0.0
@@ -54,8 +68,23 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
     fun update(dt: Double, gas: Double, brake: Double) {
         if (over) return
         time += dt
-        var g = gas.coerceIn(0.0, 1.0)
+        val input = gas.coerceIn(0.0, 1.0)
+        var g = input
         if (fuel <= 0.0) g = 0.0
+        val rel = relAngle()
+        if (balanceAssist) {
+            if (!car.airborne) {
+                if (rel > ASSIST_FROM) {
+                    val u = ((rel - ASSIST_FROM) / (ASSIST_FULL - ASSIST_FROM)).coerceIn(0.0, 1.0)
+                    g *= 1.0 - 0.7 * u * u * (3 - 2 * u)
+                }
+            } else if (rel > AIR_FROM) {
+                // havada gaz yalnızca burnu kaldırır; burun zemine göre fazla kalkmışsa gazı iyice keser
+                val u = ((rel - AIR_FROM) / (AIR_FULL - AIR_FROM)).coerceIn(0.0, 1.0)
+                g *= 1.0 - u * u * (3 - 2 * u)
+            }
+            if (rel > TIP_WARN && time - lastTipT >= 6.0 && input > 0.0) { lastTipT = time; events?.onTipWarning() }
+        }
         car.gas = g
         car.brake = brake.coerceIn(0.0, 1.0)
         if (fuel > 0.0) fuel = maxOf(0.0, fuel - def.fuelUse * (0.2 + 0.8 * g) * dt)
@@ -94,20 +123,32 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
         fuelWarnings()
         announceFeatures()
 
+        // --- ilerleyemiyor ipucu ---
+        if (input > 0.3 && fuel > 0.0) {
+            if (abs(car.x - stuckX) >= 1.0) { stuckX = car.x; stuckT = 0.0 } else stuckT += dt
+            if (stuckT >= 6.0) {
+                stuckT = 0.0; stuckX = car.x
+                if (time - lastStuckT >= 20.0) { lastStuckT = time; events?.onStuck() }
+            }
+        } else { stuckT = 0.0; stuckX = car.x }
+
         // --- bitiş koşulları ---
-        if (car.headHit()) { end(EndReason.CRASH); return }
+        if (car.headHit()) { end(EndReason.CRASH, "Kafa üstü düştün"); return }
         val spd = abs(car.speed)
-        var na = car.angle % (2 * PI)
-        if (na > PI) na -= 2 * PI else if (na < -PI) na += 2 * PI
-        if (abs(na) > 2.2 && spd < 0.5) stillFlip += dt else stillFlip = 0.0
-        if (stillFlip >= 2.5) { end(EndReason.CRASH); return }
+        // zemine göre 100°'den fazla ters duran araç, yerdeyken 1 sn sonra kaza sayılır (havada sayaç durur)
+        val onGround = !car.airborne || car.hullTouch
+        if (abs(relAngle()) > FLIP_DEG) { if (onGround) flipT += dt } else if (onGround) flipT = 0.0
+        if (flipT >= FLIP_SECS) { end(EndReason.CRASH, "Ters döndün"); return }
         if (fuel <= 0.0 && spd < 0.3) stillFuel += dt else stillFuel = 0.0
         if (stillFuel >= 3.0) { end(EndReason.FUEL); return }
     }
 
-    fun end(reason: EndReason) {
+    /** Aracın zemin eğimine göre açısı (derece, burun yukarı +, [-180, 180)). */
+    fun relAngle(): Double = Math.toDegrees(wrapAngle(car.angle - atan(terrain.slope(car.x))))
+
+    fun end(reason: EndReason, message: String = reason.say) {
         if (over) return
-        over = true; endReason = reason
+        over = true; endReason = reason; endMessage = message
         events?.onEnd(reason)
     }
 
@@ -158,7 +199,17 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
 
     fun fuelPct(): Int = if (fuelMax > 0) (fuel / fuelMax * 100).roundToInt().coerceIn(0, 100) else 0
 
-    fun tiltDeg(): Int = Math.round(Math.toDegrees(car.angle)).toInt()
+    fun tiltDeg(): Int = Math.round(Math.toDegrees(wrapAngle(car.angle))).toInt()
+
+    companion object {
+        const val ASSIST_FROM = 40.0
+        const val ASSIST_FULL = 60.0
+        const val AIR_FROM = 15.0
+        const val AIR_FULL = 35.0
+        const val TIP_WARN = 50.0
+        const val FLIP_DEG = 100.0
+        const val FLIP_SECS = 1.0
+    }
 
     fun statusText(): String {
         val t = tiltDeg()

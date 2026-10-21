@@ -227,7 +227,7 @@ class UiSmoke {
         run(1.0); s3.end(EndReason.CRASH); s3.coins += 5
         run(2.0); assertTrue("2.5 sn dolmadan bitiş ekranı", views().any { it is GameView })
         run(1.0); idle()
-        assertEquals("Kaza yaptın", title()?.text.toString()); audit("Oyun sonu")
+        assertEquals("Oyun bitti", title()?.text.toString()); audit("Oyun sonu")
         println("oyun sonu: ${texts()}")
         assertTrue(texts().any { it.contains("metre") && it.contains("altın kazandın. En iyi:") })
         assertTrue(Store(a).gold >= after + 5)
@@ -236,7 +236,7 @@ class UiSmoke {
     }
 
     private fun state(s: Store, text: String): Boolean = when (text) {
-        "Eğim tonu" -> s.audio.tiltTone; "Yol radarı" -> s.audio.radar; "Mesafe duyurusu" -> s.audio.distanceCalls
+        "Eğim tonu" -> s.audio.tiltTone; "Yol radarı" -> s.audio.radar; "Mesafe duyurusu" -> s.audio.distanceCalls; "Denge yardımı" -> s.audio.balanceAssist
         "Ses tuşları gaz/fren" -> s.volumeKeys; "Pedal kilidi" -> s.latch; else -> error("bilinmeyen anahtar $text")
     }
 }

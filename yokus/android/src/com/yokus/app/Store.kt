@@ -20,6 +20,7 @@ class Store(ctx: Context) {
     init {
         audio.tiltTone = sp.getBoolean("tiltTone", true); audio.radar = sp.getBoolean("radar", true)
         audio.distanceCalls = sp.getBoolean("distanceCalls", false)
+        audio.balanceAssist = sp.getBoolean("balanceAssist", true)
         audio.volMaster = vol("volMaster", 80); audio.volEngine = vol("volEngine", 80)
         audio.volWorld = vol("volWorld", 70); audio.volCues = vol("volCues", 80)
     }
@@ -27,7 +28,7 @@ class Store(ctx: Context) {
     /** Ses ayarlarını kaydeder. */
     fun saveAudio() {
         sp.edit().putBoolean("tiltTone", audio.tiltTone).putBoolean("radar", audio.radar)
-            .putBoolean("distanceCalls", audio.distanceCalls).putInt("volMaster", audio.volMaster)
+            .putBoolean("distanceCalls", audio.distanceCalls).putBoolean("balanceAssist", audio.balanceAssist).putInt("volMaster", audio.volMaster)
             .putInt("volEngine", audio.volEngine).putInt("volWorld", audio.volWorld).putInt("volCues", audio.volCues).apply()
     }
 

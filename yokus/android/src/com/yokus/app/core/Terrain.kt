@@ -265,11 +265,18 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
 
         // --- altın grupları ---
         val cs = ArrayList<Coin>()
+        val vr = Random(map.seed xor 0x5DEECE66DL)    // değerler için ayrı akış: bidon ve rampa yerleşimi değişmez
+        // değer, gruptaki her altın için mesafeye göre karışık seçilir
+        fun coinValue(x: Double): Int {
+            val u = vr.nextDouble()
+            return if (x < 500) { if (u < 0.8) 5 else 25 }
+            else if (x < 1500) { if (u < 0.65) 25 else 100 }
+            else { if (u < 0.92) 100 else 500 }
+        }
         var gx = 40.0 + rnd.nextDouble() * 40
         while (gx + 20 < length) {
-            val v = if (gx < 500) 5 else if (gx < 1500) 25 else if (rnd.nextDouble() < 0.08) 500 else 100
             val cnt = 5 + rnd.nextInt(6)
-            for (j in 0 until cnt) { val x = gx + 2.0 * j; if (badZone(x) == null) cs.add(Coin(x, height(x) + 1.2, v)) }
+            for (j in 0 until cnt) { val x = gx + 2.0 * j; if (badZone(x) == null) cs.add(Coin(x, height(x) + 1.2, coinValue(x))) }
             gx += 60 + rnd.nextDouble() * 60
         }
         coins = cs
