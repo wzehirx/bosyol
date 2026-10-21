@@ -53,6 +53,51 @@ fun slopeBounded() {
     }
 }
 
+/** Zorluk eğrisi: ilk 300 m yumuşak (≤ 0.5), 1500 m'ye dek ≤ 1.0; 1.0'dan dik eğim yalnızca dağ/mağarada ve 1500 m'den
+ *  sonra, en çok 1.2. Her yerde eğim konumun sınırını aşmaz. */
+fun slopeRamp() {
+    for (m in Maps.all) {
+        val t = Terrain(m)
+        req(m.maxSlope <= 1.2) { "${m.id}: maxSlope ${m.maxSlope}" }
+        req(m.maxSlope <= 1.0 || m.id == "mountain" || m.id == "cave") { "${m.id}: 1.0'dan dik olmamalı" }
+        for (i in 0 until t.length.toInt()) {
+            val x = i + 0.5; val s = abs(t.slope(x))
+            req(s <= t.maxSlopeAt(x) + 1e-9) { "${m.id}: slope($x)=$s > sınır ${t.maxSlopeAt(x)}" }
+            if (x < 300) req(s <= 0.5) { "${m.id}: ilk 300 m eğim $s (x=$x)" }
+            if (x < 1500) req(s <= 1.0) { "${m.id}: 1500 m öncesi eğim $s (x=$x)" }
+        }
+        fun meanAbs(a: Int, b: Int) = (a until b).sumOf { abs(t.slope(it + 0.5)) } / (b - a)
+        req(meanAbs(2500, 3500) > meanAbs(300, 1300)) { "${m.id}: zorluk mesafeyle artmalı" }
+    }
+    fun mean(id: String) = Terrain(Maps.byId(id)).let { t -> (300 until 3000).sumOf { abs(t.slope(it + 0.5)) } }
+    req(mean("mountain") > mean("country") && mean("country") > mean("beach")) { "harita zorluğu: dağ > kır > plaj" }
+}
+
+/** Çukur: duvar eğimi ≤ 0.8, derinlik (kenarları birleştiren kirişe göre) ≤ 1.2 m, yuvarlak kenar (eğim sıçraması küçük).
+ *  Rampa: yumuşak sıçrama ağzı, ardından uçurum değil hafif iniş. */
+fun pitsAndRamps() {
+    for (m in Maps.all) {
+        val t = Terrain(m)
+        for (p in t.features.filter { it.kind == FeatureKind.PIT }) {
+            val h0 = t.height(p.x0); val h1 = t.height(p.x1)
+            var x = p.x0 - 2; var depth = 0.0
+            while (x <= p.x1 + 2) {
+                req(abs(t.slope(x)) <= 0.8) { "${m.id}: çukur $p duvar eğimi ${t.slope(x)}" }
+                req(abs(t.slope(x + 1) - t.slope(x)) <= 0.35) { "${m.id}: çukur $p keskin kenar x=$x" }
+                if (x >= p.x0 && x <= p.x1) depth = maxOf(depth, h0 + (h1 - h0) * (x - p.x0) / (p.x1 - p.x0) - t.height(x))
+                x += 0.25
+            }
+            req(depth in 0.2..1.2) { "${m.id}: çukur $p derinlik $depth" }
+        }
+        for (r in t.features.filter { it.kind == FeatureKind.RAMP }) {
+            val kick = t.slope(r.x1 - 1.0) - t.slope(r.x0 - 1.0)
+            req(kick >= 0.2) { "${m.id}: rampa $r ağzı sıçratmıyor ($kick)" }
+            var x = r.x1
+            while (x < r.x1 + 10) { req(t.slope(x) >= -0.5) { "${m.id}: rampa $r inişi dik ${t.slope(x)} (x=$x)" }; x += 0.25 }
+        }
+    }
+}
+
 fun fuelSpacing() {
     for (m in Maps.all) {
         val t = Terrain(m)
@@ -104,7 +149,7 @@ fun twelveVehiclesTenMaps() {
     }
     for (m in Maps.all) { req(Maps.byId(m.id) === m) { "byId ${m.id}" }; req(m.desc.isNotBlank()) { "${m.id}: desc" } }
     val j = Vehicles.byId("jeep")
-    req(j.mass == 300.0 && j.rearX == -1.1 && j.frontX == 1.1 && j.wheelR == 0.4 && j.torque == 500.0 && j.drive == Drive.REAR) { "jeep değerleri" }
+    req(j.mass == 300.0 && j.rearX == -1.1 && j.frontX == 1.1 && j.wheelR == 0.4 && j.drive == Drive.REAR) { "jeep değerleri" }
     val moto = Vehicles.byId("moto")
     req(moto.mass == 150.0 && abs((moto.frontX - moto.rearX) - 1.4) < 1e-9) { "moto" }
     req(moto.airTorque > Vehicles.byId("jeep").airTorque) { "moto airTorque" }
@@ -112,7 +157,9 @@ fun twelveVehiclesTenMaps() {
     req(tank.torque > j.torque && tank.maxRpm < j.maxRpm && tank.snowGrip == 1.5) { "tank" }
     val sup = Vehicles.byId("super")
     req(sup.torque > tank.torque && sup.wheelR < j.wheelR && sup.suspK > j.suspK) { "super" }
-    req(Vehicles.byId("snowmobile").snowGrip == 2.2) { "snowmobile" }
+    req(sup.torque > tank.torque && tank.torque > j.torque) { "tork sırası: süper > tank > cip" }
+    val snow = Vehicles.byId("snowmobile")
+    req(snow.snowGrip == 2.2 && Vehicles.all.all { it === snow || it.snowGrip < snow.snowGrip }) { "en yüksek snowGrip kar motosikletinde olmalı" }
     val rover = Vehicles.byId("rover")
     req(rover.electric && rover.engineKey == "synth") { "rover" }
     req(Vehicles.all.count { it.electric } == 1) { "tek elektrikli" }
@@ -175,6 +222,8 @@ fun main() {
     safePlacement(); println("safePlacement ok")
     flatStart(); println("flatStart ok")
     slopeBounded(); println("slopeBounded ok")
+    slopeRamp(); println("slopeRamp ok")
+    pitsAndRamps(); println("pitsAndRamps ok")
     fuelSpacing(); println("fuelSpacing ok")
     coinsAboveGround(); println("coinsAboveGround ok")
     twelveVehiclesTenMaps(); println("twelveVehiclesTenMaps ok")

@@ -35,6 +35,9 @@ class Car(val def: VehicleDef, val terrain: Terrain, val gravity: Double, val gr
     var angDampGround = 2.0   // 1/s: yerde gövde dönüşünü söndürür (süspansiyon/lastik)
     var angDampAir = 1.0      // 1/s: havada
     val airborne: Boolean get() = !rear.grounded && !front.grounded
+    /** Gövde köşelerinden biri (alt köşeler ya da tavan) son adımda zemine değdi mi. */
+    var hullTouch = false
+        private set
     /** Gövdenin ileri yönündeki hız (m/s). */
     val speed: Double get() = vx * cos(angle) + vy * sin(angle)
 
@@ -49,8 +52,14 @@ class Car(val def: VehicleDef, val terrain: Terrain, val gravity: Double, val gr
     private val mu: Double = terrain.surface.mu *
         (if (terrain.surface == Surface.SNOW || terrain.surface == Surface.ICE) def.snowGrip else 1.0) * grip
     private val wheels = arrayOf(rear, front)
+    // gövde temas noktaları (gövde koordinatı): iki alt köşe ve kafa hizasında iki tavan köşesi.
+    // Tavan kafa merkezi hizasında olduğundan ters dönen araç tavanına oturur ve kafa yine yere değer (kaza algılanır).
+    private val hullX = doubleArrayOf(def.rearX - 0.15, def.frontX + 0.15, def.rearX * 0.8, def.frontX * 0.8)
+    private val hullY = doubleArrayOf(def.axleY, def.axleY, def.headY, def.headY)
+    private val hullMu = 0.6 * terrain.surface.mu
     private val driveWheels = if (def.drive == Drive.ALL) arrayOf(rear, front) else arrayOf(rear)
 
+    private var airTime = 0.0
     private var lx = 0.0; private var ly = 0.0; private var la = 0.0; private var lvx = 0.0; private var lvy = 0.0; private var lom = 0.0
     private val snap = DoubleArray(17)
 
@@ -170,15 +179,17 @@ class Car(val def: VehicleDef, val terrain: Terrain, val gravity: Double, val gr
         for (w in dw) spinDrive += w.spin
         spinDrive /= dw.size
         val rawRpm = abs(spinDrive) * def.ratio * 60 / (2 * PI)
-        rpm = max(def.idleRpm, rawRpm)
+        rpm = rawRpm.coerceIn(def.idleRpm, def.maxRpm * 1.05)
         val shape = if (def.electric) 1.0 else 0.6 + 0.4 * sin(PI * min(rpm, def.maxRpm) / def.maxRpm)
-        val cut = ((def.maxRpm - rpm) / (0.04 * def.maxRpm)).coerceIn(0.0, 1.0)
+        val cut = ((def.maxRpm - rawRpm) / (0.04 * def.maxRpm)).coerceIn(0.0, 1.0)
         val curve = def.torque * shape * cut
         val sp = speed
         var drive = gas * curve
         if (brake > 0 && sp < 0.5) drive -= 0.4 * brake * curve
         // motor freni (gaz bırakılınca)
-        val drag = -ENGINE_DRAG * def.torque * (spinDrive / spinMax) * (1 - gas)
+        val drag = -ENGINE_DRAG * def.torque * (spinDrive / spinMax) * (1 - gas) -
+            // devir sınırının üstünde motor freni (yokuş aşağı hız, en yüksek hızın biraz üstünde dengelenir)
+            sign(spinDrive) * OVER_DRAG * def.torque * ((rawRpm / def.maxRpm - 1.05) / 0.2).coerceIn(0.0, 1.0)
         for (w in dw) {
             val tau = (drive + drag) / dw.size
             w.spin += tau / iw * h
@@ -193,12 +204,21 @@ class Car(val def: VehicleDef, val terrain: Terrain, val gravity: Double, val gr
             }
         }
         if (airborne) {
-            // hava kontrolü: ivme (gaz-fren)·airTorque/I; dönüş hızı airTorque/I·AIR_RATE_T ile doyar (takla kontrolden çıkmasın)
-            val u = gas - brake
-            val lim = def.airTorque / def.inertia * AIR_RATE_T
+            // hava kontrolü: ivme (gaz-fren)·airTorque/I; dönüş hızı airTorque/I·AIR_RATE_T ile doyar (takla kontrolden çıkmasın).
+            // Yetki havada geçen ilk AIR_RAMP saniyede sıfırdan tama çıkar: tümsekten küçük sekmeler gazı basılı tutanı döndürmez.
+            airTime += h
+            val u = (gas - brake) * min(1.0, airTime / AIR_RAMP)
+            val lim = min(AIR_RATE_MAX, def.airTorque / def.inertia * AIR_RATE_T)
             if (u * omega < lim * abs(u)) tb += u * def.airTorque
-        }
+        } else airTime = 0.0
 
+        // hava direnci + yuvarlanma direnci (yokuş aşağı aşırı hızı sınırlar)
+        val vv = sqrt(vx * vx + vy * vy)
+        if (vv > 1e-6) {
+            val fd = AIR_DRAG * vv * vv + (if (airborne) 0.0 else ROLL_RES * m * gravity)
+            val fdc = min(fd, vv * m / h)
+            fbx -= fdc * vx / vv; fby -= fdc * vy / vv
+        }
         vx += fbx / m * h; vy += fby / m * h; omega += tb / def.inertia * h
 
         // --- açısal sönüm: yerde güçlü (süspansiyon/lastik), havada hafif ---
@@ -211,6 +231,8 @@ class Car(val def: VehicleDef, val terrain: Terrain, val gravity: Double, val gr
         // --- süspansiyon sert duruşu, zemin, sürtünme ---
         for (w in wheels) hardStop(w)
         for (w in wheels) contact(w)
+        hullTouch = false
+        for (k in 0 until 4) hull(hullX[k], hullY[k])
 
         // --- sınırlar ---
         omega = omega.coerceIn(-12.0, 12.0)
@@ -254,6 +276,34 @@ class Car(val def: VehicleDef, val terrain: Terrain, val gravity: Double, val gr
             vx -= dirx * j * bi; vy -= diry * j * bi
             omega -= rc * j / def.inertia
         }
+    }
+
+    /** Gövde noktasının zemine teması: dışarı it, içe doğru hızı sil (sekme yok), Coulomb sürtünmesi. */
+    private fun hull(bx: Double, by: Double) {
+        val ca = cos(angle); val sa = sin(angle)
+        val rx = ca * bx - sa * by; val ry = sa * bx + ca * by
+        val px = x + rx; val py = y + ry
+        val g = terrain.height(px)
+        if (py >= g) return
+        val sl = terrain.slope(px)
+        val len = sqrt(1 + sl * sl)
+        val nx = -sl / len; val ny = 1 / len
+        val pen = (g - py) * ny
+        hullTouch = true
+        x += nx * pen; y += ny * pen
+        for (w in wheels) { w.x += nx * pen; w.y += ny * pen }
+        val vpx = vx - omega * ry; val vpy = vy + omega * rx
+        val vn = vpx * nx + vpy * ny
+        if (vn >= 0) return
+        val m = def.mass; val ii = def.inertia
+        val rn = rx * ny - ry * nx
+        val jn = -vn / (1 / m + rn * rn / ii)
+        vx += nx * jn / m; vy += ny * jn / m; omega += rn * jn / ii
+        val tx = ny; val ty = -nx
+        val vt = (vx - omega * ry) * tx + (vy + omega * rx) * ty
+        val rt = rx * ty - ry * tx
+        val jt = (-vt / (1 / m + rt * rt / ii)).coerceIn(-hullMu * jn, hullMu * jn)
+        vx += tx * jt / m; vy += ty * jt / m; omega += rt * jt / ii
     }
 
     // zemin teması için aday: nx, ny, penetrasyon
@@ -317,10 +367,15 @@ class Car(val def: VehicleDef, val terrain: Terrain, val gravity: Double, val gr
     }
 
     companion object {
-        const val AIR_RATE_T = 0.125
+        const val AIR_RAMP = 0.5
+        const val AIR_RATE_T = 0.15
+        const val AIR_RATE_MAX = 4.0
+        const val AIR_DRAG = 0.6       // N/(m/s)²
+        const val ROLL_RES = 0.012
         const val ENGINE_DRAG = 0.15
+        const val OVER_DRAG = 0.6
         const val BRAKE_MUL = 1.5
-        const val SPIN_OVER = 1.05
+        const val SPIN_OVER = 1.6
         const val TUNNEL_MAX = 8.0
     }
 }

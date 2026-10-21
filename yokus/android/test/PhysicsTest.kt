@@ -122,12 +122,11 @@ fun randomRun(v: VehicleDef, m: MapDef, seed: Long, startX: Double = 5.0): Car {
     return c
 }
 
-/** Rastgele gaz/fren 600 s: NaN yok ve ilerleme. Her haritanın x=180 civarındaki ilk çukuru (1.5-2 m'lik dik duvar)
- *  rastgele bir sürücü için aşılmaz olduğundan, ilerleme sınaması çukurdan sonra (x=200) başlayan sürüşle yapılır:
- *  200 m ilerlemek yerine x > 350 beklenir. Diğer araç/harita çiftlerinde yalnızca sonlu durum sınanır. */
+/** Rastgele gaz/fren 600 s: NaN yok ve ilerleme (cip, kır yolu, x=5'ten başlar, x > 200). Diğer araç/harita çiftlerinde
+ *  yalnızca sonlu durum sınanır. */
 fun randomInputs10min() {
-    val c = randomRun(Vehicles.byId("jeep"), country, 7, 200.0)
-    req(c.x > 350) { "x=${c.x}" }
+    val c = randomRun(Vehicles.byId("jeep"), country, 7)
+    req(c.x > 200) { "x=${c.x}" }
     for ((id, mid) in listOf("jeep" to "country", "moto" to "moon", "super" to "mountain", "monster" to "site", "bus" to "cave"))
         randomRun(Vehicles.byId(id), Maps.byId(mid), 11)
 }
@@ -149,6 +148,61 @@ fun allVehiclesClimb() {
     }
 }
 
+/** HCR'ye yakın en yüksek hızlar: devir sınırında (maxRpm) teker çevresel hızı; devir = teker devri × ratio. */
+fun topSpeeds() {
+    val want = mapOf("jeep" to 15.0..18.0, "moto" to 18.5..21.5, "pickup" to 13.0..17.0, "tractor" to 8.0..10.5,
+        "buggy" to 15.0..19.0, "rally" to 20.5..23.5, "monster" to 12.0..16.0, "bus" to 12.0..14.0, "snowmobile" to 15.0..19.0,
+        "rover" to 12.0..16.0, "tank" to 8.0..10.5, "super" to 26.0..30.0)
+    for (v in Vehicles.all) {
+        val vmax = v.maxRpm * 2 * PI / 60 / v.ratio * v.wheelR
+        req(vmax in want.getValue(v.id)) { "${v.id}: en yüksek hız $vmax" }
+    }
+    // cip, akıllı sürücüyle kır yolunda: motor sesi rölantiden en yüksek devre süpürür, hız devir sınırına yaklaşır
+    val c = newCar()
+    var lo = 1e9; var hi = 0.0
+    val r = smartDrive(c, 30.0) { car -> SmartDriver().control(car); lo = minOf(lo, car.rpm); hi = maxOf(hi, car.rpm) }
+    val j = Vehicles.byId("jeep")
+    req(lo <= j.idleRpm + 1 && hi >= 0.95 * j.maxRpm) { "devir aralığı $lo..$hi" }
+    req(r.topSpeed > 15.0 && r.topSpeed < 22.0) { "cip en yüksek hız ${r.topSpeed}" }
+}
+
+/** Akıllı sürücü (test/lib/Driver.kt): her araç kır yolunda 30 s'de x > 250, cip 120 s'de x > 600; kaza yok. */
+fun smartDriverCountry() {
+    for (v in Vehicles.all) {
+        val r = smartDrive(newCar(v), 30.0)
+        println("  ${v.id}: x30=${"%.0f".format(r.car.x)} top=${"%.1f".format(r.topSpeed)}")
+        req(!r.crashed && r.car.x > 250) { "${v.id}: x=${r.car.x} kaza=${r.crashed}@${r.crashX}" }
+    }
+    val j = smartDrive(newCar(), 120.0)
+    req(!j.crashed && j.car.x > 600) { "cip 120 s: x=${j.car.x} kaza=${j.crashed}@${j.crashX}" }
+}
+
+/** Dikte tam gaz hafif aracı arkaya devirir; gazla oynamak (akıllı sürücü) bunu önler. */
+fun featherPreventsFlip() {
+    val m = Vehicles.byId("moto")
+    val floor = smartDrive(newCar(m), 120.0) { it.gas = 1.0; it.brake = 0.0 }
+    val smart = smartDrive(newCar(m), 120.0)
+    req(floor.crashed) { "moto tam gazla devrilmeli (x=${floor.car.x})" }
+    req(!smart.crashed && smart.maxX > floor.crashX + 200) { "akıllı sürücü devrilmemeli: ${smart.crashed}@${smart.crashX}, x=${smart.maxX}" }
+}
+
+/** Sağlam ayar: tork ±%15 ve süspansiyon (k, c) ±%15 ile her araç akıllı sürücüyle 30 s'de olağan mesafesinin %80'inden fazlasını gider. */
+fun robustTuning() {
+    for (v in Vehicles.all) {
+        val nominal = smartDrive(newCar(v), 30.0).car.x - 5.0
+        var worst = 1e9; var worstName = ""
+        for (tq in listOf(0.85, 1.0, 1.15)) for (sp in listOf(0.85, 1.0, 1.15)) {
+            if (tq == 1.0 && sp == 1.0) continue
+            val d = v.copy(torque = v.torque * tq, suspK = v.suspK * sp, suspC = v.suspC * sp)
+            val r = smartDrive(newCar(d), 30.0)
+            val dist = r.car.x - 5.0
+            if (dist < worst) { worst = dist; worstName = "tork×$tq süsp×$sp" }
+            req(!r.crashed && dist > 0.8 * nominal) { "${v.id} tork×$tq süsp×$sp: ${"%.0f".format(dist)} m < %80 × ${"%.0f".format(nominal)} (kaza=${r.crashed})" }
+        }
+        println("  ${v.id}: olağan ${"%.0f".format(nominal)} m, en kötü ${"%.0f".format(worst)} m ($worstName)")
+    }
+}
+
 fun main() {
     restsOnFlat(); println("restsOnFlat ok")
     climbsCountry(); println("climbsCountry ok")
@@ -159,5 +213,9 @@ fun main() {
     highDropNoTunnel(); println("highDropNoTunnel ok")
     randomInputs10min(); println("randomInputs10min ok")
     allVehiclesClimb(); println("allVehiclesClimb ok")
+    topSpeeds(); println("topSpeeds ok")
+    smartDriverCountry(); println("smartDriverCountry ok")
+    featherPreventsFlip(); println("featherPreventsFlip ok")
+    robustTuning(); println("robustTuning ok")
     println("OK")
 }
