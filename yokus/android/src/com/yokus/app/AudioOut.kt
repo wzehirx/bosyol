@@ -13,8 +13,10 @@ class AudioOut(private val mix: Mixer) {
 
     fun start() {
         if (running) return
+        thread?.let { try { it.join(1000) } catch (e: InterruptedException) {} }  // eski iş parçacığı bitmeden yenisi açılmasın
         running = true
         thread = Thread({
+          try {
             android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_URGENT_AUDIO)
             val min = AudioTrack.getMinBufferSize(OUT_RATE, AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.ENCODING_PCM_FLOAT)
             val track = AudioTrack.Builder()
@@ -32,11 +34,13 @@ class AudioOut(private val mix: Mixer) {
                     mix.render(buf, n)
                     track.write(buf, 0, n * 2, AudioTrack.WRITE_BLOCKING)
                 }
-            } catch (e: Throwable) {
+            } catch (e: Throwable) { running = false
             } finally { try { track.stop() } catch (e: Throwable) {}; track.release() }
+          } catch (e: Throwable) { running = false }  // AudioTrack kurulamadıysa sonraki onResume yeniden denesin
         }, "yokus-audio")
+        thread!!.isDaemon = true
         thread!!.start()
     }
 
-    fun stop() { running = false; thread?.join(500); thread = null }
+    fun stop() { running = false; try { thread?.join(1000) } catch (e: InterruptedException) {}; thread = null }
 }

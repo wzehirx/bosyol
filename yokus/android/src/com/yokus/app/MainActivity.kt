@@ -49,6 +49,8 @@ class MainActivity : Activity() {
     private var screen = Scr.MENU
     private var focusTag: String? = null
     private var crashReport: String? = null
+    private var focusJob: Runnable? = null
+    private var pendingSay: String? = null
 
     /* ================= Renkler (koyu, yüksek karşıtlık) ================= */
     private val cBg = 0xFF0B0E12.toInt()
@@ -81,7 +83,9 @@ class MainActivity : Activity() {
 
     override fun onResume() { super.onResume(); audio.start() }
     override fun onPause() { super.onPause(); audio.stop() }
-    override fun onDestroy() { speaker.shutdown(); super.onDestroy() }
+    override fun onDestroy() {
+        ui.removeCallbacksAndMessages(null); audio.stop(); speaker.shutdown(); super.onDestroy()
+    }
 
     private fun applyVolumes() {
         mix.master = ((store.audio.volMaster / 100.0).pow(1.6) * 1.1).toFloat()
@@ -94,7 +98,10 @@ class MainActivity : Activity() {
         mix.add(SampleVoice(p, BUS_FX, false, durSec = minOf(p.duration, 2.0), fadeOutSec = 0.2)).fadeTo(0.9f, 0.01f)
     }
 
+    /** Hemen söyler (ekran değişmiyorsa). */
     private fun say(t: String) = speaker.say(t)
+    /** Ekran yeniden çizilecekse: odak yerleştikten sonra söylenir. */
+    private fun sayAfterRender(t: String) { pendingSay = t }
 
     /* ================= Arayüz yardımcıları ================= */
     private fun dp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, resources.displayMetrics).toInt()
@@ -118,13 +125,18 @@ class MainActivity : Activity() {
         val h = heading(title, 32f); h.tag = "title"
         col.addView(h)
         val tag = focusTag; focusTag = null
-        ui.postDelayed({
+        focusJob?.let { ui.removeCallbacks(it) }  // hızlı art arda ekran değişiminde eski odak işi yeni ekrana kaymasın
+        val job = Runnable {
             val target: View? = (if (tag != null) root.findViewWithTag<View?>(tag) else null) ?: root.findViewWithTag<View?>("title")
             target?.let {
                 it.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
                 it.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
             }
-        }, 250)
+            // Duyuru odağın okunmasının ardından gelsin ki ikisi birbirini kesmesin
+            pendingSay?.let { s -> pendingSay = null; ui.postDelayed({ speaker.say(s) }, 600) }
+        }
+        focusJob = job
+        ui.postDelayed(job, 250)
         return col
     }
 
@@ -133,6 +145,12 @@ class MainActivity : Activity() {
         t.typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
         t.setPadding(0, dp(if (size > 26) 4f else 16f), 0, dp(4f))
         if (Build.VERSION.SDK_INT >= 28) t.isAccessibilityHeading = true
+        else t.accessibilityDelegate = object : View.AccessibilityDelegate() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                @Suppress("DEPRECATION") info.collectionItemInfo = AccessibilityNodeInfo.CollectionItemInfo.obtain(0, 1, 0, 1, true)
+            }
+        }
         t.isFocusable = true
         return t
     }
@@ -170,7 +188,9 @@ class MainActivity : Activity() {
         sb.contentDescription = label
         sb.progressTintList = ColorStateList.valueOf(cAmber); sb.thumbTintList = ColorStateList.valueOf(cAmber)
         sb.minimumHeight = dp(52f)
-        fun state(v: Int) { if (Build.VERSION.SDK_INT >= 30) sb.stateDescription = "yüzde $v" }
+        fun state(v: Int) {
+            if (Build.VERSION.SDK_INT >= 30) sb.stateDescription = "yüzde $v" else sb.contentDescription = "$label, yüzde $v"
+        }
         state(value)
         sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(s: SeekBar, p: Int, fromUser: Boolean) { val v = p * 5; state(v); onChange(v) }
@@ -252,11 +272,11 @@ class MainActivity : Activity() {
             }
             c.addView(btn(label, tag = "v_${v.id}") {
                 if (store.owns(v.id)) {
-                    store.vehicleId = v.id; say("${v.name} seçildi")
+                    store.vehicleId = v.id; sayAfterRender("${v.name} seçildi")
                 } else if (store.buyVehicle(v)) {
-                    store.vehicleId = v.id; uiSound("buy"); say("Satın alındı")
+                    store.vehicleId = v.id; uiSound("buy"); sayAfterRender("Satın alındı")
                 } else {
-                    uiSound("nope"); say("Yeterli altın yok, ${v.price - store.gold} altın gerek")
+                    uiSound("nope"); sayAfterRender("Yeterli altın yok, ${v.price - store.gold} altın gerek")
                 }
                 focusTag = "v_${v.id}"; render()
             }, lp())
@@ -275,11 +295,11 @@ class MainActivity : Activity() {
             }
             c.addView(btn(label, tag = "m_${m.id}") {
                 if (store.ownsMap(m.id)) {
-                    store.mapId = m.id; say("${m.name} seçildi")
+                    store.mapId = m.id; sayAfterRender("${m.name} seçildi")
                 } else if (store.buyMap(m)) {
-                    store.mapId = m.id; uiSound("buy"); say("Satın alındı")
+                    store.mapId = m.id; uiSound("buy"); sayAfterRender("Satın alındı")
                 } else {
-                    uiSound("nope"); say("Yeterli altın yok, ${m.price - store.gold} altın gerek")
+                    uiSound("nope"); sayAfterRender("Yeterli altın yok, ${m.price - store.gold} altın gerek")
                 }
                 focusTag = "m_${m.id}"; render()
             }, lp())
@@ -299,11 +319,11 @@ class MainActivity : Activity() {
             c.addView(btn(label, tag = "u_${k.name}") {
                 val cur = Store.level(store.upgrades(v.id), k)
                 if (cur >= Store.MAX_LEVEL) {
-                    say("${k.label} en yüksek seviyede")
+                    sayAfterRender("${k.label} en yüksek seviyede")
                 } else if (store.buyUpgrade(v, k)) {
-                    uiSound("buy"); say("${k.label} geliştirildi, seviye ${cur + 1}")
+                    uiSound("buy"); sayAfterRender("${k.label} geliştirildi, seviye ${cur + 1}")
                 } else {
-                    uiSound("nope"); say("Yeterli altın yok, ${upgradeCost(v, k, cur) - store.gold} altın gerek")
+                    uiSound("nope"); sayAfterRender("Yeterli altın yok, ${upgradeCost(v, k, cur) - store.gold} altın gerek")
                 }
                 focusTag = "u_${k.name}"; render()
             }, lp())

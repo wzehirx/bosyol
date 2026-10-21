@@ -2,6 +2,8 @@ package com.yokus.app
 
 import android.content.Context
 import com.yokus.app.core.AudioSettings
+import com.yokus.app.core.Maps
+import com.yokus.app.core.Vehicles
 import com.yokus.app.core.MapDef
 import com.yokus.app.core.UpgradeKind
 import com.yokus.app.core.Upgrades
@@ -13,11 +15,13 @@ class Store(ctx: Context) {
     private val sp = ctx.getSharedPreferences("yokus", Context.MODE_PRIVATE)
     val audio = AudioSettings()
 
+    private fun vol(k: String, d: Int) = sp.getInt(k, d).coerceIn(0, 100)
+
     init {
         audio.tiltTone = sp.getBoolean("tiltTone", true); audio.radar = sp.getBoolean("radar", true)
         audio.distanceCalls = sp.getBoolean("distanceCalls", false)
-        audio.volMaster = sp.getInt("volMaster", 80); audio.volEngine = sp.getInt("volEngine", 80)
-        audio.volWorld = sp.getInt("volWorld", 70); audio.volCues = sp.getInt("volCues", 80)
+        audio.volMaster = vol("volMaster", 80); audio.volEngine = vol("volEngine", 80)
+        audio.volWorld = vol("volWorld", 70); audio.volCues = vol("volCues", 80)
     }
 
     /** Ses ayarlarını kaydeder. */
@@ -28,7 +32,7 @@ class Store(ctx: Context) {
     }
 
     var gold: Int
-        get() = sp.getInt("gold", 0)
+        get() = maxOf(0, sp.getInt("gold", 0))
         set(v) { sp.edit().putInt("gold", maxOf(0, v)).apply() }
 
     fun owns(vehicleId: String) = vehicleId == "jeep" || sp.getBoolean("own_v_$vehicleId", false)
@@ -37,29 +41,27 @@ class Store(ctx: Context) {
     fun buyVehicle(v: VehicleDef): Boolean {
         if (owns(v.id)) return true
         if (gold < v.price) return false
-        gold -= v.price
-        sp.edit().putBoolean("own_v_${v.id}", true).apply()
+        sp.edit().putInt("gold", gold - v.price).putBoolean("own_v_${v.id}", true).apply()  // tek yazma: yarım kalmaz
         return true
     }
 
     fun buyMap(m: MapDef): Boolean {
         if (ownsMap(m.id)) return true
         if (gold < m.price) return false
-        gold -= m.price
-        sp.edit().putBoolean("own_m_${m.id}", true).apply()
+        sp.edit().putInt("gold", gold - m.price).putBoolean("own_m_${m.id}", true).apply()
         return true
     }
 
     var vehicleId: String
-        get() = sp.getString("vehicle", "jeep")!!
+        get() = sp.getString("vehicle", "jeep")!!.let { id -> if (Vehicles.all.any { it.id == id } && owns(id)) id else "jeep" }
         set(v) { sp.edit().putString("vehicle", v).apply() }
     var mapId: String
-        get() = sp.getString("map", "country")!!
+        get() = sp.getString("map", "country")!!.let { id -> if (Maps.all.any { it.id == id } && ownsMap(id)) id else "country" }
         set(v) { sp.edit().putString("map", v).apply() }
 
+    private fun lv(vehicleId: String, name: String) = sp.getInt("up_${vehicleId}_$name", 0).coerceIn(0, MAX_LEVEL)
     fun upgrades(vehicleId: String) = Upgrades(
-        sp.getInt("up_${vehicleId}_engine", 0), sp.getInt("up_${vehicleId}_susp", 0),
-        sp.getInt("up_${vehicleId}_tire", 0), sp.getInt("up_${vehicleId}_fuel", 0))
+        lv(vehicleId, "engine"), lv(vehicleId, "susp"), lv(vehicleId, "tire"), lv(vehicleId, "fuel"))
 
     fun buyUpgrade(v: VehicleDef, k: UpgradeKind): Boolean {
         val u = upgrades(v.id)
@@ -67,8 +69,7 @@ class Store(ctx: Context) {
         if (lvl >= MAX_LEVEL) return false
         val cost = upgradeCost(v, k, lvl)
         if (gold < cost) return false
-        gold -= cost
-        sp.edit().putInt("up_${v.id}_${k.name.lowercase()}", lvl + 1).apply()
+        sp.edit().putInt("gold", gold - cost).putInt("up_${v.id}_${k.name.lowercase()}", lvl + 1).apply()
         return true
     }
 

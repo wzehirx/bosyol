@@ -14,14 +14,21 @@ class Speaker(private val ctx: Context) {
     var root: View? = null
     private val ui = Handler(Looper.getMainLooper())
     private var tts: TextToSpeech? = null
-    private var ready = false
-    private var pending: String? = null
+    @Volatile private var ready = false
+    @Volatile private var pending: String? = null
+    @Volatile private var closed = false
 
     init {
         try {
             tts = TextToSpeech(ctx.applicationContext) { st ->
-                if (st == TextToSpeech.SUCCESS) {
-                    tts?.language = Locale("tr", "TR"); ready = true
+                if (st == TextToSpeech.SUCCESS && !closed) {
+                    val t = tts
+                    // tr-TR yoksa "tr", o da yoksa varsayılan dille konuşmaya devam et (sessiz kalmaktan iyi)
+                    if (t != null) {
+                        var r = t.setLanguage(Locale("tr", "TR"))
+                        if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) r = t.setLanguage(Locale("tr"))
+                    }
+                    ready = true
                     pending?.let { tts?.speak(it, TextToSpeech.QUEUE_FLUSH, null, "yokus") }; pending = null
                 }
             }
@@ -30,13 +37,24 @@ class Speaker(private val ctx: Context) {
 
     fun say(text: String) {
         ui.post {
-            val am = ctx.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+            if (closed) return@post
             val r = root
-            if (am != null && am.isEnabled && am.isTouchExplorationEnabled && r != null) r.announceForAccessibility(text)
+            if (r != null && screenReaderOn()) r.announceForAccessibility(text)
             else if (ready) tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "yokus")
             else pending = text
         }
     }
 
-    fun shutdown() { try { tts?.shutdown() } catch (e: Throwable) {}; tts = null; ready = false }
+    /** Dokunarak keşfet açık ya da sesli geri bildirim veren bir erişilebilirlik hizmeti (TalkBack, Jieshuo) çalışıyor mu. */
+    private fun screenReaderOn(): Boolean = try {
+        val am = ctx.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+        am != null && am.isEnabled && (am.isTouchExplorationEnabled ||
+            am.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_SPOKEN).isNotEmpty())
+    } catch (e: Throwable) { false }
+
+    fun shutdown() {
+        closed = true; ui.removeCallbacksAndMessages(null); pending = null
+        try { tts?.stop(); tts?.shutdown() } catch (e: Throwable) {}
+        tts = null; ready = false; root = null
+    }
 }
