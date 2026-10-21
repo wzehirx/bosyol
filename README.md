@@ -8,6 +8,12 @@ Kulakla sürülen, ekran okuyucu uyumlu bir sürüş oyunu. Motor, lastikler, r�
 
 İndirdikten sonra dosyayı aç. Android bilinmeyen kaynaklardan yükleme izni isteyebilir, izin ver.
 
+## Yokuş Ustası (yeni oyun)
+
+Aynı depoda, kulakla oynanan bir tepe tırmanma oyunu daha var: 12 araç ve 10 harita. Ayrıntılar `yokus/README.md` dosyasında.
+
+https://github.com/wzehirx/bosyol/raw/main/yokus/indir/YokusUstasi.apk
+
 ## Özellikler
 
 - Gerçek motor kayıtları. Devire göre katmanlar arasında geçiş yapılır, otomatik vites değişimleri duyulur.
