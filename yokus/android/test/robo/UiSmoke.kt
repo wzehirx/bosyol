@@ -18,6 +18,7 @@ import com.yokus.app.core.Vehicles
 import com.yokus.app.core.upgradeCost
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -232,6 +233,80 @@ class UiSmoke {
         assertTrue(texts().any { it.contains("metre") && it.contains("altın kazandın. En iyi:") })
         assertTrue(Store(a).gold >= after + 5)
         click("Tekrar"); assertTrue(views().any { it is GameView }); back(); click("Ana menü")
+        println("OK")
+    }
+
+
+    /** BlindDriver kararlarını gerçek pedallara (dokunma olayı) aktarır: gaz/fren 0..1 değerini 60 Hz'de titreşimle ikili basışa çevirir. */
+    private var accG = 0.0; private var accB = 0.0
+    private fun drive(d: BlindDriver, gas: PedalView, brake: PedalView) {
+        accG += d.gas; accB += d.brake
+        val wantG = accG >= 1.0; val wantB = accB >= 1.0 && !wantG
+        if (wantG) accG -= 1.0 else accG = minOf(accG, 0.999)
+        if (wantB) accB -= 1.0 else accB = minOf(accB, 0.999)
+        if (wantG != gas.held) touch(gas, if (wantG) MotionEvent.ACTION_DOWN else MotionEvent.ACTION_UP)
+        if (wantB != brake.held) touch(brake, if (wantB) MotionEvent.ACTION_DOWN else MotionEvent.ACTION_UP)
+    }
+
+    /** Oyunu BlindDriver ile gerçek UI üzerinden oynar; bitiş ekranı ya da [maxSec] simüle saniyeye dek. */
+    private fun playUi(seed: Long, maxSec: Double, stopOnEnd: Boolean): Pair<Double, Boolean> {
+        val s = a.gameSession!!
+        val d = BlindDriver(s, seed = seed)
+        val gas = pedal("Gaz"); val brake = pedal("Fren")
+        val dt = 1.0 / 60; var t = 0.0; var n = 0
+        while (t < maxSec) {
+            if (!s.over) { d.tick(dt); drive(d, gas, brake) } else { if (gas.held) touch(gas, MotionEvent.ACTION_UP); if (brake.held) touch(brake, MotionEvent.ACTION_UP) }
+            a.tick(dt); t += dt
+            if (++n % 30 == 0 && stopOnEnd) { idle(); if (title()?.text.toString() == "Oyun bitti") break }
+        }
+        if (gas.held) touch(gas, MotionEvent.ACTION_UP); if (brake.held) touch(brake, MotionEvent.ACTION_UP)
+        idle()
+        return Pair(t, title()?.text.toString() == "Oyun bitti")
+    }
+
+    /** P3: tam oyun UI üzerinden: BlindDriver ile bitişe dek oyna, Garaj'da geliştirme al, yeniden oyna, duraklat, Ana menü. */
+    @Test fun fullGameThroughUi() {
+        a = Robolectric.buildActivity(MainActivity::class.java).setup().get(); a.autoLoop = false; idle()
+        Store(a).latch = false
+        val gold0 = Store(a).gold
+        click("Başla")
+        val s = a.gameSession!!
+        val (t, ended) = playUi(seed = 3, maxSec = 360.0, stopOnEnd = true)
+        println("UI oyunu: ${"%.0f".format(t)} sn, mesafe=${s.distance.toInt()} m, bitti=$ended, neden=${s.endReason} '${s.endMessage}', oturum altını=${s.coins}, uçuş=${"%.1f".format(s.airTime)} sn, takla=${s.flips}")
+        assertTrue("6 simüle dakikada bitiş ekranı gelmedi (mesafe ${s.distance.toInt()} m, yakıt %${s.fuelPct()})", ended)
+        println("bitiş ekranı: ${texts()}")
+        audit("Oyun sonu (UI oyunu)")
+        val reasons = listOf("Kaza yaptın", "Ters döndün", "Kafa üstü düştün", "Yakıt bitti")
+        assertTrue("bitiş ekranında neden yok: ${texts()}", texts().any { x -> reasons.any { x.startsWith(it) } })
+        assertNotNull(s.endReason)
+        val gold1 = Store(a).gold
+        println("altın: $gold0 -> $gold1")
+        assertTrue("altın artmadı ($gold0 -> $gold1)", gold1 > gold0)
+        assertEquals("altın = oturum altını (çift sayma yok)", gold0 + s.coins, gold1)
+
+        // Garaj: geliştirme al (gerekirse altın ver)
+        click("Garaj"); assertEquals("Garaj", title()?.text.toString())
+        val v = Vehicles.byId(Store(a).vehicleId)
+        val cost = upgradeCost(v, UpgradeKind.ENGINE, Store(a).upgrades(v.id).engine)
+        if (Store(a).gold < cost) Store(a).gold = cost + 10
+        val gb = Store(a).gold; val lv0 = Store(a).upgrades(v.id).engine
+        click("Motor seviye $lv0")
+        assertEquals("motor seviyesi artmadı", lv0 + 1, Store(a).upgrades(v.id).engine)
+        assertEquals("geliştirme bedeli", gb - cost, Store(a).gold)
+        println("Garaj: motor $lv0 -> ${lv0 + 1}, bedel $cost")
+        back(); assertEquals("Yokuş Ustası", title()?.text.toString())
+
+        // yeniden başla, 30 sn oyna, duraklat, Ana menü
+        click("Başla")
+        val s2 = a.gameSession!!
+        assertNotSame(s, s2)
+        playUi(seed = 4, maxSec = 30.0, stopOnEnd = false)
+        println("2. koşu 30 sn: mesafe=${s2.distance.toInt()} m, bitti=${s2.over}, altın=${s2.coins}")
+        assertTrue("2. koşuda ilerleme yok", s2.distance > 20.0)
+        if (!s2.over) { back(); assertEquals("Duraklatıldı", title()?.text.toString()); click("Ana menü") }
+        else { click("Ana menü") }
+        assertEquals("Yokuş Ustası", title()?.text.toString())
+        assertTrue("altın azaldı", Store(a).gold >= gb - cost)
         println("OK")
     }
 

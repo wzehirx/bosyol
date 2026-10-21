@@ -222,6 +222,14 @@ fun coinSoundPerValue() {
         val got = keys(full, v, 1)
         check("value $v -> $k", got.keys.contains(k) && got.keys.none { it != k }, got.toString())
     }
+    // 5'lik altının üç çeşidi sırayla çalar
+    run {
+        val cb = CountBank(full)
+        val (son, _, _) = newSonify(cb, ArrayList())
+        cb.counts.clear()
+        repeat(6) { son.onCoin(5, it + 1) }
+        check("coin_s variants rotate", listOf("coin_s", "coin_s2", "coin_s3").all { (cb.counts[it] ?: 0) >= 1 }, cb.counts.toString())
+    }
     // anahtar yoksa "coin"
     val onlyCoin = object : Bank { override fun get(key: String): Pcm? = if (key == "coin") tone else null }
     for (v in listOf(5, 25, 100, 500)) {

@@ -426,7 +426,7 @@ class MainActivity : Activity() {
     /** Oyun sırasında ilk kez kullanılacak kısa sesleri önceden çözer (UI iş parçacığında takılma olmasın). */
     private fun warmSounds() {
         val b = bank
-        val t = Thread { for (k in arrayOf("coin", "coin_s", "coin_m", "coin_l", "coin_xl", "fuel_pick", "fuel_low", "land_thud", "creak", "flip", "crash", "crash_car")) b.get(k) }
+        val t = Thread { for (k in arrayOf("coin", "coin_s", "coin_s2", "coin_s3", "coin_m", "coin_l", "coin_xl", "fuel_pick", "fuel_low", "land_thud", "creak", "flip", "crash", "crash_car")) b.get(k) }
         t.isDaemon = true; t.start()
     }
 

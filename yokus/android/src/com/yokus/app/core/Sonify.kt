@@ -43,6 +43,7 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         private set
 
     // --- zamanlayıcılar ---
+    private var coinSeq = 0
     private var nextBeep = 0.0
     private var nextRadar = 0.0
     private var nextCoinGlint = 0.0
@@ -61,6 +62,7 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         const val MASTER_TRIM = 1.6f
         /** Mesafe duyurusu aralığı (m): uzun sessizlikleri böler, ilerlemeyi bildirir. */
         const val DIST_CALL_EVERY = 250
+        val COIN_S = arrayOf("coin_s", "coin_s2", "coin_s3")
     }
 
     private fun vg(v: Int): Float = (v.coerceIn(0, 100) / 100.0).pow(1.5).toFloat()
@@ -287,8 +289,12 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
 
     override fun onCoin(value: Int, streak: Int) {
         // her değerin kendi sesi vardır, perde değişmez; dosya yoksa genel "coin"
-        val key = when { value >= 500 -> "coin_xl"; value >= 100 -> "coin_l"; value >= 25 -> "coin_m"; else -> "coin_s" }
-        val p = pcm(key) ?: pcm("coin") ?: return
+        // 5'lik sesin üç çeşidi sırayla çalar (aynı sesin tekrarı yorar); öbür değerlerin tek sesi vardır
+        val key = when {
+            value >= 500 -> "coin_xl"; value >= 100 -> "coin_l"; value >= 25 -> "coin_m"
+            else -> COIN_S[coinSeq++ % COIN_S.size]
+        }
+        val p = pcm(key) ?: pcm("coin_s") ?: pcm("coin") ?: return
         lastCoinRate = 1.0
         shot(p, BUS_FX, 0.7f, 1.0, 0f)
     }

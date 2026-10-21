@@ -18,7 +18,10 @@ https://github.com/wzehirx/bosyol/raw/main/yokus/indir/YokusUstasi.apk
 - Geri tuşu oyunu duraklatır.
 - Ortadaki "Durum" düğmesi mesafeyi, yakıtı, altını ve aracın açısını söyler.
 - Araç havadayken gaz burnu kaldırır, fren burnu indirir.
-- Sürücünün başı yere değerse kaza olur. Yakıt biterse oyun biter.
+- Sürücünün başı yere değerse "Kafa üstü düştün" diye kaza olur. Araç zemine göre baş aşağı dönüp bir saniye yerde kalırsa "Ters döndün" diye kaza olur. Yakıt biterse oyun biter.
+- Denge yardımı (Ayarlar, varsayılan açık): burun zemine göre çok kalkarsa gazı yumuşakça kısar, havada gaz ve freni sınırlar. "Dikkat, devrilmek üzeresin" diye uyarır. İstersen kapatabilirsin.
+- Yokuşu çıkamayıp yerinde kalırsan "Yokuşu çıkamıyorsun, biraz geri gidip hızlan" diye ipucu verir.
+- Mesafe duyurusu varsayılan olarak açıktır: her 250 metrede bir "250 metre" gibi kısa bir duyuru gelir. Ayarlardan kapatılır.
 - Yolda yakıt bidonları var. Biri alınınca depo dolar.
 
 ## Sesler ne anlatır
@@ -27,7 +30,7 @@ https://github.com/wzehirx/bosyol/raw/main/yokus/indir/YokusUstasi.apk
 - Eğim tonu: aracın burnu kalktıkça ses incelir, indikçe kalınlaşır. Açı 70 dereceyi geçince hızlanan bip sesi takla tehlikesini haber verir.
 - Yol radarı: kısa tıkırtılar biraz ilerideki eğimi anlatır. Tık incelirse önde yokuş, kalınlaşırsa iniş vardır.
 - Önde dik yokuş, dik iniş, rampa, çukur ya da tümsek varsa sesli uyarı gelir.
-- Öndeki altınlar parıltı sesiyle duyulur. Yakıt bidonunun iki notalı kendi işaret sesi vardır.
+- Öndeki altınlar parıltı sesiyle duyulur. Altınların değeri farklıdır (5, 25, 100 ve ender 500) ve her değerin kendi sesi vardır: küçük altın tek tınlar, büyüdükçe sesi zenginleşir; 500'lük altın en gösterişli sestir ve uzaktan çift parıltıyla bildirilir. İlerledikçe değerli altınlar artar. Yakıt bidonunun iki notalı kendi işaret sesi vardır.
 - Yakıt yüzde 25'e ve yüzde 10'a düşünce uyarı gelir.
 - Havada takla atmak ve havada uzun kalmak ek altın kazandırır.
 
@@ -48,7 +51,7 @@ Her araç için dört geliştirme var: Motor, Süspansiyon, Lastik ve Yakıt dep
 Gerekenler: JDK 17 veya üstü, Android SDK (platform 34, build-tools 34.0.0) ve Kotlin derleyicisi 1.9.24. Kotlin derleyicisi `android/tools/kotlinc/` klasöründe olmalı.
 
 ```
-python3 android/build.py 1 1.0
+python3 android/build.py 2 1.1
 ```
 
 İmzalama anahtarı `android/yokus.jks` depoda bulunmaz, ayrıca saklanır. Anahtar yoksa derleme yenisini oluşturur.
@@ -60,6 +63,8 @@ bash android/test/run.sh TerrainTest
 bash android/test/run.sh PhysicsTest
 bash android/test/run.sh GameTest
 bash android/test/run.sh SonifyTest
+bash android/test/run.sh PlayTest
+bash android/test/robo/run.sh
 ```
 
 ## Ses kaynakları
