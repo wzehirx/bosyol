@@ -37,7 +37,7 @@ object Vehicles {
             headX = -0.1, headY = 0.85, headR = 0.25,
             engineKey = "eng_jeep", engineRefRpm = 3000.0, enginePitch = 1.0),
         VehicleDef("moto", "Motosiklet", 8000, "Hafif ve güçlü, havada kolay takla atar.",
-            mass = 150.0, inertia = 250.0, wheelR = 0.35, wheelMass = 10.0, rearX = -0.7, frontX = 0.7, axleY = -0.25,
+            mass = 150.0, inertia = 380.0, wheelR = 0.35, wheelMass = 10.0, rearX = -0.7, frontX = 0.7, axleY = -0.15,
             suspK = 8000.0, suspC = 700.0, suspTravel = 0.25,
             torque = 420.0, idleRpm = 1200.0, maxRpm = 7500.0, ratio = 13.70,
             drive = Drive.REAR, airTorque = 6200.0, fuelL = 7.0, fuelUse = 0.09,

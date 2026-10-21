@@ -85,8 +85,18 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
             }
             if (rel > TIP_WARN && time - lastTipT >= 6.0 && input > 0.0) { lastTipT = time; events?.onTipWarning() }
         }
+        var b = brake.coerceIn(0.0, 1.0)
+        if (balanceAssist && b > 0.0) {
+            // fren burnu indirir (havada doğrudan, yerde hızlıyken frenleme): burun zemine göre fazla inmişse freni keser
+            val from = if (car.airborne) AIR_FROM else ASSIST_FROM
+            val full = if (car.airborne) AIR_FULL else ASSIST_FULL
+            if (-rel > from && (car.airborne || car.speed > 0.5)) {
+                val u = ((-rel - from) / (full - from)).coerceIn(0.0, 1.0)
+                b *= 1.0 - u * u * (3 - 2 * u)
+            }
+        }
         car.gas = g
-        car.brake = brake.coerceIn(0.0, 1.0)
+        car.brake = b
         if (fuel > 0.0) fuel = maxOf(0.0, fuel - def.fuelUse * (0.2 + 0.8 * g) * dt)
 
         val a0 = car.angle

@@ -142,7 +142,9 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
                 val lipS = minOf(lip, maxSlopeAt(x0) - 0.05 - cs)
                 val lk = hgt / (0.75 * lipS)
                 val landSlope = 2 * hgt / ld - cs
-                if (abs(cs) <= 0.15 && lipS >= 0.25 && landSlope <= LAND_MAX) {
+                // dik inişin dibine rampa konmaz: hızla sıkışan araç ağızda kontrolsüz takla atar
+                val before = chord(x0 - 40, x0)
+                if (abs(cs) <= 0.15 && lipS >= 0.25 && landSlope <= LAND_MAX && before >= -0.15) {
                     if (free(x0, x0 + lk + ld)) evs.add(Ev(FeatureKind.RAMP, x0, x0 + lk, hgt, ld))
                     break
                 }
@@ -288,7 +290,7 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
             val u = vr.nextDouble()
             return when {
                 x < 1000 -> if (u < 0.90) 5 else 25
-                x < 2500 -> if (u < 0.66) 5 else if (u < 0.985) 25 else 100
+                x < 2500 -> if (u < 0.62) 5 else if (u < 0.985) 25 else 100
                 x < 4500 -> if (u < 0.62) 5 else if (u < 0.95) 25 else 100
                 x < 7000 -> if (u < 0.45) 5 else if (u < 0.85) 25 else if (u < 0.98) 100 else 500
                 else -> if (u < 0.04) 5 else if (u < 0.54) 25 else if (u < 0.94) 100 else 500
