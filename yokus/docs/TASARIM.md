@@ -31,7 +31,9 @@ Başarı ölçütü: TalkBack/Jieshuo ile menüler tam okunur; ekrana bakmadan t
 - Harita tohumuyla üretilen yükseklik: katmanlı gürültü (birkaç sinüs/değer gürültüsü), mesafe arttıkça genlik ve diklik artar.
 - Özel parçalar: rampa (sıçrama), tümsek dizisi, dik duvar, çukur, düzlük.
 - 1 m aralıkla önbelleğe alınan diziler; eğim ve normal hesaplanabilir.
-- Altın grupları ve yakıt bidonları (yaklaşık her 350-700 m) zemine göre yerleştirilir.
+- Altın grupları (110-170 m'de bir, 5-9 altın) ve yakıt bidonları zemine göre yerleştirilir. Bidon aralığı ilk 800 m'de haritanın `fuelEvery` değeri (400-600 m), sonra kare kökle uzar (fuelEvery × (1 + 1.7·√km)); HCR gibi ileride bidonlar seyrekleşir, iyi koşular yakıtla doğal biter, yakıt deposu geliştirmesi daha uzağa götürür.
+- Mesafe arttıkça büyük tepeler uzar (1500 m'den sonra dalga boyu km başına %35 artar, en çok 3 kat): yokuşlar hem uzar hem yükselir.
+- Altın değeri mesafeyle artar: ilk 1 km'de çoğu 5, sonra 25 ve 100, 4.5 km'den sonra 500 de çıkar. Pahalı haritalar daha çok öder (değer tablosu harita fiyatının 0.1 katı metre ileriden okunur).
 
 ## Araçlar (core/Defs.kt) — fiyatlar altın
 | Araç | Fiyat | Karakter | Motor sesi |
@@ -76,7 +78,7 @@ Motor (+8% tork), Süspansiyon (yay/sönüm ayarı), Lastik (+6% tutunma), Yakı
 - Havada: rüzgâr uğultusu yükselir; inişte vuruş.
 - Altın grupları önünde hafif parıltı sesiyle duyulur; toplarken "ding", ardışık altınlarda perde yükselir.
 - Yakıt bidonu önünde ayrı bir işaret sesiyle duyulur; yakıt %25 ve %10'da uyarı sesi ve duyuru.
-- İsteğe bağlı: her 100 m'de mesafe duyurusu.
+- Mesafe duyurusu (varsayılan açık, Ayarlar'dan kapatılır): her 250 m'de kısa "N metre".
 - "Durum" düğmesi: mesafe, yakıt, altın, aracın açısı.
 - Kaza ve oyun sonu sesle ve duyuruyla bildirilir; sonuç ekranı okunur.
 

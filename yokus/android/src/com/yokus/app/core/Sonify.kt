@@ -57,7 +57,11 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
     private var lastSpeakAt = -1e9
     private val lastSaid = HashMap<String, Double>()
 
-    private companion object { const val MASTER_TRIM = 1.6f }
+    private companion object {
+        const val MASTER_TRIM = 1.6f
+        /** Mesafe duyurusu aralığı (m): uzun sessizlikleri böler, ilerlemeyi bildirir. */
+        const val DIST_CALL_EVERY = 250
+    }
 
     private fun vg(v: Int): Float = (v.coerceIn(0, 100) / 100.0).pow(1.5).toFloat()
 
@@ -338,7 +342,7 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
 
     override fun onFeature(f: Feature) { say(f.kind.say) }
 
-    override fun onDistance(m: Int) { if (set.distanceCalls) say("$m metre") }
+    override fun onDistance(m: Int) { if (set.distanceCalls && m % DIST_CALL_EVERY == 0) say("$m metre") }
 
     override fun onEnd(reason: EndReason) {
         // kaza sesi ve son duyuru dışında her şey kısılır

@@ -50,7 +50,7 @@ class Car(val def: VehicleDef, val terrain: Terrain, val gravity: Double, val gr
     private val cp = 0.7 * 2 * sqrt(kp * mw)
     private val spinMax = def.maxRpm * 2 * PI / 60 / def.ratio
     private val mu: Double = terrain.surface.mu *
-        (if (terrain.surface == Surface.SNOW || terrain.surface == Surface.ICE) def.snowGrip else 1.0) * grip
+        (if (terrain.surface == Surface.SNOW || terrain.surface == Surface.ICE) def.snowGrip else 1.0) * grip * def.grip
     private val wheels = arrayOf(rear, front)
     // gövde temas noktaları (gövde koordinatı): iki alt köşe ve kafa hizasında iki tavan köşesi.
     // Tavan kafa merkezi hizasında olduğundan ters dönen araç tavanına oturur ve kafa yine yere değer (kaza algılanır).

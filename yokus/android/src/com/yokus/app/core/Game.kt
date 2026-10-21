@@ -52,7 +52,7 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
     private var lastCoinT = -1e9
     private var streak = 0
     private var featIdx = 0
-    private var nextDist = 100
+    private var nextDist = DIST_STEP
     private var low25 = false
     private var low10 = false
     private var stillFuel = 0.0
@@ -127,7 +127,7 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
 
         // --- mesafe ---
         if (car.x - startX > distance) distance = car.x - startX
-        while (distance >= nextDist) { events?.onDistance(nextDist); nextDist += 100 }
+        while (distance >= nextDist) { events?.onDistance(nextDist); nextDist += DIST_STEP }
 
         pickups()
         fuelWarnings()
@@ -219,6 +219,8 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
         const val TIP_WARN = 50.0
         const val FLIP_DEG = 100.0
         const val FLIP_SECS = 1.0
+        /** onDistance olayı bu adımla gelir (m); Sonify 250 m'de bir söyler. */
+        const val DIST_STEP = 50
     }
 
     fun statusText(): String {

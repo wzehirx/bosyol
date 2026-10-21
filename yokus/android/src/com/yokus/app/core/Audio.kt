@@ -7,7 +7,7 @@ interface Bank { fun get(key: String): Pcm? }
 class AudioSettings {
     var tiltTone = true
     var radar = true
-    var distanceCalls = false
+    var distanceCalls = true      // her 250 m'de kısa "N metre" duyurusu
     var balanceAssist = true      // Denge yardımı: burun çok kalkınca gazı kısar, uyarır
     var volMaster = 80
     var volEngine = 80

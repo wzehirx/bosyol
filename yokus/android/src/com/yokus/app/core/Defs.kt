@@ -19,6 +19,7 @@ data class VehicleDef(
     val headX: Double, val headY: Double, val headR: Double,           // kafa dairesi, gövde koordinatı
     val engineKey: String, val engineRefRpm: Double, val enginePitch: Double, val electric: Boolean = false,
     val snowGrip: Double = 1.0,                                         // KAR/BUZ üzerinde μ çarpanı
+    val grip: Double = 1.0,                                             // her yüzeyde μ çarpanı (lastik/dişli teker)
     val engineLp: Double = 20000.0,                                     // motor sesi alçak geçiren süzgeç (Hz); 20000 = kapalı
     val engineHp: Double = 0.0)                                         // motor sesi yüksek geçiren süzgeç (Hz); 0 = kapalı
 
@@ -49,14 +50,14 @@ object Vehicles {
             torque = 950.0, idleRpm = 900.0, maxRpm = 5500.0, ratio = 17.30,
             drive = Drive.REAR, airTorque = 6400.0, fuelL = 14.0, fuelUse = 0.13,
             headX = -0.2, headY = 0.95, headR = 0.25,
-            engineKey = "e1_med_on", engineRefRpm = 3000.0, enginePitch = 1.0),
+            engineKey = "e1_med_on", engineRefRpm = 3000.0, enginePitch = 1.0, grip = 1.1),
         VehicleDef("tractor", "Traktör", 25000, "Yavaş ama çok tutunur ve dengelidir.",
-            mass = 600.0, inertia = 1600.0, wheelR = 0.55, wheelMass = 40.0, rearX = -1.2, frontX = 1.0, axleY = -0.2,
+            mass = 600.0, inertia = 1600.0, wheelR = 0.55, wheelMass = 40.0, rearX = -1.0, frontX = 1.2, axleY = -0.2,
             suspK = 26000.0, suspC = 2400.0, suspTravel = 0.2,
             torque = 1700.0, idleRpm = 800.0, maxRpm = 3500.0, ratio = 20.20,
             drive = Drive.REAR, airTorque = 7680.0, fuelL = 16.0, fuelUse = 0.12,
             headX = -0.4, headY = 1.2, headR = 0.25,
-            engineKey = "eng_tractor", engineRefRpm = 2200.0, enginePitch = 0.6, engineLp = 1500.0),
+            engineKey = "eng_tractor", engineRefRpm = 2200.0, enginePitch = 0.6, engineLp = 1500.0, grip = 1.3, snowGrip = 1.25),
         VehicleDef("buggy", "Kum arabası", 35000, "Hafif, yumuşak süspansiyonlu, zıplamayı sever.",
             mass = 250.0, inertia = 900.0, wheelR = 0.42, wheelMass = 18.0, rearX = -1.0, frontX = 1.0, axleY = -0.25,
             suspK = 8500.0, suspC = 700.0, suspTravel = 0.4,

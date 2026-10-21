@@ -581,7 +581,7 @@ fun buildIssues(all: List<Res>, mat: List<Res>, seeds: List<Res>, goodC: List<Re
     if (jc > 0 && upgAll / jc > 25) out.add(Pair("Düşük", "Jeep için 4 geliştirmeyi 3. seviyeye çıkarmak ($upgAll altın) ${Math.ceil(upgAll / jc).toInt()} koşu."))
     // 10. sessizlik
     val longSil = all.filter { it.silence > 30.0 && it.endT > 60 }
-    if (longSil.isNotEmpty()) out.add(Pair("Düşük", "30 sn'den uzun duyurusuz süre olan ${longSil.size} koşu (en uzunu ${f0(longSil.maxOf { it.silence })} sn). Oyuncu ilerlediğini bilemiyor olabilir: mesafe duyurusu varsayılan kapalı."))
+    if (longSil.isNotEmpty()) out.add(Pair("Düşük", "30 sn'den uzun duyurusuz süre olan ${longSil.size} koşu (en uzunu ${f0(longSil.maxOf { it.silence })} sn). Mesafe duyurusu (250 m) varsayılan açık; bu süreler o duyurular dahil ölçülür."))
     val vc = all.maxOf { it.vcMax }
     if (vc > 40) out.add(Pair("Düşük", "Mixer ses sayısı en çok $vc (60 sınırının altında ama yüksek)."))
     val order = listOf("Kritik", "Yüksek", "Orta", "Düşük")

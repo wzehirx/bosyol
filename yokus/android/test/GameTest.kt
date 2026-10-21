@@ -130,7 +130,7 @@ fun smartDriverRun() {
     println("  distance=${"%.0f".format(s.distance)} coins=${s.coins} over=${s.over} ${s.endReason} fuel=${"%.2f".format(s.fuel)}")
     req(s.distance > 600) { "distance=${s.distance} (${s.endReason}, t=${s.time})" }
     req(s.coins > 50) { "coins=${s.coins}" }
-    req(ev.dists.isNotEmpty() && ev.dists[0] == 100 && ev.dists.zipWithNext().all { it.second - it.first == 100 }) { "dists=${ev.dists}" }
+    req(ev.dists.isNotEmpty() && ev.dists[0] == GameSession.DIST_STEP && ev.dists.zipWithNext().all { it.second - it.first == GameSession.DIST_STEP }) { "dists=${ev.dists}" }
 }
 
 fun fuelCansReachable() {
