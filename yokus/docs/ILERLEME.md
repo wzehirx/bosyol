@@ -26,11 +26,11 @@ Tasarım: `yokus/docs/TASARIM.md` (kararlar orada; buna uy).
 - [ ] 4. Uygulama görevleri (Sonnet) + her görev sonrası denetim (Sonnet):
   - [x] G1 İskelet: bosyol'dan Dsp/SoundBank/AudioOut/CrashLog/build.py/ikon kopyala, paket com.yokus.app, boş MainActivity derlensin
   - [x] G2 Defs + Terrain
-  - [x] G3 Physics (Sonnet). Sorun: çukurlar çok dik, hızlar düşük → Opus ayar görevi sürüyor (zemin zorluk eğrisi, HCR hızları, test/lib/Driver.kt akıllı sürücü) + JVM testleri
-  - G4 Game oturumu (yakıt, altın, kaza, takla, puan) + testler
+  - [x] G3 Physics + Opus ayarı (HCR hızları, yumuşak çukurlar, zorluk eğrisi, test/lib/Driver.kt) + JVM testleri
+  - [~] G4 Game oturumu (Sonnet çalışıyor) (yakıt, altın, kaza, takla, puan) + testler
   - G5 Ses tasarımı (motor, yüzey, eğim tonu, yol radarı, işaret sesleri, iniş) + WAV ölçüm testi
   - [x] G6 Ses hazırlama (traktör ve kar motosikleti aynı yedek motor sesini aldı; G5'te perdeyle ayır) betiği (sounds-raw → sounds; döngüler dikişsiz, yükseklik eşitleme, eksikler için yedek)
-  - [~] G7 Android arayüz (G7a menüler/Store/SoundBank/Speaker/core/Audio.kt Sonnet'te; oyun ekranı G7b G4+G5 sonrası) + GameView + Store
+  - [~] G7 Android arayüz (G7a bitti+denetlendi:  menüler/Store/SoundBank/Speaker/core/Audio.kt Sonnet'te; oyun ekranı G7b G4+G5 sonrası) + GameView + Store
   - G8 Robolectric testi, APK, lint, dexdump
   - G9 README, indir/YokusUstasi.apk, push, kullanıcıya özet
 - [ ] 5. Sabah teslim: indirme bağlantısı + anahtar dosyasını (yokus.jks) kullanıcıya dosya olarak gönder
