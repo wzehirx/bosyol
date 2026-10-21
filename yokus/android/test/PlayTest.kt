@@ -290,6 +290,11 @@ fun main(args: Array<String>) {
     if (filt != null) {
         for (r in results) println("  ${r.spec.label}: " + r.events.takeLast(4).joinToString("; ") { "${it.kind} x=${f0(it.x)} eğim=${f0(it.slopeDeg)}° yakıt=${f0(it.fuelPct)}%" } +
             " | bidon: " + r.pick.takeLast(3).joinToString(", ") { "${f0(it.first)} (${f0(it.second)}%)" })
+        for (r in results) {
+            var last = 0.0; var gi = -1; var best = 0.0
+            for ((i, p) in r.said.withIndex()) { if (p.first - last > best) { best = p.first - last; gi = i }; last = p.first }
+            if (gi >= 0) println("  sessizlik ${f0(best)} sn: önce '${r.said.getOrNull(gi - 1)?.second}' sonra '${r.said[gi].second}' t=${f0(r.said[gi].first)}; bitiş t=${f0(r.endT)}, son duyuru t=${f0(r.said.last().first)}")
+        }
         val ds = results.map { it.dist }.sorted()
         println("filtre: medyan ${f0(ds[ds.size / 2])} m, ortalama ${f0(avg(ds))} m, altın/koşu ${f0(avg(results.map { it.coins.toDouble() }))}, " +
             "altın/dk ${f0(results.sumOf { it.coins.toDouble() } / max(1.0, results.sumOf { it.endT }) * 60)}")

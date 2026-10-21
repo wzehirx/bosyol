@@ -56,11 +56,15 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
     private var low25 = false
     private var low10 = false
     private var stillFuel = 0.0
+    private var noFuelT = 0.0
+    private var noFuelBest = 0.0
     private var flipT = 0.0
     private var lastTipT = -1e9
     private var stuckT = 0.0
     private var stuckX = 0.0
     private var lastStuckT = -1e9
+    private var tryT = 0.0
+    private var tryBest = 0.0
     private var wasAir = false
     private var airStreak = 0.0
     private var angAcc = 0.0
@@ -141,6 +145,14 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
                 if (time - lastStuckT >= 20.0) { lastStuckT = time; events?.onStuck() }
             }
         } else { stuckT = 0.0; stuckX = car.x }
+        // ileri geri deneyip (gaz ya da geri) yine de yeni mesafe kazanamıyorsa: 12 sn denemede 3 m'den az ilerleme
+        if (fuel > 0.0 && (input > 0.3 || brake > 0.3)) {
+            if (distance > tryBest + 3.0) { tryBest = distance; tryT = 0.0 } else tryT += dt
+            if (tryT >= 12.0) {
+                tryT = 0.0; tryBest = distance
+                if (time - lastStuckT >= 20.0) { lastStuckT = time; events?.onStuck() }
+            }
+        } else if (distance > tryBest + 3.0) { tryBest = distance; tryT = 0.0 }
 
         // --- bitiş koşulları ---
         if (car.headHit()) { end(EndReason.CRASH, "Kafa üstü düştün"); return }
@@ -151,6 +163,11 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
         if (flipT >= FLIP_SECS) { end(EndReason.CRASH, "Ters döndün"); return }
         if (fuel <= 0.0 && spd < 0.3) stillFuel += dt else stillFuel = 0.0
         if (stillFuel >= 3.0) { end(EndReason.FUEL); return }
+        // yakıtsız araç iki tepe arasında ileri geri sallanıp durmayabilir: 10 sn yeni mesafe yoksa da biter
+        if (fuel <= 0.0) {
+            if (distance > noFuelBest + 0.5) { noFuelBest = distance; noFuelT = 0.0 } else noFuelT += dt
+            if (noFuelT >= NO_FUEL_SECS) { end(EndReason.FUEL); return }
+        } else { noFuelBest = distance; noFuelT = 0.0 }
     }
 
     /** Aracın zemin eğimine göre açısı (derece, burun yukarı +, [-180, 180)). */
@@ -221,6 +238,7 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
         const val FLIP_SECS = 1.0
         /** onDistance olayı bu adımla gelir (m); Sonify 250 m'de bir söyler. */
         const val DIST_STEP = 50
+        const val NO_FUEL_SECS = 10.0
     }
 
     fun statusText(): String {
