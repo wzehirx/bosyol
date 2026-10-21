@@ -1,3 +1,5 @@
+import android.os.SystemClock
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -5,14 +7,19 @@ import android.widget.CompoundButton
 import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
+import com.yokus.app.GameView
 import com.yokus.app.MainActivity
+import com.yokus.app.PedalView
 import com.yokus.app.Store
+import com.yokus.app.core.EndReason
 import com.yokus.app.core.Maps
 import com.yokus.app.core.UpgradeKind
 import com.yokus.app.core.Vehicles
 import com.yokus.app.core.upgradeCost
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,9 +55,10 @@ class UiSmoke {
     fun back() { @Suppress("DEPRECATION") a.onBackPressed(); idle() }
 
     /** Her tıklanabilir ya da odaklanabilir görünümün sesli etiketi olmalı. */
-    fun audit(screen: String) {
+    fun audit(screen: String, needTitle: Boolean = true) {
         val t = title()
-        if (t == null) problems.add("$screen: başlık (tag=title) yok")
+        if (!needTitle) {}
+        else if (t == null) problems.add("$screen: başlık (tag=title) yok")
         else {
             if (!t.isAccessibilityHeading) problems.add("$screen: başlık isAccessibilityHeading değil")
             if (t.text.isNullOrBlank()) problems.add("$screen: başlık boş")
@@ -74,7 +82,7 @@ class UiSmoke {
     }
 
     @Test fun flow() {
-        a = Robolectric.buildActivity(MainActivity::class.java).setup().get(); idle()
+        a = Robolectric.buildActivity(MainActivity::class.java).setup().get(); a.autoLoop = false; idle()
         val st = Store(a)
         assertEquals("başlangıç altını", 0, st.gold)
         println("menü: ${texts()}")
@@ -85,7 +93,7 @@ class UiSmoke {
             assertEquals("Yokuş Ustası", title()?.text.toString())
         }
         click("Çıkış"); assertEquals("Çıkmak istiyor musun?", title()?.text.toString()); audit("Çıkış onayı"); click("Vazgeç")
-        click("Başla"); audit("Oyun"); back()
+        click("Başla"); audit("Oyun", needTitle = false); back(); assertEquals("Duraklatıldı", title()?.text.toString()); click("Ana menü")
 
         // --- 0 altınla satın alma başarısız olmalı
         val veh = Vehicles.all.filter { !st.owns(it.id) && it.price in 1..10000 }.minByOrNull { it.price }!!
@@ -144,6 +152,86 @@ class UiSmoke {
         assertTrue("configChanges orientation yok", Regex("configChanges=\"[^\"]*orientation[^\"]*screenSize").containsMatchIn(mf))
 
         if (problems.isNotEmpty()) { problems.forEach { println("SORUN: $it") }; error("${problems.size} erişilebilirlik sorunu") }
+        println("OK")
+    }
+
+    fun touch(v: View, action: Int) {
+        val t = SystemClock.uptimeMillis()
+        val e = MotionEvent.obtain(t, t, action, 5f, 5f, 0); v.dispatchTouchEvent(e); e.recycle()
+    }
+    fun pedal(label: String) = views().filterIsInstance<PedalView>().first { it.contentDescription == label }
+    fun run(sec: Double) { var t = 0.0; while (t < sec) { a.tick(1.0 / 60); t += 1.0 / 60 } }
+
+    @Test fun game() {
+        val ctl = Robolectric.buildActivity(MainActivity::class.java).setup()
+        a = ctl.get(); a.autoLoop = false; idle()
+        val st = Store(a)
+        val gold0 = st.gold
+        click("Başla")
+        val s = a.gameSession!!
+        assertTrue("GameView yok", views().any { it is GameView })
+        assertEquals("GameView erişilebilirlik dışı olmalı", View.IMPORTANT_FOR_ACCESSIBILITY_NO,
+            views().first { it is GameView }.importantForAccessibility)
+        val gas = pedal("Gaz"); val brake = pedal("Fren")
+        assertTrue(gas.isFocusable && brake.isFocusable && gas.isClickable)
+        audit("Oyun", needTitle = false)
+
+        // gaz: basılı tut ~3 sn
+        touch(gas, MotionEvent.ACTION_DOWN); assertTrue(gas.active)
+        run(3.0)
+        touch(gas, MotionEvent.ACTION_UP); assertFalse("bırakınca pedal basılı kalmamalı", gas.active)
+        println("3 sn gaz sonrası mesafe=${s.distance} m, yakıt=%${s.fuelPct()}")
+        assertTrue("mesafe artmadı: ${s.distance}", s.distance > 0.0)
+
+        // pedal kilidi + erişilebilirlik tıklaması
+        gas.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK, null); assertTrue("ACTION_CLICK gazı sabitlemedi", gas.active)
+        brake.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK, null)
+        assertTrue(brake.active); assertFalse("fren gazı bırakmalı", gas.active)
+        brake.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK, null); assertFalse(brake.active)
+
+        // ses tuşları kapalıyken sistem tuşu tüketilmez, açıkken tüketilir
+        val up = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_VOLUME_UP)
+        Store(a).volumeKeys = true
+        assertTrue("ses tuşu tüketilmedi", a.dispatchKeyEvent(up))
+        a.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_VOLUME_UP))
+        Store(a).volumeKeys = false
+
+        // Durum
+        click("Durum")
+        assertTrue(s.statusText().startsWith("Mesafe"))
+
+        // geri -> Duraklat -> Devam -> onPause -> Duraklat -> onResume sonrası Duraklat'ta kal
+        val d1 = s.distance
+        back(); assertEquals("Duraklatıldı", title()?.text.toString()); audit("Duraklat")
+        a.tick(0.05); assertEquals("duraklatılmışken fizik ilerledi", d1, s.distance, 0.0)
+        click("Devam"); assertTrue(views().any { it is GameView })
+        ctl.pause(); idle(); assertEquals("onPause Duraklat'a gitmeli", "Duraklatıldı", title()?.text.toString())
+        ctl.resume(); idle(); assertEquals("onResume Duraklat'ta kalmalı", "Duraklatıldı", title()?.text.toString())
+        assertSame("oturum korunmalı", s, a.gameSession)
+
+        // Yeniden başla, sonra Ana menü: altın eklenir
+        click("Yeniden başla"); val s2 = a.gameSession!!
+        assertNotSame(s, s2)
+        val g2 = pedal("Gaz"); touch(g2, MotionEvent.ACTION_DOWN); run(3.0); touch(g2, MotionEvent.ACTION_UP)
+        s2.coins += 7
+        val before = Store(a).gold
+        back(); click("Ana menü")
+        assertEquals("Yokuş Ustası", title()?.text.toString())
+        val after = Store(a).gold
+        println("Ana menü: altın $before -> $after")
+        assertTrue("altın azaldı", after >= before && after >= gold0)
+        assertTrue("kazanılan altın eklenmedi", after >= before + 7)
+
+        // oyun sonu: kaza -> 2.5 sn sonra Oyun sonu ekranı
+        click("Başla"); val s3 = a.gameSession!!
+        run(1.0); s3.end(EndReason.CRASH); s3.coins += 5
+        run(2.0); assertTrue("2.5 sn dolmadan bitiş ekranı", views().any { it is GameView })
+        run(1.0); idle()
+        assertEquals("Kaza yaptın", title()?.text.toString()); audit("Oyun sonu")
+        println("oyun sonu: ${texts()}")
+        assertTrue(texts().any { it.contains("metre") && it.contains("altın kazandın. En iyi:") })
+        assertTrue(Store(a).gold >= after + 5)
+        click("Tekrar"); assertTrue(views().any { it is GameView }); back(); click("Ana menü")
         println("OK")
     }
 

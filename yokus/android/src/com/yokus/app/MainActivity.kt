@@ -384,6 +384,8 @@ class MainActivity : Activity() {
 
     /* ================= Oyun ================= */
     private var session: GameSession? = null
+    /** Testler için. */
+    val gameSession: GameSession? get() = session
     private var sonify: Sonify? = null
     private var gameView: GameView? = null
     private var brakePedal: PedalView? = null
@@ -519,8 +521,8 @@ class MainActivity : Activity() {
 
         val brake = pedal("Fren", 0xFFE53935.toInt())
         val gas = pedal("Gaz", 0xFFFFC233.toInt())
-        brake.onActivate = { if (store.latch) gas.unlatch() }
-        gas.onActivate = { if (store.latch) brake.unlatch() }
+        brake.onActivate = { gas.unlatch() }
+        gas.onActivate = { brake.unlatch() }
         brakePedal = brake; gasPedal = gas
         syncPedal(brake, 0xFFE53935.toInt()); syncPedal(gas, 0xFFFFC233.toInt())
 
@@ -576,8 +578,8 @@ class MainActivity : Activity() {
         if (screen == Scr.GAME && store.volumeKeys) {
             val down = e.action == KeyEvent.ACTION_DOWN
             when (e.keyCode) {
-                KeyEvent.KEYCODE_VOLUME_UP -> { keyGas = down; if (down && store.latch) brakePedal?.unlatch(); return true }
-                KeyEvent.KEYCODE_VOLUME_DOWN -> { keyBrake = down; if (down && store.latch) gasPedal?.unlatch(); return true }
+                KeyEvent.KEYCODE_VOLUME_UP -> { keyGas = down; if (down) brakePedal?.unlatch(); return true }
+                KeyEvent.KEYCODE_VOLUME_DOWN -> { keyBrake = down; if (down) gasPedal?.unlatch(); return true }
             }
         }
         return super.dispatchKeyEvent(e)
