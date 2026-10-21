@@ -4,7 +4,9 @@ import java.util.Random
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.floor
+import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 enum class FeatureKind(val say: String) {
     STEEP_UP("Önde dik yokuş"), STEEP_DOWN("Önde dik iniş"), RAMP("Önde rampa"), PIT("Önde çukur"), BUMPS("Önde tümsekler")
@@ -47,65 +49,152 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
         return if (f.x0 <= x + range) f else null
     }
 
-    private class Ev(val kind: FeatureKind, val x0: Double, val x1: Double, val a: Double, val b: Double)
+    private class Ev(val kind: FeatureKind, val x0: Double, val x1: Double, val a: Double, val b: Double, val c: Double = 0.0, val d: Double = 0.0)
+
+    /** x konumunda izin verilen en büyük eğim: ilk 300 m 0.5, sonra 1500 m'ye dek haritanın [MapDef.maxSlope] değerine yumuşakça çıkar. */
+    fun maxSlopeAt(x: Double): Double {
+        if (x <= GENTLE_END) return GENTLE_SLOPE
+        val u = ((x - GENTLE_END) / (HARD_FROM - GENTLE_END)).coerceIn(0.0, 1.0)
+        return GENTLE_SLOPE + (map.maxSlope - GENTLE_SLOPE) * u * u * (3 - 2 * u)
+    }
+
+    /** 0..1 zorluk: 300 m'ye dek 0, sonra mesafe, genlik ve büyümeyle artar. */
+    fun difficulty(x: Double): Double =
+        ((x - GENTLE_END) / 2500.0 * sqrt(map.amp / 3.0) * sqrt(map.growth / 0.15)).coerceIn(0.0, 1.0)
 
     init {
         val rnd = Random(map.seed)
-        // --- temel arazi: sinüs toplamı + değer gürültüsü ---
+        fun ss(u: Double): Double { val c = u.coerceIn(0.0, 1.0); return c * c * (3 - 2 * c) }
+        // --- temel arazi: tepe dizisi. Her bileşenin genliği, eğim payı × dalga boyu / 2π × S(x) olarak seçilir;
+        //     böylece S(x) bileşenlerin hepsi aynı anda dik olduğunda bile ulaşılan en büyük eğimdir. ---
+        val l1 = 150 + rnd.nextDouble() * 60; val l2 = 48 + rnd.nextDouble() * 20; val l3 = 17 + rnd.nextDouble() * 7
         val p1 = rnd.nextDouble() * 2 * PI; val p2 = rnd.nextDouble() * 2 * PI; val p3 = rnd.nextDouble() * 2 * PI
-        val knots = DoubleArray(n / 5 + 3) { rnd.nextDouble() * 2 - 1 }
+        val kn = 8.0
+        val knots = DoubleArray((n / kn).toInt() + 3) { rnd.nextDouble() * 2 - 1 }
         fun noise(x: Double): Double {
-            val i = floor(x / 5).toInt(); val t = x / 5 - i
-            val s = t * t * (3 - 2 * t)
-            return knots[i] * (1 - s) + knots[i + 1] * s
+            val i = floor(x / kn).toInt(); val t = x / kn - i
+            return knots[i] + (knots[i + 1] - knots[i]) * ss(t)
         }
-        val raw = DoubleArray(n)
+        fun bigS(x: Double): Double {
+            val sx = 0.16 * map.amp * (1 + map.growth * x / 1000.0) * (0.7 + 0.3 * ss((x - GENTLE_END) / 700.0))
+            val cap = 0.95 * maxSlopeAt(x)
+            return minOf(sx, cap, if (x < GENTLE_END) 0.4 else 9.0)
+        }
+        val base = DoubleArray(n)
         for (i in 0 until n) {
             val x = i.toDouble()
-            if (x <= 30.0) continue
-            val e = ((x - 30.0) / 60.0).coerceIn(0.0, 1.0).let { it * it * (3 - 2 * it) }
-            val s = 0.6 * sin(2 * PI * x / 90 + p1) + 0.25 * sin(2 * PI * x / 35 + p2) + 0.15 * sin(2 * PI * x / 14 + p3) + 0.2 * noise(x)
-            raw[i] = e * map.amp * (1 + map.growth * x / 1000.0) * s
+            if (x <= FLAT) continue
+            val e = ss((x - FLAT) / 60.0)
+            val s = 0.45 * l1 / (2 * PI) * sin(2 * PI * x / l1 + p1) + 0.30 * l2 / (2 * PI) * sin(2 * PI * x / l2 + p2) +
+                0.15 * l3 / (2 * PI) * sin(2 * PI * x / l3 + p3) + 0.10 * kn / 3.0 * noise(x)
+            base[i] = e * bigS(x) * s
         }
-        // --- özel parçalar: önce rampa, sonra çukur ve tümsek; çakışanlar atılır ---
+        fun baseSlopeMax(x0: Double, x1: Double): Double {
+            var m = 0.0
+            for (i in maxOf(0, floor(x0).toInt())..minOf(n - 2, floor(x1).toInt())) m = maxOf(m, abs(base[i + 1] - base[i]))
+            return m
+        }
+        // yoğunluk: özellikler mesafe ve harita zorluğuyla sıklaşır
+        fun density(x: Double) = 1 + 2.0 * (map.amp / 3.0) * map.growth * maxOf(0.0, x - GENTLE_END) / 1000.0
+
+        // --- özel parçalar: önce rampa, sonra çukur ve tümsek; çakışanlar atılır.
+        //     Rampa ve çukur, temel eğimin küçük olduğu yere (en çok 120 m ileri kaydırılarak) konur. ---
         val evs = ArrayList<Ev>()
         fun free(x0: Double, x1: Double) = evs.none { x0 < it.x1 + 30 && x1 > it.x0 - 30 }
-        var k = 1
+        var xr = 0.0
         while (true) {
-            val xr = k * map.rampEvery + (rnd.nextDouble() * 2 - 1) * 0.1 * map.rampEvery
-            if (xr + 12 > length - 50) break
-            k++
-            if (xr >= 60 && free(xr, xr + 12)) evs.add(Ev(FeatureKind.RAMP, xr, xr + 12, 3.0, 0.0))
+            xr += map.rampEvery / sqrt(density(xr)) * (0.9 + rnd.nextDouble() * 0.2)
+            val d = difficulty(xr)
+            val hgt = 1.0 + (0.6 + 0.4 * rnd.nextDouble()) * 1.6 * d       // rampa yüksekliği (m)
+            val lip = 0.42 + 0.26 * d                                       // ağız eğimi
+            val land = 0.34                                                 // iniş eğimi
+            if (xr + 60 > length - 50) break
+            if (xr < 60) continue
+            var placed = false
+            var x0 = xr
+            while (!placed && x0 < xr + 120) {
+                val bm = baseSlopeMax(x0 - 2, x0 + 2 * hgt / minOf(lip, land) * 2 + 2)
+                val lipS = minOf(lip, maxSlopeAt(x0) - bm - 0.03); val landS = minOf(land, maxSlopeAt(x0) - bm - 0.03)
+                if (lipS >= 0.3 && landS >= 0.25) {
+                    val lk = 2 * hgt / lipS; val ld = 2 * hgt / landS
+                    if (free(x0, x0 + lk + ld)) { evs.add(Ev(FeatureKind.RAMP, x0, x0 + lk, hgt, ld)); placed = true }
+                    else break
+                }
+                x0 += 1.0
+            }
         }
-        var px = 180.0
+        var px = 250.0 + rnd.nextDouble() * 60
         while (px < length - 100) {
-            val w = 5 + rnd.nextDouble() * 4; val depth = 1.2 + rnd.nextDouble()
-            if (free(px, px + w)) evs.add(Ev(FeatureKind.PIT, px, px + w, depth, 0.0))
-            px += 150 + rnd.nextDouble() * 250
+            val d = difficulty(px)
+            val depth = minOf(MAX_PIT_DEPTH, 0.5 + 0.7 * d * (0.6 + 0.4 * rnd.nextDouble()))
+            val wallTarget = 0.4 + 0.3 * d
+            val bottom = 1.5 + rnd.nextDouble() * 3.0
+            var x0 = px
+            while (x0 < px + 120) {
+                val wide = 2 * PI * depth / (2 * 0.3) + bottom
+                val bm = baseSlopeMax(x0 - 2, x0 + wide + 2)
+                val sw = minOf(wallTarget, MAX_PIT_WALL - 0.05 - bm, maxSlopeAt(x0) - bm - 0.03)
+                if (sw >= 0.3) {
+                    val lw = PI * depth / (2 * sw)
+                    val w = 2 * lw + bottom
+                    if (free(x0, x0 + w)) evs.add(Ev(FeatureKind.PIT, x0, x0 + w, depth, lw))
+                    break
+                }
+                x0 += 1.0
+            }
+            px += (150 + rnd.nextDouble() * 250) / density(px)
         }
         var bx = 100.0
         while (bx < length - 100) {
-            val cnt = 5 + rnd.nextInt(4)
-            if (free(bx, bx + cnt * 3.0)) evs.add(Ev(FeatureKind.BUMPS, bx, bx + cnt * 3.0, 0.45, 0.0))
-            bx += 120 + rnd.nextDouble() * 180
+            val d = difficulty(bx)
+            val cnt = 4 + rnd.nextInt(5)
+            val per = 3.0 + rnd.nextDouble()
+            val a = 0.2 + 0.3 * d
+            if (free(bx, bx + cnt * per)) evs.add(Ev(FeatureKind.BUMPS, bx, bx + cnt * per, a, per))
+            bx += (120 + rnd.nextDouble() * 180) / density(bx)
         }
         evs.sortBy { it.x0 }
+        val raw = base.copyOf()
         for (e in evs) {
-            val i0 = floor(e.x0).toInt(); val i1 = minOf(n - 1, floor(e.x1).toInt() + 1)
+            val end = if (e.kind == FeatureKind.RAMP) e.x1 + e.b else e.x1
+            val i0 = floor(e.x0).toInt(); val i1 = minOf(n - 1, floor(end).toInt() + 1)
             for (i in i0..i1) {
                 val x = i.toDouble()
-                if (x < e.x0 || x > e.x1) continue
-                val u = (x - e.x0) / (e.x1 - e.x0)
+                if (x < e.x0 || x > end) continue
                 when (e.kind) {
-                    FeatureKind.RAMP -> raw[i] += e.a * Math.pow(u, 1.3)
-                    FeatureKind.PIT -> raw[i] -= e.a
-                    else -> { val s = sin(PI * (x - e.x0) / 3.0); raw[i] += e.a * s * s }
+                    FeatureKind.RAMP -> {
+                        // yumuşak sıçrama rampası (h = H·u²), ardından ağızdan başlayan hafif iniş (h = H·(1−v)²)
+                        raw[i] += if (x <= e.x1) { val u = (x - e.x0) / (e.x1 - e.x0); e.a * u * u }
+                                  else { val v = (x - e.x1) / e.b; e.a * (1 - v) * (1 - v) }
+                    }
+                    FeatureKind.PIT -> {
+                        // kosinüs duvarlı, düz tabanlı çukur
+                        val lw = e.b
+                        val q = when {
+                            x < e.x0 + lw -> (1 - cos(PI * (x - e.x0) / lw)) / 2
+                            x > e.x1 - lw -> (1 - cos(PI * (e.x1 - x) / lw)) / 2
+                            else -> 1.0
+                        }
+                        raw[i] -= e.a * q
+                    }
+                    else -> { val s = sin(PI * (x - e.x0) / e.b); raw[i] += e.a * s * s }
                 }
             }
         }
-        // --- tek örnek eğimi 1.5'i (en çok 1.6) aşamaz ---
-        val maxStep = 1.5
-        for (i in 1 until n) h[i] = raw[i].coerceIn(h[i - 1] - maxStep, h[i - 1] + maxStep)
+        // --- eğim sınırı (izleyerek kırpma) ve köşeleri yuvarlayan iki geçişli 3'lü ortalama.
+        //     Ortalama, eğimleri ortaladığı için sınırı bozmaz. ---
+        val clip = DoubleArray(n)
+        for (i in 1 until n) { val c = maxSlopeAt(i - 0.5); clip[i] = raw[i].coerceIn(clip[i - 1] - c, clip[i - 1] + c) }
+        var sm = clip
+        for (pass in 0 until 2) {
+            val nx = DoubleArray(n)
+            nx[0] = sm[0]; nx[n - 1] = sm[n - 1]
+            for (i in 1 until n - 1) nx[i] = (sm[i - 1] + sm[i] + sm[i + 1]) / 3.0
+            sm = nx
+        }
+        for (i in 0 until n) h[i] = if (i <= FLAT) 0.0 else sm[i]
+        // düzlüğün bitişindeki küçük sıçramayı da sınır altında tut
+        for (i in FLAT.toInt() + 1 until n) { val c = maxSlopeAt(i - 0.5); h[i] = h[i].coerceIn(h[i - 1] - c, h[i - 1] + c) }
 
         // --- öznitelikler ---
         val feats = ArrayList<Feature>()
@@ -162,5 +251,14 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
             fx += map.fuelEvery + (rnd.nextDouble() * 2 - 1) * 40
         }
         fuels = fs
+    }
+
+    companion object {
+        const val FLAT = 30.0
+        const val GENTLE_END = 300.0
+        const val GENTLE_SLOPE = 0.5
+        const val HARD_FROM = 1500.0
+        const val MAX_PIT_WALL = 0.8
+        const val MAX_PIT_DEPTH = 1.2
     }
 }
