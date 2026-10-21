@@ -6,6 +6,9 @@ Needs ffmpeg, ffprobe, numpy.
 """
 import csv, json, math, os, re, shutil, subprocess, sys
 import numpy as np
+sys.dont_write_bytecode = True
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import make_coins
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 YOKUS = os.path.dirname(HERE)
@@ -283,6 +286,8 @@ def process_fx(slot):
 def main():
     os.makedirs(OUT, exist_ok=True)
     for f in os.listdir(OUT):
+        if f == "RAPOR.md":
+            continue
         os.remove(os.path.join(OUT, f))
     for slot in LOOPS:
         process_loop(slot)
@@ -295,6 +300,8 @@ def main():
     shutil.copy2(os.path.join(BOS, "crash.mp3"), os.path.join(OUT, "crash_car.mp3"))
     encode_raw(synth_nope(), os.path.join(OUT, "nope.mp3"))
     report.append(("nope", "synth", "220 Hz soft tone, 0.15 s"))
+    make_coins.render_all(OUT)          # coin_s/s2/s3/m/l/xl (synthesized, -16 LUFS)
+    report.append(("coin_*", "synth", "coin_s,s2,s3,m,l,xl from make_coins.py"))
 
     # credits
     rows = list(csv.reader(open(os.path.join(RAW, "CREDITS.csv"), encoding="utf-8")))
@@ -308,6 +315,8 @@ def main():
     rows.append(["crash_car", "", "bosyol crash.mp3", "bosyol deposu", "bosyol deposu", "bosyol deposu"])
     rows.append(["nope", "", "synthesized 220 Hz tone", "yokus prep_sounds.py", "", "CC0 (generated)"])
     rows.append(["roll_sand", "", "synthesized granular sand roll", "yokus prep_sounds.py", "", "CC0 (generated)"])
+    for n in make_coins.NAMES:
+        rows.append([n, "", "synthesized coin (additive inharmonic partials)", "yokus make_coins.py", "", "CC0 / own work (generated)"])
     with open(os.path.join(OUT, "CREDITS.csv"), "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(hdr)
@@ -320,7 +329,7 @@ def main():
     for f in sorted(os.listdir(OUT)):
         p = os.path.join(OUT, f)
         total += os.path.getsize(p)
-        if f == "CREDITS.csv":
+        if f in ("CREDITS.csv", "RAPOR.md"):
             continue
         st, dur = ffprobe(p)
         slot = os.path.splitext(f)[0]
@@ -345,7 +354,9 @@ def main():
         print("PROBLEMS:", *bad, sep="\n  ")
         sys.exit(1)
     # slot completeness
-    for s in LOOPS + list(FX_CAP) + ["nope", "crash_car"]:
+    print("\nCoin sounds:")
+    make_coins.print_table(OUT)
+    for s in LOOPS + list(FX_CAP) + ["nope", "crash_car"] + make_coins.NAMES:
         assert os.path.exists(os.path.join(OUT, s + ".mp3")), s
 
 

@@ -16,3 +16,13 @@
 
 ## Kaynaklar
 `CREDITS.csv`: ham dosyaların Freesound künyeleri, bosyol motor katmanları (Bruno Simon folio-2019, MIT), `crash_car` (bosyol deposu) ve sentezlenenler.
+
+## Coin sesleri (S1)
+`tools/make_coins.py` (prep_sounds.py çağırır) 6 coin sesini **sentezler**; ham CC0 `coin.mp3` kullanılmadı (spektral ağırlık merkezi ~1,5 kHz, 1,9 sn, uzun kuyruk; temiz tek vuruş değil). `coin.mp3` genel yedek olarak duruyor. Hepsi 44,1 kHz mono mp3 128k, yaklaşık -16 LUFS, tepe en fazla -1,3 dBFS. Kısa sesler için LUFS ölçümü 1,2 sn'ye sessizlikle doldurularak yapıldı; tepe sınırı için yumuşak (tanh) limiter kullanıldı.
+- Vuruş modeli: 1-2 ms atak, 5 uyumsuz parçacık (~2,6 / 3,9 / 5,2 / 6,8 / 8,1 kHz), yüksek parçacık daha hızlı sönümlenir, her parçacığa 3-9 Hz kaydırılmış ikizi (parıltı), 1,5 ms gürültü tıkı, 800 Hz yüksek geçiren.
+- `coin_s` (değer 5): tek vuruş, 0,32 sn. Üç varyant: `coin_s`, `coin_s2`, `coin_s3` (farklı parçacık takımı; oyun dönüşümlü çalabilir).
+- `coin_m` (25): 60 ms arayla iki vuruş, ikincisi daha parlak, 0,42 sn.
+- `coin_l` (100): üç vuruş (0/55/115 ms) + 9 küçük rastgele paranın yumuşak çınlama kuyruğu, 0,62 sn.
+- `coin_xl` (500): 1 sn içinde 20 rastgele küçük vuruş + majör üçlü (C7-E7-G7-C8) parlak çınlama, 1,22 sn.
+- Perde yükselmesi yok: aynı değerin tüm alımları aynı perde ailesinde; çeşitlilik yalnızca varyantlardan gelir. Tohumlar sabit, çıktı tekrarlanabilir.
+- Lisans: sentez, CC0 / kendi işimiz (`CREDITS.csv`).

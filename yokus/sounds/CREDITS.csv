@@ -36,3 +36,9 @@ e0_*/e1_*/e2_*.wav,,bosyol engine layers,Bruno Simon (folio-2019),https://github
 crash_car,,bosyol crash.mp3,bosyol deposu,bosyol deposu,bosyol deposu
 nope,,synthesized 220 Hz tone,yokus prep_sounds.py,,CC0 (generated)
 roll_sand,,synthesized granular sand roll,yokus prep_sounds.py,,CC0 (generated)
+coin_s,,synthesized coin (additive inharmonic partials),yokus make_coins.py,,CC0 / own work (generated)
+coin_s2,,synthesized coin (additive inharmonic partials),yokus make_coins.py,,CC0 / own work (generated)
+coin_s3,,synthesized coin (additive inharmonic partials),yokus make_coins.py,,CC0 / own work (generated)
+coin_m,,synthesized coin (additive inharmonic partials),yokus make_coins.py,,CC0 / own work (generated)
+coin_l,,synthesized coin (additive inharmonic partials),yokus make_coins.py,,CC0 / own work (generated)
+coin_xl,,synthesized coin (additive inharmonic partials),yokus make_coins.py,,CC0 / own work (generated)
