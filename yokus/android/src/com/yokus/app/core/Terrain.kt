@@ -146,9 +146,11 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
             var x0 = px
             while (x0 < px + 120) {
                 val w0 = PI * depth / wallTarget + bottom
-                val cs = abs(chord(x0, x0 + w0))
+                val csS = chord(x0, x0 + w0); val cs = abs(csS)
+                // çıkıştan sonra zemin hemen düşmesin (tepe üstündeki çukur, çıkış duvarını sıçrama rampasına çevirir)
+                val convex = chord(x0 + w0, x0 + w0 + 16) < csS - 0.03
                 val sw = minOf(wallTarget, MAX_PIT_WALL - 0.04 - cs, maxSlopeAt(x0) - 0.04 - cs)
-                if (cs <= 0.25 && sw >= 0.25) {
+                if (cs <= 0.25 && sw >= 0.25 && !convex) {
                     val lw = PI * depth / (2 * sw)
                     val w = 2 * lw + bottom
                     if (free(x0, x0 + w)) evs.add(Ev(FeatureKind.PIT, x0, x0 + w, depth, lw))
