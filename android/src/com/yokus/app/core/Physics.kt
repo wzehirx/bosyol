@@ -22,7 +22,8 @@ class Wheel {
  * Gövde + iki teker. Yarı-örtük Euler, 240 Hz alt adım.
  * Dünya: x ileri, y yukarı, açı saat yönünün tersi pozitif (burun yukarı +).
  */
-class Car(val def: VehicleDef, val terrain: Terrain, val gravity: Double, val grip: Double = 1.0, startX: Double = 5.0) {
+class Car(val def: VehicleDef, val terrain: Terrain, val gravity: Double, val grip: Double = 1.0, startX: Double = 5.0,
+          /** Ek hava/su direnci katsayısı, N/(m/s)² (deniz tabanı); 0 = yok. */ val extraDrag: Double = 0.0) {
     var x = 0.0; var y = 0.0; var angle = 0.0; var vx = 0.0; var vy = 0.0; var omega = 0.0
     val rear = Wheel()
     val front = Wheel()
@@ -215,7 +216,7 @@ class Car(val def: VehicleDef, val terrain: Terrain, val gravity: Double, val gr
         // hava direnci + yuvarlanma direnci (yokuş aşağı aşırı hızı sınırlar)
         val vv = sqrt(vx * vx + vy * vy)
         if (vv > 1e-6) {
-            val fd = AIR_DRAG * vv * vv + (if (airborne) 0.0 else ROLL_RES * m * gravity)
+            val fd = (AIR_DRAG + extraDrag) * vv * vv + (if (airborne) 0.0 else ROLL_RES * m * gravity)
             val fdc = min(fd, vv * m / h)
             fbx -= fdc * vx / vv; fby -= fdc * vy / vv
         }

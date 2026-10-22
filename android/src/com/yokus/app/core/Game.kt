@@ -29,7 +29,7 @@ interface GameEvents {
 class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapDef, var events: GameEvents? = null) {
     val terrain = Terrain(map)
     private val def: VehicleDef = vehicle.upgraded(upgrades)
-    val car = Car(def, terrain, map.gravity, gripMul(upgrades))
+    val car = Car(def, terrain, map.gravity, gripMul(upgrades), extraDrag = map.drag)
     val fuelMax: Double = def.fuelL
     var fuel: Double = fuelMax
     var coins = 0

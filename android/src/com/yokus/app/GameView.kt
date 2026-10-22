@@ -40,10 +40,11 @@ class GameView(ctx: Context, val session: GameSession) : View(ctx) {
     init {
         importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         val surf = session.map.surface
-        sky.color = when (surf) { Surface.MOON -> 0xFF05060A.toInt(); Surface.SNOW, Surface.ICE -> 0xFFB8CFE0.toInt(); else -> 0xFF86C5EA.toInt() }
+        sky.color = when (surf) { Surface.MOON -> 0xFF05060A.toInt(); Surface.MARS -> 0xFF3B1E1A.toInt(); Surface.SNOW, Surface.ICE -> 0xFFB8CFE0.toInt(); else -> 0xFF86C5EA.toInt() }
         ground.color = when (surf) {
             Surface.DIRT -> 0xFF7A5230; Surface.SAND -> 0xFFD9B26A; Surface.SNOW -> 0xFFEAF2F7; Surface.ICE -> 0xFFBFE3F0
             Surface.MUD -> 0xFF4B3A2A; Surface.MOON -> 0xFF8C8C92; Surface.ROCK -> 0xFF6B6B70; Surface.ASPHALT -> 0xFF3A3D42
+            Surface.SALT -> 0xFFE9E6DC; Surface.MARS -> 0xFFB5532F
         }.toInt()
         edge.color = 0xFF2E7D32.toInt().takeIf { surf == Surface.DIRT } ?: 0xFFFFFFFF.toInt()
         edge.style = Paint.Style.STROKE; edge.strokeWidth = 0.22f; edge.strokeJoin = Paint.Join.ROUND

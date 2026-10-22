@@ -64,6 +64,8 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
     private val rng = java.util.Random(0x5EEDL)
     private var supercharger: SampleVoice? = null
     private var gasLowSeen = true
+    private var surfRoll = 1.0
+    private var nextCrack = 0.0
     private var gasHighSeen = false
     private var nextSpool = 0.0
     private var nextBlow = 0.0
@@ -151,6 +153,8 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         if (def.supercharged) supercharger = loopVoice("supercharger", BUS_ENGINE, 0.0)
         gasLowSeen = true; gasHighSeen = false
         nextSpool = clock; nextBlow = clock; nextSlime = clock + 0.5; nextKick = clock + 1.0
+        surfRoll = s.map.surface.rollRate
+        nextCrack = clock + 4.0
         roll = loopVoice(s.map.surface.rollKey, BUS_WORLD)
         wind = loopVoice("wind", BUS_WORLD)
         amb = loopVoice(s.map.ambKey, BUS_WORLD)
@@ -287,10 +291,16 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
             }
         }
 
+        // donmuş göl: arada buz çatırtısı (crack sesi, rastgele perde ve yön)
+        if (s.map.id == "frozenlake" && clock >= nextCrack) {
+            nextCrack = clock + 5.0 + 9.0 * rng.nextDouble()
+            shot("crash_crack", BUS_FX, (0.18 + 0.12 * rng.nextDouble()).toFloat(), 1.3 + 0.7 * rng.nextDouble(), (rng.nextDouble() * 1.4 - 0.7).toFloat())
+        }
+
         // yüzey yuvarlanması
         roll?.let { v ->
             val ws = max(max(abs(car.rear.spin), abs(car.front.spin)) * def.wheelR, speed)
-            v.rate = 0.8 + 0.4 * min(1.0, speed / 20.0)
+            v.rate = (0.8 + 0.4 * min(1.0, speed / 20.0)) * surfRoll
             v.fadeTo(if (grounded) (min(1.0, ws / 12.0) * 0.55).toFloat() else 0f, 0.08f)
         }
         // rüzgâr

@@ -172,7 +172,7 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
                 }
                 x0 += 2.0
             }
-            px += (150 + rnd.nextDouble() * 250) / density(px)
+            px += (150 + rnd.nextDouble() * 250) / density(px) / map.pits
         }
         // rampa ve çukur altındaki temel araziyi kirişe düzle (kenarlarda FLAT_BLEND m yumuşak geçiş)
         for (e in evs) {
@@ -285,7 +285,7 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
         val pr = Random(map.seed xor 0x5DEECE66DL)
         var gx = 25.0 + pr.nextDouble() * 20
         while (gx + 30 < length) {
-            val dens = 1.0 + 0.5 * minOf(1.0, gx / 6000.0) + 0.4 * minOf(1.0, map.price / 90000.0)
+            val dens = 1.0 + 0.5 * minOf(1.0, gx / 6000.0) + 0.4 * minOf(1.0, map.price / DENSITY_PRICE_REF)
             val cnt = 4 + pr.nextInt(9)
             var x = gx
             for (j in 0 until cnt) {
@@ -310,6 +310,8 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
 
     companion object {
         private fun ss(u: Double): Double { val c = u.coerceIn(0.0, 1.0); return c * c * (3 - 2 * c) }
+        /** Altın yoğunluğu bu fiyata (Şantiye) dek harita fiyatıyla artar, sonra sabit. */
+        const val DENSITY_PRICE_REF = 13000.0
         const val FLAT = 30.0
         const val GENTLE_END = 300.0
         const val GENTLE_SLOPE = 0.5

@@ -253,6 +253,8 @@ fun main(args: Array<String>) {
     for (m in maps) for (v in listOf("jeep", "moto", "pickup", "tractor")) for (u in listOf(0, 3)) specs.add(Spec(m, v, u, false, 0, "matris"))
     // haritanın asıl aracı (kapı: her harita, asıl aracıyla 3. seviyede ≥ 1000 m)
     if (!quick) for ((m, v) in INTENDED_EXTRA) specs.add(Spec(m, v, 3, false, 0, "asil"))
+    // her araç Kır yolunda yükseltmesiz: iyi sürücü (≥ 800 m) ve acemi sürücü (ilk 500 m'de kaza yok)
+    for (v in Vehicles.all) if (v.id != "jeep") { specs.add(Spec("country", v.id, 0, false, 1, "arac")); specs.add(Spec("country", v.id, 0, true, 1, "arac")) }
     for (seed in 1..5) for (nov in listOf(false, true)) specs.add(Spec("country", "jeep", 0, nov, seed, "tohum"))
     for (seed in 1..5) specs.add(Spec("country", "moto", 0, false, seed, "tohum"))
     // ayar için: filtre=harita:araç:geliştirme (ör. filtre=country:moto:0) yalnızca eşleşen koşuları çalıştırır, rapor yazmaz

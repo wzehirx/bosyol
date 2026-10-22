@@ -53,13 +53,13 @@ fun slopeBounded() {
     }
 }
 
-/** Zorluk eğrisi: ilk 300 m yumuşak (≤ 0.5), 1500 m'ye dek ≤ 1.0; 1.0'dan dik eğim yalnızca dağ/mağarada ve 1500 m'den
+/** Zorluk eğrisi: ilk 300 m yumuşak (≤ 0.5), 1500 m'ye dek ≤ 1.0; 1.0'dan dik eğim yalnızca dağ/mağara/volkanda ve 1500 m'den
  *  sonra, en çok 1.2. Her yerde eğim konumun sınırını aşmaz. */
 fun slopeRamp() {
     for (m in Maps.all) {
         val t = Terrain(m)
         req(m.maxSlope <= 1.2) { "${m.id}: maxSlope ${m.maxSlope}" }
-        req(m.maxSlope <= 1.0 || m.id == "mountain" || m.id == "cave") { "${m.id}: 1.0'dan dik olmamalı" }
+        req(m.maxSlope <= 1.0 || m.id == "mountain" || m.id == "cave" || m.id == "volcano") { "${m.id}: 1.0'dan dik olmamalı" }
         for (i in 0 until t.length.toInt()) {
             val x = i + 0.5; val s = abs(t.slope(x))
             req(s <= t.maxSlopeAt(x) + 1e-9) { "${m.id}: slope($x)=$s > sınır ${t.maxSlopeAt(x)}" }
@@ -161,19 +161,26 @@ fun coinsRandomGroups() {
     req(Terrain(Maps.byId("desert")).coins.map { it.x } != t.coins.map { it.x }) { "haritalar aynı yerleşim" }
 }
 
-fun twelveVehiclesTenMaps() {
-    val vp = listOf(0, 8000, 15000, 25000, 35000, 50000, 70000, 90000, 110000, 140000, 180000, 250000)
-    val vi = listOf("jeep", "moto", "pickup", "tractor", "buggy", "rally", "monster", "bus", "snowmobile", "rover", "tank", "super")
-    req(Vehicles.all.size == 12) { "araç sayısı ${Vehicles.all.size}" }
+fun twentyVehiclesSixteenMaps() {
+    // docs/ICERIK_2.md tabloları (fiyatlar altın gelirine göre yeniden ölçeklendi; sıra aynı)
+    val vp = listOf(0, 450, 1100, 1700, 2200, 2900, 3600, 5000, 6000, 7200, 8600, 10000, 11500, 13000, 16000, 18000, 20000, 23000, 26000, 36000)
+    val vi = listOf("jeep", "scooter", "moto", "gokart", "pickup", "quad", "tractor", "buggy", "chopper", "rally", "hotrod", "monster",
+        "garbage", "bus", "snowmobile", "firetruck", "rover", "formula", "tank", "super")
+    req(Vehicles.all.size == 20) { "araç sayısı ${Vehicles.all.size}" }
     req(Vehicles.all.map { it.id } == vi) { "araç kimlikleri ${Vehicles.all.map { it.id }}" }
     req(Vehicles.all.map { it.price } == vp) { "araç fiyatları ${Vehicles.all.map { it.price }}" }
-    val mp = listOf(0, 5000, 12000, 20000, 30000, 40000, 50000, 60000, 70000, 90000)
-    val mi = listOf("country", "desert", "arctic", "moon", "forest", "mountain", "beach", "cave", "swamp", "site")
-    req(Maps.all.size == 10) { "harita sayısı ${Maps.all.size}" }
+    req(Vehicles.all.map { it.id }.toSet().size == 20) { "araç kimlikleri benzersiz değil" }
+    req((1 until vp.size).all { vp[it] > vp[it - 1] }) { "araç fiyatları artan sırada değil" }
+    val mp = listOf(0, 1000, 1300, 1800, 2800, 3500, 4200, 5000, 5800, 7200, 8600, 9300, 10000, 11500, 13000, 14500)
+    val mi = listOf("country", "desert", "saltflat", "arctic", "moon", "frozenlake", "forest", "rooftops", "mountain", "beach", "cave", "mars",
+        "swamp", "volcano", "site", "deepsea")
+    req(Maps.all.size == 16) { "harita sayısı ${Maps.all.size}" }
     req(Maps.all.map { it.id } == mi) { "harita kimlikleri ${Maps.all.map { it.id }}" }
     req(Maps.all.map { it.price } == mp) { "harita fiyatları ${Maps.all.map { it.price }}" }
-    req(Vehicles.all.map { it.name }.toSet().size == 12) { "araç adları tekrar" }
-    req(Maps.all.map { it.name }.toSet().size == 10) { "harita adları tekrar" }
+    req(Maps.all.map { it.id }.toSet().size == 16) { "harita kimlikleri benzersiz değil" }
+    req((1 until mp.size).all { mp[it] > mp[it - 1] }) { "harita fiyatları artan sırada değil" }
+    req(Vehicles.all.map { it.name }.toSet().size == 20) { "araç adları tekrar" }
+    req(Maps.all.map { it.name }.toSet().size == 16) { "harita adları tekrar" }
     for (v in Vehicles.all) {
         req(Vehicles.byId(v.id) === v) { "byId ${v.id}" }
         req(v.headY > v.axleY + v.wheelR) { "${v.id}: headY ${v.headY} axleY ${v.axleY} r ${v.wheelR}" }
@@ -198,21 +205,27 @@ fun twelveVehiclesTenMaps() {
     req(rover.electric && rover.engineKey == "synth") { "rover" }
     req(Vehicles.all.count { it.electric } == 1) { "tek elektrikli" }
     val moon = Maps.byId("moon")
-    req(moon.gravity == 1.62 && Maps.all.filter { it !== moon }.all { it.gravity == 9.81 }) { "yer çekimi" }
+    req(moon.gravity == 1.62 && Maps.all.filter { it.id !in listOf("moon", "mars", "deepsea") }.all { it.gravity == 9.81 }) { "yer çekimi" }
+    req(Maps.byId("mars").gravity == 3.71 && Maps.byId("deepsea").gravity == 4.9) { "mars/deniz tabanı yer çekimi" }
+    req(Maps.byId("deepsea").drag > 0.0 && Maps.all.filter { it.id != "deepsea" }.all { it.drag == 0.0 && it.pits >= 1.0 }) { "yalnız deniz tabanında su direnci" }
+    req(Maps.byId("saltflat").surface == Surface.SALT && Surface.SALT.mu == 0.35 && Surface.SALT.rollKey == "roll_sand" && Surface.SALT.rollRate > 1.0) { "tuz yüzeyi" }
+    req(Maps.byId("mars").surface == Surface.MARS && Surface.MARS.mu == 0.65 && Surface.MARS.rollKey == "roll_dirt") { "mars yüzeyi" }
+    req(Maps.byId("frozenlake").surface == Surface.ICE && Maps.byId("rooftops").surface == Surface.ASPHALT && Maps.byId("volcano").surface == Surface.ROCK) { "yeni harita yüzeyleri" }
+    for (m in Maps.all) req(m.ambKey.startsWith("amb_")) { "${m.id}: ambKey" }
     req(Maps.byId("arctic").surface == Surface.ICE || Maps.byId("arctic").surface == Surface.SNOW) { "kutup yüzeyi" }
     req(Maps.byId("country").surface == Surface.DIRT && Maps.byId("site").surface == Surface.ASPHALT) { "yüzeyler" }
-    req(Maps.all.map { it.seed }.toSet().size == 10) { "tohumlar farklı olmalı" }
+    req(Maps.all.map { it.seed }.toSet().size == 16) { "tohumlar farklı olmalı" }
     req(Surface.ICE.label == "buz" && Surface.MOON.label == "ay tozu" && Surface.SAND.mu == 0.6) { "yüzey tablosu" }
 }
 
 fun upgradeCostGrows() {
     for (v in Vehicles.all) for (k in UpgradeKind.values()) {
         for (l in 0 until 9) req(upgradeCost(v, k, l + 1) > upgradeCost(v, k, l)) { "${v.id} $k $l" }
-        req(upgradeCost(v, k, 0) == maxOf(400, v.price / 25)) { "${v.id} taban" }
+        req(upgradeCost(v, k, 0) == maxOf(UPGRADE_BASE_MIN, v.price / 25)) { "${v.id} taban" }
     }
-    req(upgradeCost(Vehicles.byId("jeep"), UpgradeKind.ENGINE, 0) == 400) { "jeep 0 != 400" }
-    req(upgradeCost(Vehicles.byId("jeep"), UpgradeKind.FUEL, 1) == 640) { "jeep 1 != 640" }
-    req(upgradeCost(Vehicles.byId("super"), UpgradeKind.TIRE, 2) == Math.round(10000 * 1.6 * 1.6).toInt()) { "super 2" }
+    req(upgradeCost(Vehicles.byId("jeep"), UpgradeKind.ENGINE, 0) == 60) { "jeep 0 != 60" }
+    req(upgradeCost(Vehicles.byId("jeep"), UpgradeKind.FUEL, 1) == 96) { "jeep 1 != 96" }
+    req(upgradeCost(Vehicles.byId("super"), UpgradeKind.TIRE, 2) == Math.round(1440 * 1.6 * 1.6).toInt()) { "super 2" }
     val j = Vehicles.byId("jeep")
     val u = j.upgraded(Upgrades(engine = 5, susp = 3, tire = 10, fuel = 10))
     req(abs(u.torque - j.torque * 1.4) < 1e-9 && abs(u.fuelL - j.fuelL * 2.0) < 1e-9) { "upgraded motor/yakıt" }
@@ -261,7 +274,7 @@ fun main() {
     fuelSpacing(); println("fuelSpacing ok")
     coinsAboveGround(); println("coinsAboveGround ok")
     coinsRandomGroups(); println("coinsRandomGroups ok")
-    twelveVehiclesTenMaps(); println("twelveVehiclesTenMaps ok")
+    twentyVehiclesSixteenMaps(); println("twentyVehiclesSixteenMaps ok")
     upgradeCostGrows(); println("upgradeCostGrows ok")
     featuresFound(); println("featuresFound ok")
     println("OK")

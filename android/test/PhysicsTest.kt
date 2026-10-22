@@ -152,7 +152,9 @@ fun allVehiclesClimb() {
 fun topSpeeds() {
     val want = mapOf("jeep" to 15.0..18.0, "moto" to 18.5..21.5, "pickup" to 13.0..17.0, "tractor" to 8.0..10.5,
         "buggy" to 15.0..19.0, "rally" to 20.5..23.5, "monster" to 12.0..16.0, "bus" to 12.0..14.0, "snowmobile" to 15.0..19.0,
-        "rover" to 12.0..16.0, "tank" to 8.0..10.5, "super" to 26.0..30.0)
+        "rover" to 12.0..16.0, "tank" to 8.0..10.5, "super" to 26.0..30.0,
+        "scooter" to 13.0..16.0, "gokart" to 18.5..21.5, "quad" to 13.5..16.5, "chopper" to 15.0..18.0, "hotrod" to 18.5..22.5,
+        "garbage" to 10.0..13.0, "firetruck" to 12.5..15.5, "formula" to 24.0..28.0)
     for (v in Vehicles.all) {
         val vmax = v.maxRpm * 2 * PI / 60 / v.ratio * v.wheelR
         req(vmax in want.getValue(v.id)) { "${v.id}: en yüksek hız $vmax" }
