@@ -1,14 +1,24 @@
 # Yokuş Ustası
 
-Yokuş Ustası kulakla oynanan bir tepe tırmanma oyunu. Görme engelli oyuncular düşünülerek tasarlandı; TalkBack ve Jieshuo ile kullanılabilir. Hill Climb Racing'den esinlendi. Yolun eğimi, aracın açısı, altınlar ve yakıt bidonları sesle anlatılır.
+Kulakla oynanan, Hill Climb Racing tarzı bir tepe tırmanma oyunu. Görme engelli oyuncular için yapıldı; TalkBack ve Jieshuo ile kullanılır. Yolun eğimi, aracın açısı, altınlar ve yakıt bidonları sesle anlatılır. Ekrana bakmadan gazı ve freni yönetir, tepeleri sesinden okursun.
+
+**Sürüm 2.0:** 20 araç, 16 harita, her altında ses, menü sesleri ve titreşim, seviye hedefleri.
 
 ## İndir
 
-Android 8 ve üstü için:
+Android 8 ve üstü için, release anahtarıyla imzalı APK (doğrudan indirme, GitHub sürümü değil):
 
-https://github.com/wzehirx/bosyol/raw/main/yokus/indir/YokusUstasi.apk
+https://github.com/wzehirx/bosyol/raw/main/indir/YokusUstasi.apk
 
-İndirdikten sonra dosyayı aç. Android bilinmeyen kaynaklardan yükleme izni isteyebilir, izin ver.
+İndirdikten sonra dosyayı aç. Android bilinmeyen kaynaklardan yükleme izni isteyebilir, izin ver. Eski sürümün üstüne kurulur, kayıtların korunur.
+
+## Öne çıkanlar
+
+- **Sesle oynanış:** Eğim tonu, yol radarı, altın ve yakıt işaret sesleri, uyarılar. Öndeki şeyler sağ, arkadakiler sol kulakta.
+- **Altın:** Her altın 1 altın eder ve her alınışında ses çalar. Art arda alınca sesler üst üste biner, tempo hızlanır.
+- **Seviye hedefleri:** Her haritada 200, 450, 700 m gibi hedefler. Ulaşınca ses, duyuru ve bonus altın. Koşu içinde rekor duyurusu.
+- **Menü hissi:** Düğme ve odak sesleri, titreşim, araç ve harita önizlemesi, geri sayım, altın sayımı. Ayarlardan kapatılır.
+- **20 araç, 16 harita, 4 geliştirme:** Her aracın kendi motor sesi ve karakteri var.
 
 ## Nasıl oynanır
 
@@ -51,7 +61,7 @@ Her araç için dört geliştirme var: Motor, Süspansiyon, Lastik ve Yakıt dep
 Gerekenler: JDK 17 veya üstü, Android SDK (platform 34, build-tools 34.0.0) ve Kotlin derleyicisi 1.9.24. Kotlin derleyicisi `android/tools/kotlinc/` klasöründe olmalı.
 
 ```
-python3 android/build.py 2 1.1
+python3 android/build.py 3 2.0
 ```
 
 İmzalama anahtarı `android/yokus.jks` depoda bulunmaz, ayrıca saklanır. Anahtar yoksa derleme yenisini oluşturur.
@@ -67,8 +77,23 @@ bash android/test/run.sh PlayTest
 bash android/test/robo/run.sh
 ```
 
-## Ses kaynakları
+## Sürüm imzası
+
+`indir/YokusUstasi.apk` release anahtarıyla imzalıdır (v2/v3 imza, debug değil). Güncellemelerin eski sürümün üstüne kurulması için aynı anahtar kullanılır.
+
+## Ses kaynakları ve lisans notu
 
 - Freesound'dan CC0 lisanslı kayıtlar. Tam liste ve bağlantılar `sounds/CREDITS.csv` dosyasında.
 - Bazı motor katmanları Boş Yol'dan alındı: Bruno Simon, folio-2019 (MIT).
 - Bazı sesler oyun için sentezlendi.
+- `kaynak/hcr/`: Hill Climb Racing'den alınmış kısa ses efektleri (tık, altın, satın alma, yakıt, turbo, motor vb.). Bu sesler oyunun sahibine aittir; depo sahibi tarafından kişisel, ticari olmayan bir hayran projesi için kullanılır. Ticari kullanım ya da dağıtım için uygun değildir, hak sahibi istemesi hâlinde kaldırılır.
+- Eski sürümlerin sesleri ve tüm kod: bu depodaki kaynaklar.
+
+## Depo düzeni
+
+- `android/`: kaynak kod, derleme betiği, testler
+- `sounds/`: oyuna giren sesler
+- `kaynak/`: ham ses kaynakları
+- `tools/`: ses hazırlama betikleri
+- `docs/`: tasarım, plan, araştırma ve oyun testi raporları
+- `indir/`: imzalı APK
