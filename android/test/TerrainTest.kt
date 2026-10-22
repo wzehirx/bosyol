@@ -123,43 +123,42 @@ fun coinsAboveGround() {
         for (c in t.coins) {
             val dy = c.y - t.height(c.x)
             req(dy in 1.0..1.5) { "${m.id}: altın x=${c.x} dy=$dy" }
-            req(c.value in setOf(5, 25, 100, 500)) { "değer ${c.value}" }
+            req(c.value == 1) { "değer ${c.value}" }
         }
-        req(t.coins.any { it.x > 1500 && it.value >= 100 }) { "${m.id}: 1500 m sonrası 100+ yok" }
     }
 }
 
-fun coinValuesMixed() {
+/** Her altın 1; gruplar 4-12'lik, düzensiz aralıklı ve rastgele yükseklikte; yoğunluk mesafe ve fiyatla artar; tohumdan deterministik. */
+fun coinsRandomGroups() {
     val m = Maps.byId("country")
     val t = Terrain(m)
-    val first = t.coins.filter { it.x < 3000 }
-    req(first.map { it.value }.toSet().size >= 2) { "ilk 3 km değerleri: ${first.map { it.value }.toSet()}" }
-    // HCR gibi: başta çoğu 5, mesafeyle 25 ve 100 artar, uzakta 500
-    val a = t.coins.filter { it.x < 1000 }.map { it.value }
-    val b = t.coins.filter { it.x in 1000.0..2500.0 }.map { it.value }
-    val c = t.coins.filter { it.x >= 7000.0 }.map { it.value }
-    req(a.toSet() == setOf(5, 25)) { "0-1000 m: ${a.toSet()}" }
-    req(a.count { it == 5 } > a.size * 0.8) { "0-1000 m 5 payı ${a.count { it == 5 }}/${a.size}" }
-    req(b.toSet().containsAll(setOf(5, 25)) && b.all { it <= 100 }) { "1000-2500 m: ${b.toSet()}" }
-    req(b.count { it == 5 } > b.size / 2) { "1000-2500 m 5 payı ${b.count { it == 5 }}/${b.size}" }
-    req(c.toSet().containsAll(setOf(25, 100, 500))) { "7000+ m: ${c.toSet()}" }
-    val share500 = c.count { it == 500 }.toDouble() / c.size
-    req(share500 in 0.02..0.15) { "500 payı $share500" }
-    fun meanVal(l: List<Int>) = l.sum().toDouble() / l.size
-    req(meanVal(a) < meanVal(b) && meanVal(b) < meanVal(c)) { "değer mesafeyle artmalı" }
-    // pahalı haritalar daha çok öder
-    fun first3(id: String) = meanVal(Terrain(Maps.byId(id)).coins.filter { it.x < 3000 }.map { it.value })
-    req(first3("country") < first3("desert") && first3("desert") < first3("site")) { "harita değer sırası" }
-    // aynı grupta karışık değerler
-    val g = first.sortedBy { it.x }.let { l -> l.zipWithNext().filter { it.second.x - it.first.x < 3.0 } }
-    req(g.any { it.first.value != it.second.value }) { "grup içinde karışım yok" }
+    req(t.coins.all { it.value == 1 }) { "değer 1 olmalı" }
+    fun per100(map: MapDef, from: Double, to: Double): Double =
+        Terrain(map).coins.count { it.x in from..to } / ((to - from) / 100.0)
+    val early = per100(m, 0.0, 1500.0)
+    req(early in 10.0..20.0) { "ilk 1500 m yoğunluk $early / 100 m" }
+    val far = per100(m, 6000.0, 8000.0)
+    req(far > early) { "uzakta daha yoğun olmalı: $early -> $far" }
+    req(per100(Maps.byId("site"), 0.0, 1500.0) > early) { "pahalı harita daha yoğun olmalı" }
+    // gruplar: art arda altınlar arası 1.2-2.6 m (grup içi), boşluklar büyük
+    val xs = t.coins.map { it.x }.sorted()
+    val gaps = xs.zipWithNext().map { it.second - it.first }
+    val inGroup = gaps.filter { it < 3.0 }
+    req(inGroup.isNotEmpty() && inGroup.toSet().size > 20) { "grup içi aralıklar düzensiz olmalı" }
+    req(gaps.any { it > 15.0 }) { "gruplar arası boşluk yok" }
+    // yükseklik rastgele
+    val dys = t.coins.filter { it.x < 2000 }.map { it.y - t.height(it.x) }
+    val mean = dys.average()
+    val sd = Math.sqrt(dys.sumOf { (it - mean) * (it - mean) } / dys.size)
+    req(sd > 0.08) { "yükseklik rastgele değil sd=$sd" }
+    // grup boyutları 4..12 (kötü bölge nedeniyle eksilen olabilir, 12'yi aşmaz)
+    var run = 1; var maxRun = 1
+    for (g in gaps) { if (g < 3.0) { run++; maxRun = maxOf(maxRun, run) } else run = 1 }
+    req(maxRun <= 12) { "grup en fazla 12: $maxRun" }
     // deterministik
     val t2 = Terrain(m)
-    req(t.coins.map { it.value } == t2.coins.map { it.value }) { "değerler deterministik değil" }
-    for (mm in Maps.all) {
-        val tt = Terrain(mm)
-        req(tt.coins.map { it.value }.toSet().size >= 2) { "${mm.id}: tek değer" }
-    }
+    req(t.coins.map { it.x } == t2.coins.map { it.x } && t.coins.map { it.y } == t2.coins.map { it.y }) { "yerleşim deterministik değil" }
+    req(Terrain(Maps.byId("desert")).coins.map { it.x } != t.coins.map { it.x }) { "haritalar aynı yerleşim" }
 }
 
 fun twelveVehiclesTenMaps() {
@@ -261,7 +260,7 @@ fun main() {
     pitsAndRamps(); println("pitsAndRamps ok")
     fuelSpacing(); println("fuelSpacing ok")
     coinsAboveGround(); println("coinsAboveGround ok")
-    coinValuesMixed(); println("coinValuesMixed ok")
+    coinsRandomGroups(); println("coinsRandomGroups ok")
     twelveVehiclesTenMaps(); println("twelveVehiclesTenMaps ok")
     upgradeCostGrows(); println("upgradeCostGrows ok")
     featuresFound(); println("featuresFound ok")

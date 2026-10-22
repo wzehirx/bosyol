@@ -39,6 +39,25 @@ fun coinsCollected() {
     req(ev.coinsGot.sumOf { it.first } == s.coins) { "coin toplamı tutmuyor" }
 }
 
+/** Her altın 1 değerinde; aynı karede birden çok altın alınırsa her biri için onCoin gelir. */
+fun coinsOneEachAndAllFire() {
+    val ev = Rec()
+    val s = GameSession(jeep, Upgrades(), country, ev)
+    val cl = s.terrain.coins
+    req(cl.all { it.value == 1 }) { "tüm altınlar 1 olmalı" }
+    val i = cl.indexOfFirst { c -> c.x > 200 && cl.count { Math.abs(it.x - c.x) < 1.3 } >= 1 && cl.count { it.x in c.x..(c.x + 2.0) } >= 2 }
+    req(i >= 0) { "yakın altın çifti yok" }
+    val c0 = cl[i]
+    cl.filter { it.x < c0.x }.forEach { it.taken = true }
+    s.car.x = c0.x + 1.0; s.car.y = c0.y; s.car.rear.x = s.car.x; s.car.front.x = s.car.x
+    s.update(DT, 0.0, 0.0)
+    val taken = cl.count { it.taken && it.x >= c0.x }
+    req(taken >= 2) { "tek karede en az 2 altın alınmalı: $taken" }
+    req(ev.coinsGot.size == taken) { "onCoin ${ev.coinsGot.size} kez, alınan $taken" }
+    req(ev.coinsGot.all { it.first == 1 }) { "değer 1 olmalı" }
+    req(s.coins == taken) { "coins=${s.coins} taken=$taken" }
+}
+
 fun fuelRuns() {
     val ev = Rec()
     val s = GameSession(jeep.copy(fuelL = 0.5), Upgrades(), flat, ev)
@@ -313,6 +332,7 @@ fun stuckHint() {
 
 fun main() {
     coinsCollected(); println("coinsCollected ok")
+    coinsOneEachAndAllFire(); println("coinsOneEachAndAllFire ok")
     fuelRuns(); println("fuelRuns ok")
     noFuelStopEnds(); println("noFuelStopEnds ok")
     stuckUpsideDownEnds(); println("stuckUpsideDownEnds ok")

@@ -117,7 +117,7 @@ fun engineFollowsRpm() {
     son.update(0.02)
     val high = son.engineRate
     check("rate(high rpm) > rate(idle)", high > idle, "idle=$idle high=$high")
-    check("engine file used", son.engineKind == "eng_jeep", son.engineKind)
+    check("engine file used", son.engineKind == "eng_hill", son.engineKind)
     val (son2, s2, _) = newSonify(FBank(), ArrayList(), "rover", "moon")
     s2.car.rpm = 800.0; son2.update(0.02); val a = son2.engineRate
     s2.car.rpm = 3000.0; son2.update(0.02)
@@ -209,54 +209,163 @@ fun landingRules() {
 
 fun coinSoundPerValue() {
     println("coinSoundPerValue")
-    fun keys(inner: Bank, value: Int, streak: Int): Map<String, Int> {
-        val cb = CountBank(inner)
+    // her altın 1 değerinde: tek coin_hcr vuruşu; coin_xl / coin_m / coin_l hiç istenmez
+    run {
+        val cb = CountBank(FBank())
         val (son, _, _) = newSonify(cb, ArrayList())
         cb.counts.clear()
-        son.onCoin(value, streak)
-        return cb.counts.filter { it.key.startsWith("coin") && it.value > 0 }
+        son.onCoin(1, 1)
+        val got = cb.counts.filter { it.key.startsWith("coin") && it.value > 0 }
+        check("one coin -> exactly one coin_hcr lookup, no tiers", got == mapOf("coin_hcr" to 1), got.toString())
     }
     val tone = FBank().get("coin")!!
-    val full = object : Bank { override fun get(key: String): Pcm? = if (key.startsWith("coin")) tone else null }
-    for ((v, k) in listOf(5 to "coin_s", 25 to "coin_m", 100 to "coin_l", 500 to "coin_xl")) {
-        val got = keys(full, v, 1)
-        check("value $v -> $k", got.keys.contains(k) && got.keys.none { it != k }, got.toString())
-    }
-    // 5'lik altının üç çeşidi sırayla çalar
+    // coin_hcr yoksa coin_s çeşitleri sırayla çalar (aynı sesin tekrarı yorar)
+    val noHcr = object : Bank { override fun get(key: String): Pcm? = if (key.startsWith("coin_s")) tone else null }
     run {
-        val cb = CountBank(full)
+        val cb = CountBank(noHcr)
         val (son, _, _) = newSonify(cb, ArrayList())
         cb.counts.clear()
-        repeat(6) { son.onCoin(5, it + 1) }
-        check("coin_s variants rotate", listOf("coin_s", "coin_s2", "coin_s3").all { (cb.counts[it] ?: 0) >= 1 }, cb.counts.toString())
+        repeat(6) { son.onCoin(1, it + 1) }
+        check("coin_s variants rotate as fallback", listOf("coin_s", "coin_s2", "coin_s3").all { (cb.counts[it] ?: 0) >= 1 }, cb.counts.toString())
     }
-    // anahtar yoksa "coin"
-    val onlyCoin = object : Bank { override fun get(key: String): Pcm? = if (key == "coin") tone else null }
-    for (v in listOf(5, 25, 100, 500)) {
-        val got = keys(onlyCoin, v, 1)
-        check("value $v w/o specific key -> coin", got.keys.contains("coin"), got.toString())
+    // yalnızca "coin" varsa o çalar
+    run {
+        val onlyCoin = object : Bank { override fun get(key: String): Pcm? = if (key == "coin") tone else null }
+        val (son, _, _) = newSonify(onlyCoin, ArrayList())
+        son.onCoin(1, 1)
+        check("only 'coin' present still plays", son.coinHits == 1)
     }
-    // perde yükselmez: seri toplamada örnek hızı hep 1.0
-    val rates = ArrayList<Double>()
+    // işaret sesi: tek ışıltı, çift ışıltı yok (değer kademesi kalmadı)
+    check("terrain coins all worth 1", Terrain(Maps.byId("country")).coins.all { it.value == 1 })
+}
+
+fun everyCoinPlays() {
+    println("everyCoinPlays")
+    val cb = CountBank(FBank())
     val mix = Mixer()
-    val son = Sonify(mix, full, AudioSettings()) { }
+    val son = Sonify(mix, cb, AudioSettings()) { }
     son.start(GameSession(Vehicles.byId("jeep"), Upgrades(), Maps.byId("country")))
-    for (st in 1..10) { son.onCoin(5, st); rates.add(son.lastCoinRate) }
-    check("no pitch rise with streak", rates.all { it == 1.0 }, rates.toString())
-    // 500'lük altının işaret sesi çift ışıltı; küçük değerler tek
-    fun glints(value: Int): Int {
-        val m = Mixer()
-        val sn = Sonify(m, full, AudioSettings()) { }
-        val se = GameSession(Vehicles.byId("jeep"), Upgrades(), Maps.byId("country"))
-        val target = se.terrain.coins.first { it.value == value && it.x > 300 }
-        se.terrain.coins.filter { it.x < target.x }.forEach { it.taken = true }
-        se.car.x = target.x - 12.0
-        sn.start(se)
-        repeat(60) { sn.update(1.0 / 60) }
-        return sn.doubleGlints
+    cb.counts.clear()
+    // 3 sn'de 12 alım; 4., 5. ve 6. aynı karede, 9. ve 10. aynı karede
+    val times = listOf(0.0, 0.3, 0.7, 1.0, 1.0, 1.0, 1.4, 1.8, 2.1, 2.1, 2.5, 3.0)
+    var t = 0.0
+    val buf = FloatArray(800 * 2)
+    var maxVoices = 0
+    for (pt in times) {
+        while (t + 1e-9 < pt) { son.update(1.0 / 60); mix.render(buf, 735); t += 1.0 / 60 }
+        son.onCoin(1, 1)
+        maxVoices = maxOf(maxVoices, mix.voiceCount)
     }
-    check("500 coin beacon double glint", glints(500) >= 1)
-    check("100 coin beacon single glint", glints(100) == 0)
+    son.update(1.0 / 60); mix.render(buf, 735)
+    val asked = cb.counts["coin_hcr"] ?: 0
+    check("bank asked for coin sample >= pickups (12)", asked >= 12, "asked=$asked")
+    check("hits counted = pickups", son.coinHits == 12, "hits=${son.coinHits}")
+    // aynı karedeki üç alım üst üste biner
+    val m2 = Mixer()
+    val s2 = Sonify(m2, FBank(), AudioSettings()) { }
+    s2.start(GameSession(Vehicles.byId("jeep"), Upgrades(), Maps.byId("country")))
+    m2.render(buf, 735)
+    val base = m2.voiceCount
+    repeat(3) { s2.onCoin(1, it + 1) }
+    s2.update(0.02); m2.render(buf, 735)
+    check("three same-frame pickups -> three overlapping voices", m2.voiceCount >= base + 3, "base=$base now=${m2.voiceCount}")
+}
+
+fun coinPitchConstant() {
+    println("coinPitchConstant")
+    val (son, _, _) = newSonify(FBank(), ArrayList())
+    val rates = ArrayList<Double>()
+    for (chain in 1..20) { son.update(0.1); son.onCoin(1, chain); rates.add(son.lastCoinRate) }
+    son.update(2.0); son.onCoin(1, 1); rates.add(son.lastCoinRate)
+    check("voice rate is exactly 1.0 for every chain length", rates.all { it == 1.0 }, rates.toString())
+}
+
+fun fastChainTighter() {
+    println("fastChainTighter")
+    val (son, _, _) = newSonify(FBank(), ArrayList())
+    son.update(1.0); son.onCoin(1, 1)
+    val d0 = son.lastCoinDur; val f0 = son.lastCoinFade
+    son.update(1.0); son.onCoin(1, 1)
+    check("slow pickups keep full tail", son.lastCoinDur == d0 && son.lastCoinFade == f0)
+    var last = d0
+    var mono = true
+    for (i in 2..8) {
+        son.update(0.3); son.onCoin(1, i)
+        if (son.lastCoinDur > last + 1e-12) mono = false
+        last = son.lastCoinDur
+    }
+    check("fast chain shortens the tail", son.lastCoinDur < d0 && son.lastCoinFade < f0, "d0=$d0 now=${son.lastCoinDur}")
+    check("tail never shrinks past 40%", son.lastCoinDur >= d0 * 0.6 - 1e-9 && son.lastCoinFade >= f0 * 0.6 - 1e-9, "ratio=${son.lastCoinDur / d0}")
+    check("tail shrinks monotonically along the chain", mono)
+    check("pitch still constant", son.lastCoinRate == 1.0)
+}
+
+fun turboBlowOnLift() {
+    println("turboBlowOnLift")
+    val cb = CountBank(FBank())
+    val (son, s, _) = newSonify(cb, ArrayList(), "rally", "country")
+    cb.counts.clear()
+    val mx = s.vehicle.maxRpm
+    s.car.rpm = mx * 0.8; s.car.gas = 1.0
+    son.update(0.1)
+    s.car.gas = 0.0
+    son.update(0.1)
+    check("lift at high rpm -> turbo_blow", son.blowCount == 1 && (cb.counts["turbo_blow"] ?: 0) >= 1, "blow=${son.blowCount}")
+    // 1.2 sn bekleme
+    s.car.gas = 1.0; son.update(0.1); s.car.gas = 0.0; son.update(0.1)
+    check("blow cooldown 1.2 s", son.blowCount == 1, "blow=${son.blowCount}")
+    son.update(1.2); s.car.gas = 1.0; son.update(0.05); s.car.gas = 0.0; son.update(0.05)
+    check("blow again after cooldown", son.blowCount == 2, "blow=${son.blowCount}")
+    // düşük devirde bırakınca turbo_blow yok
+    val (s3, g3, _) = newSonify(CountBank(FBank()), ArrayList(), "rally", "country")
+    g3.car.rpm = mx * 0.3; g3.car.gas = 1.0; s3.update(0.1); g3.car.gas = 0.0; s3.update(0.1)
+    check("lift at low rpm -> no blow", s3.blowCount == 0)
+    // spool: düşük devirde gaza basınca
+    val (s4, g4, _) = newSonify(CountBank(FBank()), ArrayList(), "rally", "country")
+    g4.car.rpm = mx * 0.3; g4.car.gas = 0.0; s4.update(0.1); g4.car.gas = 1.0; s4.update(0.1)
+    check("floor it at low rpm -> turbo_spool", s4.spoolCount == 1, "spool=${s4.spoolCount}")
+    val (s5, g5, _) = newSonify(CountBank(FBank()), ArrayList(), "jeep", "country")
+    g5.car.rpm = mx * 0.8; g5.car.gas = 1.0; s5.update(0.1); g5.car.gas = 0.0; s5.update(0.1)
+    check("non-turbo vehicle: no blow/spool", s5.blowCount == 0 && s5.spoolCount == 0)
+}
+
+fun superchargerFollowsRpm() {
+    println("superchargerFollowsRpm")
+    val (son, s, _) = newSonify(FBank(), ArrayList(), "super", "country")
+    val mx = s.vehicle.maxRpm
+    s.car.rpm = s.vehicle.idleRpm; s.car.gas = 0.0; son.update(0.02)
+    val r0 = son.superRate; val g0 = son.superGain
+    s.car.rpm = mx; s.car.gas = 1.0; son.update(0.02)
+    check("rate = 0.7 + 1.0*rpm/max at idle", abs(r0 - (0.7 + s.vehicle.idleRpm / mx)) < 1e-9, "r0=$r0")
+    check("rate at max rpm = 1.7", abs(son.superRate - 1.7) < 1e-9, "r=${son.superRate}")
+    check("gain follows gas 0..0.5", g0 == 0f && abs(son.superGain - 0.5f) < 1e-6, "g0=$g0 g=${son.superGain}")
+    s.car.gas = 0.5; son.update(0.02)
+    check("half gas -> 0.25", abs(son.superGain - 0.25f) < 1e-6)
+    val (j, js, _) = newSonify(FBank(), ArrayList(), "jeep", "country")
+    js.car.rpm = 3000.0; js.car.gas = 1.0; j.update(0.02)
+    check("non-supercharged: no supercharger voice", j.superGain == 0f)
+}
+
+fun mudLandingSlime() {
+    println("mudLandingSlime")
+    val cb = CountBank(FBank())
+    val (son, _, _) = newSonify(cb, ArrayList(), "jeep", "swamp")
+    cb.counts.clear()
+    son.update(1.0); son.onLand(4.0)
+    check("mud landing -> mud_slime + splash_in", (cb.counts["mud_slime"] ?: 0) >= 1 && (cb.counts["splash_in"] ?: 0) >= 1, cb.counts.toString())
+    val cd = CountBank(FBank())
+    val (s2, _, _) = newSonify(cd, ArrayList(), "jeep", "country")
+    cd.counts.clear(); s2.update(1.0); s2.onLand(4.0)
+    check("dirt landing -> no slime", (cd.counts["mud_slime"] ?: 0) == 0 && (cd.counts["splash_in"] ?: 0) == 0, cd.counts.toString())
+    // yuvarlanırken ~1.5 sn'de bir
+    val ce = CountBank(FBank())
+    val (s3, g3, _) = newSonify(ce, ArrayList(), "jeep", "swamp")
+    g3.car.rear.grounded = true; g3.car.front.grounded = true
+    g3.car.vx = 12.0; g3.car.gas = 1.0
+    ce.counts.clear()
+    repeat(60 * 6) { s3.update(1.0 / 60) }
+    val n = ce.counts["mud_slime"] ?: 0
+    check("rolling fast in mud: slime every ~1.5 s", n in 3..6, "n=$n")
 }
 
 fun endFadesWorld() {
@@ -407,6 +516,12 @@ fun main() {
     tiltBeepAbove70()
     landingRules()
     coinSoundPerValue()
+    everyCoinPlays()
+    coinPitchConstant()
+    fastChainTighter()
+    turboBlowOnLift()
+    superchargerFollowsRpm()
+    mudLandingSlime()
     endFadesWorld()
     statusTextLevel()
     fullRunAllVehicles()

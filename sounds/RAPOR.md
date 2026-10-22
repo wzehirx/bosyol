@@ -26,3 +26,9 @@
 - `coin_xl` (500): 1 sn içinde 20 rastgele küçük vuruş + majör üçlü (C7-E7-G7-C8) parlak çınlama, 1,22 sn.
 - Perde yükselmesi yok: aynı değerin tüm alımları aynı perde ailesinde; çeşitlilik yalnızca varyantlardan gelir. Tohumlar sabit, çıktı tekrarlanabilir.
 - Lisans: sentez, CC0 / kendi işimiz (`CREDITS.csv`).
+
+## Kullanıcı ses paketi (kaynak/hcr)
+Kaynak: "Kullanıcı tarafından sağlanan ses paketi" (`CREDITS.csv` satırları; lisans: yalnızca proje içi kullanım). `tools/prep_sounds.py` `process_hcr()` yalnızca şunları yapar: baş/son sessizliği kırpma (5 ms çerçeve, tepe-50 dB ya da -50 dBFS eşiği), 1 ms giriş ve 6-15 ms çıkış sönümü (tık önleme), eşit sayılacak ses düzeyi (tek vuruşlar -16 LUFS, döngüler -20 LUFS; kısa seslerde sessizlikle doldurulmuş ebur128), doğrusal kazanç + -1 dBFS'e nazik tepe sınırı, 44,1 kHz mono. Efektler mp3 128k, döngüler 16 bit wav.
+- Efektler: `ui_click`, `coin_hcr` (temel altın sesi), `buy_hcr`, `fuel_pick_hcr`, `fuel_low_hcr`, `crash_crack`, `splash_in`, `splash_out`, `mud_slime`, `shutter`, `turbo_spool`, `turbo_blow`.
+- Döngüler: `eng_hill`, `eng_monster2`, `eng_rally2`, `supercharger` (wav). Döngü noktaları dosyada aranır (`find_loop`: bitişten önceki 1024 örnek, başlangıçtan önceki 1024 örnekle en iyi uyan nokta çifti), böylece Sonify ek bindirme (seamless) kullanmaz. 10 sn sabit devirde (hız 0,4 / 1,0 / 2,2) bindirme noktasında seviye basamağı, tık oranı ve döngü hızındaki çizgi ölçülür; tık > 3 kat ya da basamak > dalgalanma + 5 dB ise betik hata verir.
+- Eski sesler ve motor dosyaları yedek olarak yerinde duruyor.

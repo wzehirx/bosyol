@@ -279,28 +279,20 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
 
         // --- altın grupları ---
         val cs = ArrayList<Coin>()
-        val vr = Random(map.seed xor 0x5DEECE66DL)    // değerler için ayrı akış: bidon ve rampa yerleşimi değişmez
-        // değer, gruptaki her altın için mesafeye göre karışık seçilir (HCR gibi: başta çoğu 5, ileride 25/100, uzakta 500).
-        // Kır yolunda geliştirmesiz iyi bir koşu (~3-4 km) ~1800 altın getirir: ilk araç (8000) 4-6 koşuda.
-        // Pahalı haritalar daha çok öder: değer tablosu, harita fiyatının [COIN_SHIFT] katı metre ileriden okunur
-        // (Çöl +500 m, Şantiye +9000 m).
-        val shift = map.price * COIN_SHIFT
-        fun coinValue(x0: Double): Int {
-            val x = x0 + shift
-            val u = vr.nextDouble()
-            return when {
-                x < 1000 -> if (u < 0.90) 5 else 25
-                x < 2500 -> if (u < 0.62) 5 else if (u < 0.985) 25 else 100
-                x < 4500 -> if (u < 0.62) 5 else if (u < 0.95) 25 else 100
-                x < 7000 -> if (u < 0.45) 5 else if (u < 0.85) 25 else if (u < 0.98) 100 else 500
-                else -> if (u < 0.04) 5 else if (u < 0.54) 25 else if (u < 0.94) 100 else 500
+        // Her altın tam 1 değerindedir. Yerleşim kendi tohumlu akışından gelir (bidon ve rampa yerleşimi değişmez);
+        // 4-12'lik gruplar düzensiz aralıklı ve rastgele yükseklikte; yoğunluk mesafe ve harita fiyatıyla artar
+        // (erken haritada ~12-16, uzakta ~20+ altın / 100 m).
+        val pr = Random(map.seed xor 0x5DEECE66DL)
+        var gx = 25.0 + pr.nextDouble() * 20
+        while (gx + 30 < length) {
+            val dens = 1.0 + 0.5 * minOf(1.0, gx / 6000.0) + 0.4 * minOf(1.0, map.price / 90000.0)
+            val cnt = 4 + pr.nextInt(9)
+            var x = gx
+            for (j in 0 until cnt) {
+                if (badZone(x) == null) cs.add(Coin(x, height(x) + 1.0 + 0.5 * pr.nextDouble(), 1))
+                x += 1.2 + 1.4 * pr.nextDouble()
             }
-        }
-        var gx = 40.0 + rnd.nextDouble() * 40
-        while (gx + 20 < length) {
-            val cnt = 5 + rnd.nextInt(5)
-            for (j in 0 until cnt) { val x = gx + 2.0 * j; if (badZone(x) == null) cs.add(Coin(x, height(x) + 1.2, coinValue(x))) }
-            gx += 110 + rnd.nextDouble() * 60
+            gx += (38.0 + pr.nextDouble() * 30.0) / dens + (x - gx) * 0.5
         }
         coins = cs
         // --- yakıt bidonları ---
@@ -326,7 +318,6 @@ class Terrain(val map: MapDef, val length: Double = 20000.0) {
         const val MAX_PIT_DEPTH = 1.2
         const val LAND_MAX = 0.45
         const val FLAT_BLEND = 18
-        const val COIN_SHIFT = 0.085
         const val FUEL_GROW_FROM = 800.0
         const val FUEL_GROW = 1.7
         const val STRETCH_FROM = 1500.0

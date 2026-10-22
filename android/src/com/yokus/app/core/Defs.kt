@@ -21,7 +21,9 @@ data class VehicleDef(
     val snowGrip: Double = 1.0,                                         // KAR/BUZ üzerinde μ çarpanı
     val grip: Double = 1.0,                                             // her yüzeyde μ çarpanı (lastik/dişli teker)
     val engineLp: Double = 20000.0,                                     // motor sesi alçak geçiren süzgeç (Hz); 20000 = kapalı
-    val engineHp: Double = 0.0)                                         // motor sesi yüksek geçiren süzgeç (Hz); 0 = kapalı
+    val engineHp: Double = 0.0,                                         // motor sesi yüksek geçiren süzgeç (Hz); 0 = kapalı
+    val turbo: Boolean = false,                                         // turbo ıslığı/boşaltma sesleri
+    val supercharged: Boolean = false)                                  // devire bağlı kompresör uğultusu
 
 data class MapDef(
     val id: String, val name: String, val price: Int, val desc: String, val surface: Surface, val gravity: Double,
@@ -36,7 +38,7 @@ object Vehicles {
             torque = 650.0, idleRpm = 1000.0, maxRpm = 6000.0, ratio = 15.20,
             drive = Drive.REAR, airTorque = 5690.0, fuelL = 10.0, fuelUse = 0.16,
             headX = -0.1, headY = 0.85, headR = 0.25,
-            engineKey = "eng_jeep", engineRefRpm = 3000.0, enginePitch = 1.0),
+            engineKey = "eng_hill", engineRefRpm = 2730.0, enginePitch = 1.0),
         VehicleDef("moto", "Motosiklet", 8000, "Hafif ve güçlü, havada kolay takla atar.",
             mass = 150.0, inertia = 380.0, wheelR = 0.35, wheelMass = 10.0, rearX = -0.7, frontX = 0.7, axleY = -0.15,
             suspK = 8000.0, suspC = 700.0, suspTravel = 0.25,
@@ -71,14 +73,14 @@ object Vehicles {
             torque = 800.0, idleRpm = 1000.0, maxRpm = 7000.0, ratio = 12.00,
             drive = Drive.ALL, airTorque = 4320.0, fuelL = 11.0, fuelUse = 0.14,
             headX = -0.1, headY = 0.75, headR = 0.22,
-            engineKey = "e2_med_on", engineRefRpm = 3500.0, enginePitch = 1.0),
+            engineKey = "eng_rally2", engineRefRpm = 3180.0, enginePitch = 1.0, turbo = true),
         VehicleDef("monster", "Canavar kamyon", 70000, "Dev tekerler, yumuşak süspansiyon.",
             mass = 700.0, inertia = 1800.0, wheelR = 0.75, wheelMass = 60.0, rearX = -1.4, frontX = 1.4, axleY = -0.1,
             suspK = 24000.0, suspC = 2000.0, suspTravel = 0.5,
             torque = 2400.0, idleRpm = 900.0, maxRpm = 5000.0, ratio = 28.00,
             drive = Drive.ALL, airTorque = 10080.0, fuelL = 18.0, fuelUse = 0.18,
             headX = -0.2, headY = 1.6, headR = 0.28,
-            engineKey = "eng_monster", engineRefRpm = 2800.0, enginePitch = 0.9),
+            engineKey = "eng_monster2", engineRefRpm = 2270.0, enginePitch = 1.0),
         VehicleDef("bus", "Otobüs", 90000, "Uzun dingilli ve ağır.",
             mass = 1200.0, inertia = 4000.0, wheelR = 0.5, wheelMass = 45.0, rearX = -2.4, frontX = 2.2, axleY = -0.4,
             suspK = 40000.0, suspC = 3600.0, suspTravel = 0.3,
@@ -113,7 +115,7 @@ object Vehicles {
             torque = 3600.0, idleRpm = 1200.0, maxRpm = 8500.0, ratio = 10.20,
             drive = Drive.ALL, airTorque = 2400.0, fuelL = 12.0, fuelUse = 0.2,
             headX = -0.1, headY = 0.7, headR = 0.2,
-            engineKey = "e2_high_on", engineRefRpm = 4500.0, enginePitch = 1.0)
+            engineKey = "e2_high_on", engineRefRpm = 4500.0, enginePitch = 1.0, turbo = true, supercharged = true)
     )
     fun byId(id: String): VehicleDef = all.first { it.id == id }
 }

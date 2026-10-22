@@ -235,9 +235,9 @@ fun gateResults(all: List<Res>): List<Gate> {
     val mMed = median(moto.map { it.dist })
     out.add(Gate("Motosiklet y0, Kır yolu: medyan ≥ 1500 m", moto.isNotEmpty() && mMed >= 1500, f0(mMed) + " m (" + moto.joinToString(", ") { "${f0(it.dist)} ${it.end}" } + ")"))
     val e = economy(all)
-    out.add(Gate("Ekonomi: motosiklet (8000) 4-6 iyi koşuda", e.runsMoto in 4.0..6.0, "${f1(e.runsMoto)} koşu (${f0(e.perRun)} altın/koşu, medyan koşu ${f1(e.runMin)} dk)"))
-    out.add(Gate("Ekonomi: Çöl (5000) 2-3 koşuda", e.runsDesert in 2.0..3.0, "${f1(e.runsDesert)} koşu"))
-    out.add(Gate("Ekonomi: tüm mağaza 15-25 saat", e.shopHours in 15.0..25.0, "${f1(e.shopHours)} saat (${e.shop} altın, ${f0(e.rate)} altın/dk)"))
+    out.add(Gate("Ekonomi (bilgi, kapı değil; her altın 1 değerinde, S-C fiyatları yeniden ölçekleyecek): motosiklet (8000) eski hedef 4-6 koşu", true, "${f1(e.runsMoto)} koşu (${f0(e.perRun)} altın/koşu, medyan koşu ${f1(e.runMin)} dk)"))
+    out.add(Gate("Ekonomi (bilgi, kapı değil): Çöl (5000) eski hedef 2-3 koşu", true, "${f1(e.runsDesert)} koşu"))
+    out.add(Gate("Ekonomi (bilgi, kapı değil): tüm mağaza eski hedef 15-25 saat", true, "${f1(e.shopHours)} saat (${e.shop} altın, ${f0(e.rate)} altın/dk)"))
     return out
 }
 
@@ -447,6 +447,7 @@ fun writeReport(all: List<Res>, quick: Boolean, secs: Long, gates: List<Gate> = 
 
     // --- ekonomi
     sb.append("## 9. Ekonomi\n\n")
+    sb.append("**Not (altın sistemi değişti):** Her altın tam 1 değerindedir (5/25/100/500 kademeleri kaldırıldı), yoğunluk erken haritada ~12-16 altın/100 m'dir. Koşu başı gelir bu yüzden çok düştü; fiyatlar S-C görevinde yeniden ölçeklenecek. Aşağıdaki ekonomi kapıları şimdilik bilgi amaçlıdır (her zaman geçer), eski hedefler yalnızca karşılaştırma içindir.\n\n")
     val eco = ArrayList<List<String>>()
     for (m in Maps.all) for (v in vehNames) for (u in listOf(0, 3)) {
         val l = all.filter { it.spec.map == m.id && it.spec.veh == v && it.spec.upg == u && !it.spec.novice }

@@ -36,20 +36,46 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         private set
     @Volatile var engineKind = "none"
         private set
-    /** Testler için: son altın sesinin örnek hızı ve 500'lük çift ışıltı sayacı. */
+    /** Testler için: son altın vuruşunun örnek hızı (hep 1.0), kuyruk süresi (sn), sönme süresi (sn) ve toplam vuruş sayısı. */
     @Volatile var lastCoinRate = 0.0
         private set
-    @Volatile var doubleGlints = 0
+    @Volatile var lastCoinDur = 0.0
+        private set
+    @Volatile var lastCoinFade = 0.0
+        private set
+    @Volatile var coinHits = 0
+        private set
+    @Volatile var lastCoinChain = 0
+        private set
+    /** Testler için: kompresör sesinin örnek hızı ve kazancı, turbo sesi sayaçları, çamur sesi sayacı. */
+    @Volatile var superRate = 0.0
+        private set
+    @Volatile var superGain = 0f
+        private set
+    @Volatile var spoolCount = 0
+        private set
+    @Volatile var blowCount = 0
         private set
 
     // --- zamanlayıcılar ---
     private var coinSeq = 0
+    private var lastCoinAt = -1e9
+    private var coinChain = 0
+    private val rng = java.util.Random(0x5EEDL)
+    private var supercharger: SampleVoice? = null
+    private var gasLowSeen = true
+    private var gasHighSeen = false
+    private var nextSpool = 0.0
+    private var nextBlow = 0.0
+    private var nextSlime = 0.0
+    private var nextKick = 0.0
     private var nextBeep = 0.0
     private var nextRadar = 0.0
     private var nextCoinGlint = 0.0
     private var nextFuelBeacon = 0.0
     private var lastThud = -1e9
     private var lastCreak = -1e9
+    private var lastMudLand = -1e9
     private class Timed(val at: Double, val run: () -> Unit)
     private val timed = ArrayList<Timed>()
 
@@ -62,7 +88,11 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         const val MASTER_TRIM = 1.6f
         /** Mesafe duyurusu aralığı (m): uzun sessizlikleri böler, ilerlemeyi bildirir. */
         const val DIST_CALL_EVERY = 250
-        val COIN_S = arrayOf("coin_s", "coin_s2", "coin_s3")
+        val COIN_S = arrayOf("coin_s", "coin_s2", "coin_s3")   // coin_hcr yoksa yedekler
+        /** Yeni motor döngüleri: döngü noktası dosyaya işlenmiştir, ek bindirme gerekmez. */
+        val BAKED_LOOPS = setOf("eng_hill", "eng_monster2", "eng_rally2", "supercharger")
+        /** Yeni motor dosyası yoksa eski motor sesi. */
+        val ENGINE_FALLBACK = mapOf("eng_hill" to "eng_jeep", "eng_monster2" to "eng_monster", "eng_rally2" to "e2_med_on")
     }
 
     private fun vg(v: Int): Float = (v.coerceIn(0, 100) / 100.0).pow(1.5).toFloat()
@@ -101,7 +131,9 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
                 it.gain = 0f; it.filter = Biquad(Biquad.LOWPASS, 1800f, 0.7f); mix.add(it); loops.add(it)
             }
         } else {
-            val v = loopVoice(def.engineKey, BUS_ENGINE, 0.08)?.also { engineKind = def.engineKey }
+            val k0 = def.engineKey
+            val v = loopVoice(k0, BUS_ENGINE, if (k0 in BAKED_LOOPS) 0.0 else 0.08)?.also { engineKind = k0 }
+                ?: ENGINE_FALLBACK[k0]?.let { fb -> loopVoice(fb, BUS_ENGINE, 0.08)?.also { engineKind = fb } }
                 ?: loopVoice("e0_med_on", BUS_ENGINE, 0.08)?.also { engineKind = "e0_med_on" }
             if (v != null) {
                 engine = v
@@ -116,6 +148,9 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
                 }
             }
         }
+        if (def.supercharged) supercharger = loopVoice("supercharger", BUS_ENGINE, 0.0)
+        gasLowSeen = true; gasHighSeen = false
+        nextSpool = clock; nextBlow = clock; nextSlime = clock + 0.5; nextKick = clock + 1.0
         roll = loopVoice(s.map.surface.rollKey, BUS_WORLD)
         wind = loopVoice("wind", BUS_WORLD)
         amb = loopVoice(s.map.ambKey, BUS_WORLD)
@@ -127,7 +162,7 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
     fun stop() {
         mix.stopAll(0.4f)
         loops.clear(); timed.clear()
-        engine = null; synthA = null; synthB = null; roll = null; wind = null; amb = null; tilt = null
+        engine = null; supercharger = null; synthA = null; synthB = null; roll = null; wind = null; amb = null; tilt = null
     }
 
     fun ui(key: String) {
@@ -223,6 +258,35 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
             synthA?.let { it.freq = f; it.fadeTo(0.28f * eg * load, 0.03f) }
         }
 
+        // turbo ve kompresör
+        val rpmFrac = ((car.rpm) / max(1.0, def.maxRpm))
+        if (gas < 0.2) gasLowSeen = true
+        if (gas > 0.7) gasHighSeen = true
+        if (def.turbo) {
+            if (gas > 0.8 && gasLowSeen) {
+                gasLowSeen = false
+                if (rpmFrac < 0.6 && clock >= nextSpool) { nextSpool = clock + 1.2; spoolCount++; shot("turbo_spool", BUS_FX, 0.6f) }
+            }
+            if (gas < 0.2 && gasHighSeen) {
+                gasHighSeen = false
+                if (rpmFrac > 0.55 && clock >= nextBlow) { nextBlow = clock + 1.2; blowCount++; shot("turbo_blow", BUS_FX, 0.7f) }
+            }
+        }
+        supercharger?.let { v ->
+            v.rate = 0.7 + 1.0 * rpmFrac.coerceIn(0.0, 1.2)
+            superRate = v.rate
+            superGain = (0.5 * gas).toFloat()
+            v.fadeTo(superGain, 0.04f)
+        }
+        // çamurda yuvarlanma: yuvarlanırken ~1.5 sn'de bir sümük, ara sıra çamur fırlatma
+        if (s.map.surface == Surface.MUD && grounded && speed > 5.0) {
+            if (clock >= nextSlime) { nextSlime = clock + 1.5; shot("mud_slime", BUS_FX, (0.25 + 0.25 * min(1.0, speed / 20.0)).toFloat(), 1.0, 0f) }
+            if (speed > 8.0 && clock >= nextKick) {
+                nextKick = clock + 2.0 + 3.0 * rng.nextDouble()
+                shot("splash_out", BUS_FX, 0.3f, 0.95 + 0.1 * rng.nextDouble(), (rng.nextDouble() * 0.6 - 0.3).toFloat())
+            }
+        }
+
         // yüzey yuvarlanması
         roll?.let { v ->
             val ws = max(max(abs(car.rear.spin), abs(car.front.spin)) * def.wheelR, speed)
@@ -266,10 +330,6 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
                     val g = max(0.15, distGain(dx, dy))
                     val k = 2.0.pow(dy / 12.0)
                     pulse(OscVoice.SINE, 1800.0 * k, (0.1 * g).toFloat(), panOf(dx), 0.06)
-                    if (coin.value >= 500) {      // 500'lük: biraz daha parlak çift ışıltı
-                        doubleGlints++
-                        later(0.09) { pulse(OscVoice.SINE, 2400.0 * k, (0.1 * g).toFloat(), panOf(dx), 0.06) }
-                    }
                 }
             }
             if (clock >= nextFuelBeacon) {
@@ -287,16 +347,29 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
 
     // ---------------------------------------------------------------- olaylar
 
+    /**
+     * Her altın tam bir coin_hcr vuruşudur ve hemen çalar (zaman aşımı yok; art arda alımlar üst üste biner).
+     * Perde hiç değişmez. Hızlı zincirde (önceki alımdan < 0.6 sn) vuruşun kuyruğu ve sönmesi zincir uzunluğuna
+     * göre en çok %40 kısalır: hızlı bir tril gibi duyulur. Her vuruşta ±1.5 dB kazanç ve minik zaman oynaması vardır.
+     */
     override fun onCoin(value: Int, streak: Int) {
-        // her değerin kendi sesi vardır, perde değişmez; dosya yoksa genel "coin"
-        // 5'lik sesin üç çeşidi sırayla çalar (aynı sesin tekrarı yorar); öbür değerlerin tek sesi vardır
-        val key = when {
-            value >= 500 -> "coin_xl"; value >= 100 -> "coin_l"; value >= 25 -> "coin_m"
-            else -> COIN_S[coinSeq++ % COIN_S.size]
+        val p = pcm("coin_hcr") ?: pcm(COIN_S[coinSeq++ % COIN_S.size]) ?: pcm("coin_s") ?: pcm("coin") ?: return
+        val dt = clock - lastCoinAt
+        coinChain = if (dt < 0.6) coinChain + 1 else 1
+        lastCoinAt = clock
+        val tight = if (coinChain >= 2) min(0.4, 0.1 * (coinChain - 1)) else 0.0
+        val dur = p.frames.toDouble() / p.rate * (1.0 - tight)
+        val fade = 0.05 * (1.0 - tight)
+        val gain = (0.7 * 10.0.pow((rng.nextDouble() * 3.0 - 1.5) / 20.0)).toFloat()
+        lastCoinRate = 1.0; lastCoinDur = dur; lastCoinFade = fade; lastCoinChain = coinChain
+        coinHits++
+        val jitter = if (coinChain >= 2) rng.nextDouble() * 0.006 else 0.0
+        val play = {
+            val v = SampleVoice(p, BUS_FX, false, durSec = dur, fadeOutSec = fade)
+            v.rate = 1.0; v.gain = gain
+            mix.add(v)
         }
-        val p = pcm(key) ?: pcm("coin_s") ?: pcm("coin") ?: return
-        lastCoinRate = 1.0
-        shot(p, BUS_FX, 0.7f, 1.0, 0f)
+        if (jitter < 0.001) play() else later(jitter) { play() }
     }
 
     override fun onTipWarning() { say("Dikkat, devrilmek üzeresin") }
@@ -305,17 +378,25 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
 
     override fun onFuel() {
         shot("fuel_pick", BUS_FX, 0.8f)
+        shot("fuel_pick_hcr", BUS_FX, 0.8f)
         say("Yakıt doldu")
     }
 
     override fun onFuelLow(pct: Int) {
         shot("fuel_low", BUS_FX, 0.8f)
+        shot("fuel_low_hcr", BUS_FX, 0.7f)
         say("Yakıt yüzde $pct")
     }
 
     override fun onLand(impact: Double) {
         if (impact <= 0.0 || ended) return
         val c = s?.car
+        val ss = s
+        if (ss != null && (ss.map.surface == Surface.MUD || ss.map.id == "swamp") && impact >= 0.6 && clock - lastMudLand >= 0.15) {
+            lastMudLand = clock
+            shot("mud_slime", BUS_FX, (0.3 + 0.5 * min(1.0, impact / 8.0)).toFloat(), 1.0, 0f)
+            if (impact >= 1.5) shot("splash_in", BUS_FX, (0.3 + 0.5 * min(1.0, impact / 8.0)).toFloat(), 1.0, 0f)
+        }
         val pan = if (c == null) 0f else when {
             c.rear.grounded && !c.front.grounded -> -0.6f
             c.front.grounded && !c.rear.grounded -> 0.6f
@@ -357,6 +438,7 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         for (v in loops) v.fadeTo(0f, 0.5f)
         if (reason == EndReason.CRASH) {
             if (pcm("crash") != null) shot("crash", BUS_FX, 1.0f) else shot("crash_car", BUS_FX, 1.0f)
+            shot("crash_crack", BUS_FX, 0.9f)      // kafa çarpması ve ters dönme: ek çatırtı
         }
         pending = null
         // son duyuru aynı metin kısıtına takılmaz; yalnızca 0.8 sn aralığı korunur
