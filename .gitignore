@@ -5,3 +5,5 @@ android/tools
 *.apk
 !indir/*.apk
 sounds-raw/
+__pycache__/
+*.pyc
