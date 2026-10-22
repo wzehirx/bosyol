@@ -415,6 +415,18 @@ fun fullRunAllVehicles() {
     }
 }
 
+/** S-C: 16 haritanın hepsi (yeni yüzeyler, su direnci, buz çatırtısı, yeni ortam sesleri) sonlu ve kırpmasız render edilir;
+ *  ses dosyaları hiç yokken de (boş banka) çökmez. */
+fun allMapsRender() {
+    println("allMapsRender")
+    for (m in Maps.all) {
+        val r = render("jeep", m.id, 25.0, FBank())
+        check("jeep on ${m.id}: finite, peak<=1", r.finite && r.peak <= 1.0f, "peak=${"%.3f".format(r.peak)} dist=${r.session.distance.toInt()}m")
+        val e = render("scooter", m.id, 6.0, NullBank())
+        check("silent bank on ${m.id}: finite", e.finite, "")
+    }
+}
+
 fun wavExport() {
     println("wavExport")
     val j = render("jeep", "country", 30.0, FBank())
@@ -525,6 +537,7 @@ fun main() {
     endFadesWorld()
     statusTextLevel()
     fullRunAllVehicles()
+    allMapsRender()
     wavExport()
     busAnalysis()
     voicesDoNotLeak()
