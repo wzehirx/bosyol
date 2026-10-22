@@ -11,11 +11,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import make_coins
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-YOKUS = os.path.dirname(HERE)
-ROOT = os.path.dirname(YOKUS)
-RAW = os.path.join(YOKUS, "sounds-raw")
+YOKUS = os.path.dirname(HERE)            # repo root
+RAW = os.path.join(YOKUS, "sounds-raw")   # gitignored raw downloads
 OUT = os.path.join(YOKUS, "sounds")
-BOS = os.path.join(ROOT, "sounds")
+KAYNAK = os.path.join(YOKUS, "kaynak")
+BOS = os.path.join(KAYNAK, "bosyol")      # e0/e1/e2 engine layers, crash.mp3, fallbacks
+HCR = os.path.join(KAYNAK, "hcr")         # user-supplied effects pack
 SR = 44100
 XFADE = 0.15          # loop crossfade, s
 HOP = 0.05            # RMS hop, s
@@ -283,6 +284,186 @@ def process_fx(slot):
     report.append((slot, "raw", note))
 
 
+# ------------------------------------------------- kullanici ses paketi (kaynak/hcr) ----
+# Yalnizca: bas/son sessizligi kirp, -1 dBFS'e nazik tepe siniri, birbirine yakin ses duzeyi.
+HCR_FX = {            # cikis adi: (kaynak wav, hedef LUFS)
+    "ui_click": "click", "coin_hcr": "coin", "buy_hcr": "purchase", "fuel_pick_hcr": "refuel",
+    "fuel_low_hcr": "beep", "crash_crack": "crack", "splash_in": "splash", "splash_out": "splash-add",
+    "mud_slime": "slime", "shutter": "camera-shutter", "turbo_spool": "turbo", "turbo_blow": "turbo-flutter",
+}
+HCR_LOOPS = {         # cikis adi: kaynak wav (dongu; 16 bit mono wav)
+    "eng_hill": "engine", "eng_monster2": "engine-monster", "eng_rally2": "engine-rallycar",
+    "supercharger": "supercharger",
+}
+HCR_FX_LUFS = -16.0
+HCR_LOOP_LUFS = -20.0
+HCR_PEAK_DB = -1.0
+hcr_info = {}   # cikis adi -> aciklama (rapor icin)
+
+
+def trim_silence(x, floor_db=-50.0, rel_db=-50.0):
+    """Bastaki ve sondaki sessizligi kirp (5 ms cerceve, esik = max(tepe-50 dB, -50 dBFS)), 3 ms pay birak."""
+    h = int(0.005 * SR)
+    n = len(x) // h
+    rms = np.sqrt((x[:n * h].reshape(n, h) ** 2).mean(1) + 1e-12)
+    th = max(rms.max() * 10 ** (rel_db / 20), 10 ** (floor_db / 20))
+    idx = np.nonzero(rms > th)[0]
+    if not len(idx):
+        return x
+    a = max(0, int(idx[0]) * h - int(0.003 * SR))
+    b = min(len(x), (int(idx[-1]) + 1) * h + int(0.003 * SR))
+    return x[a:b]
+
+
+def loudness_padded(x, loop=False):
+    """Integrated LUFS (ebur128) of a short sound: padded with silence (one-shots) or tiled (loops)."""
+    if loop:
+        y = np.tile(x, int(math.ceil(3.0 * SR / len(x))))
+    else:
+        pad = np.zeros(SR)
+        y = np.concatenate([pad, x, pad])
+    p = run(["ffmpeg", "-nostats", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-",
+             "-af", "ebur128=peak=true", "-f", "null", "-"], y.astype("<f4").tobytes())
+    t = p.stderr.decode()
+    tail = t[t.rfind("Summary:"):]
+    m = re.search(r"I:\s+(-?[\d.]+) LUFS", tail)
+    return float(m.group(1)) if m else -70.0
+
+
+def hcr_gain_db(x, target, loop=False, over_db=2.0):
+    """Linear gain to the target loudness; never more than over_db above what puts the peak at -1 dBFS
+    (the remaining overshoot is taken by the gentle limiter for one-shots)."""
+    g = target - loudness_padded(x, loop)
+    pk = 20 * math.log10(np.max(np.abs(x)) + 1e-12)
+    return min(g, (HCR_PEAK_DB - pk) + (0.0 if loop else over_db))
+
+
+def process_hcr_fx(name, src):
+    x = decode(os.path.join(HCR, src + ".wav"))
+    n0 = len(x)
+    x = trim_silence(x)
+    fi = int(0.001 * SR)                     # 1 ms: only guards against a click at the first sample
+    x[:fi] *= np.linspace(0, 1, fi)
+    h = int(0.005 * SR)
+    tail_db = 20 * math.log10(math.sqrt((x[-h:] ** 2).mean()) + 1e-9)
+    fo = min(len(x), int((0.015 if tail_db > -50 else 0.006) * SR))
+    x[len(x) - fo:] *= np.linspace(1, 0, fo)
+    g = hcr_gain_db(x, HCR_FX_LUFS)
+    y = x * 10 ** (g / 20)
+    dst = os.path.join(OUT, name + ".mp3")
+    run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-",
+         "-af", "alimiter=limit=0.85:attack=2:release=40:level=false", "-ar", str(SR), "-ac", "1",
+         "-c:a", "libmp3lame", "-b:a", "128k", dst], y.astype("<f4").tobytes())
+    hcr_info[name] = f"{src}.wav, {n0/SR:.3f}s -> {len(x)/SR:.3f}s, gain {g:+.1f} dB"
+
+
+def detect_f0(x, lo=25.0, hi=600.0):
+    """Fundamental by autocorrelation (parabolic peak); returns (f0 Hz, correlation, dominant spectral peak Hz)."""
+    seg = x - x.mean()
+    n = len(seg)
+    F = np.fft.rfft(seg, 2 * n)
+    ac = np.fft.irfft(F * np.conj(F))[:n]
+    ac /= ac[0]
+    a, b = int(SR / hi), int(SR / lo)
+    k = a + int(np.argmax(ac[a:b]))
+    y0, y1, y2 = ac[k - 1], ac[k], ac[k + 1]
+    d = 0.5 * (y0 - y2) / (y0 - 2 * y1 + y2 + 1e-12)
+    N = 2 ** int(math.log2(n))
+    S = np.abs(np.fft.rfft(x[:N] * np.hanning(N)))
+    fr = np.fft.rfftfreq(N, 1 / SR)
+    sel = (fr > lo) & (fr < 2000)
+    return SR / (k + d), float(y1), float(fr[np.argmax(S * sel)])
+
+
+def find_loop(x, K=1024, smax=0.12, emin=0.8):
+    """Loop points (s, e): the K samples before e best match the K samples before s, so x[s:e] wraps
+    without a step. Returns (s, e, normalized mismatch 0..1)."""
+    N = len(x)
+    c2 = np.concatenate([[0], np.cumsum(x ** 2)])
+    e0 = int(N * emin)
+    best = None
+    for s in range(K, int(N * smax), 4):
+        b = x[s - K:s]
+        cor = np.correlate(x[e0 - K:], b, "valid")
+        st = e0 - K + np.arange(len(cor))
+        e = st + K
+        ea = c2[e] - c2[st]
+        eb = c2[s] - c2[s - K]
+        cost = (ea + eb - 2 * cor) / (ea + eb + 1e-9)
+        j = int(np.argmin(cost))
+        if best is None or cost[j] < best[2]:
+            best = (s, int(e[j]), float(cost[j]))
+    return best
+
+
+def loop_check(y, rate, secs=10.0):
+    """Render y looped at constant rate (as SampleVoice does: linear interpolation, no crossfade) and measure
+    at the wrap points: (level step dB at seam, typical level wobble dB, click ratio, loop-rate line / neighbours).
+    A sharp line at 1/duration or a click ratio >> 1 would reveal an audible loop."""
+    n = len(y)
+    pos = (np.arange(int(secs * SR)) * rate) % n
+    i = pos.astype(int)
+    f = pos - i
+    r = y[i] * (1 - f) + y[(i + 1) % n] * f
+    L = n / rate
+    w, hop = int(0.01 * SR), int(0.002 * SR)
+    m = (len(r) - w) // hop
+    cs = np.concatenate([[0], np.cumsum(r ** 2)])
+    st = np.arange(m) * hop
+    env = np.sqrt((cs[st + w] - cs[st]) / w)
+    db = 20 * np.log10(env + 1e-9)
+    k = int(0.15 * SR / hop) | 1
+    pad = np.pad(db, k // 2, mode="edge")
+    base = np.array([np.median(pad[q:q + k]) for q in range(m)])
+    dev = np.abs(db - base)
+    ph = (st + w / 2) % L
+    seam = (ph < w * 1.5) | (ph > L - w * 1.5)
+    e = env - env.mean()
+    S = np.abs(np.fft.rfft(e * np.hanning(m)))
+    fr = np.fft.rfftfreq(m, hop / SR)
+    f0 = SR / L
+    k0 = int(np.argmin(abs(fr - f0)))
+    line = S[k0 - 1:k0 + 2].max() / (np.median(S[(abs(fr - f0) > 0.6) & (abs(fr - f0) < 4)]) + 1e-12)
+    d2 = np.abs(np.diff(r, 2))
+    zone = np.zeros(len(d2), bool)
+    for q in range(0, len(d2), int(L)):
+        zone[max(0, q - int(0.003 * SR)):q + int(0.003 * SR)] = True
+    click = d2[zone].max() / np.percentile(d2[~zone], 99.9)
+    return float(dev[seam].max()), float(np.percentile(dev[~seam], 95)), float(click), float(line)
+
+
+def write_wav16(path, x):
+    import wave
+    with wave.open(path, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR)
+        w.writeframes(np.clip(np.round(x * 32767), -32768, 32767).astype("<i2").tobytes())
+
+
+hcr_pitch = {}   # cikis adi -> (f0, corr, dominant, loop mismatch, checks)
+
+
+def process_hcr_loop(name, src):
+    x = decode(os.path.join(HCR, src + ".wav"))
+    s, e, cost = find_loop(x)
+    y = x[s:e].copy()
+    f0, cor, dom = detect_f0(x)
+    g = hcr_gain_db(y, HCR_LOOP_LUFS, loop=True)
+    y *= 10 ** (g / 20)
+    write_wav16(os.path.join(OUT, name + ".wav"), y)
+    chk = {r: loop_check(y, r) for r in (1.0, 0.4, 2.2)}
+    hcr_pitch[name] = (f0, cor, dom, cost, chk)
+    hcr_info[name] = (f"{src}.wav, {len(x)/SR:.3f}s -> loop {s/SR:.3f}-{e/SR:.3f}s ({len(y)/SR:.3f}s), "
+                      f"seam mismatch {cost:.3f}, gain {g:+.1f} dB")
+
+
+def process_hcr():
+    for name, src in HCR_FX.items():
+        process_hcr_fx(name, src)
+    for name, src in HCR_LOOPS.items():
+        process_hcr_loop(name, src)
+    report.append(("hcr_*", "pack", "kaynak/hcr: " + ", ".join(HCR_FX) + ", " + ", ".join(HCR_LOOPS)))
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     for f in os.listdir(OUT):
@@ -300,10 +481,12 @@ def main():
     shutil.copy2(os.path.join(BOS, "crash.mp3"), os.path.join(OUT, "crash_car.mp3"))
     encode_raw(synth_nope(), os.path.join(OUT, "nope.mp3"))
     report.append(("nope", "synth", "220 Hz soft tone, 0.15 s"))
+    process_hcr()
     make_coins.render_all(OUT)          # coin_s/s2/s3/m/l/xl (synthesized, -16 LUFS)
     report.append(("coin_*", "synth", "coin_s,s2,s3,m,l,xl from make_coins.py"))
 
     # credits
+    HCR_SRC = "Kullanıcı tarafından sağlanan ses paketi"
     rows = list(csv.reader(open(os.path.join(RAW, "CREDITS.csv"), encoding="utf-8")))
     hdr = rows[0]
     rows = [r for r in rows[1:] if r]
@@ -315,6 +498,8 @@ def main():
     rows.append(["crash_car", "", "bosyol crash.mp3", "bosyol deposu", "bosyol deposu", "bosyol deposu"])
     rows.append(["nope", "", "synthesized 220 Hz tone", "yokus prep_sounds.py", "", "CC0 (generated)"])
     rows.append(["roll_sand", "", "synthesized granular sand roll", "yokus prep_sounds.py", "", "CC0 (generated)"])
+    for n, src in list(HCR_FX.items()) + list(HCR_LOOPS.items()):
+        rows.append([n, "", f"kaynak/hcr/{src}.wav: {hcr_info[n]}", HCR_SRC, "kaynak/hcr/", "Kullanıcı sağladı (yalnızca proje içi kullanım)"])
     for n in make_coins.NAMES:
         rows.append([n, "", "synthesized coin (additive inharmonic partials)", "yokus make_coins.py", "", "CC0 / own work (generated)"])
     with open(os.path.join(OUT, "CREDITS.csv"), "w", newline="", encoding="utf-8") as fh:
@@ -353,11 +538,27 @@ def main():
     if bad:
         print("PROBLEMS:", *bad, sep="\n  ")
         sys.exit(1)
+    print("\nHCR pack (padded-ebur128 LUFS for one-shots, tiled for loops):")
+    for n in HCR_FX:
+        x = decode(os.path.join(OUT, n + ".mp3"))
+        print(f"  {n:<14}{len(x)/SR:6.3f}s  {loudness_padded(x):6.1f} LUFS  peak {20*math.log10(abs(x).max()):5.1f} dBFS  {hcr_info[n]}")
+    for n in HCR_LOOPS:
+        x = decode(os.path.join(OUT, n + ".wav"))
+        f0, cor, dom, cost, chk = hcr_pitch[n]
+        print(f"  {n:<14}{len(x)/SR:6.3f}s  {loudness_padded(x, True):6.1f} LUFS  peak {20*math.log10(abs(x).max()):5.1f} dBFS  "
+              f"f0 {f0:.1f} Hz (ac {cor:.2f}, strongest partial {dom:.0f} Hz)  {hcr_info[n]}")
+        for r, (sd, el, ck, ln) in chk.items():
+            print(f"      rate {r}: seam step {sd:.2f} dB (wobble p95 {el:.2f} dB), click {ck:.2f}x, loop-rate line {ln:.0f}x")
+            if ck > 3.0 or sd > el + 5.0:
+                print("PROBLEMS: loop seam audible:", n, r)
+                sys.exit(1)
     # slot completeness
     print("\nCoin sounds:")
     make_coins.print_table(OUT)
-    for s in LOOPS + list(FX_CAP) + ["nope", "crash_car"] + make_coins.NAMES:
+    for s in LOOPS + list(FX_CAP) + ["nope", "crash_car"] + make_coins.NAMES + list(HCR_FX):
         assert os.path.exists(os.path.join(OUT, s + ".mp3")), s
+    for s in HCR_LOOPS:
+        assert os.path.exists(os.path.join(OUT, s + ".wav")), s
 
 
 if __name__ == "__main__":
