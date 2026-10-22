@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.yokus.app">
 
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <application
         android:label="Yokuş Ustası"
         android:icon="@mipmap/ic_launcher"

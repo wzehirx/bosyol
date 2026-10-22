@@ -13,7 +13,7 @@ CP="$(ls "$LIB"/*.jar | tr '\n' ':')$KC/lib/kotlin-stdlib.jar"
 # derleme: gerçek android.jar (android-all-instrumented soyut $$robo üyeleri ekler, derlemeye girmemeli)
 CCP="$A/tools/android.jar:$(ls "$LIB"/*.jar | grep -v android-all | tr '\n' ':')$KC/lib/kotlin-stdlib.jar"
 SRCS=$(find "$A/src" -name '*.kt')
-"$KC/bin/kotlinc" -nowarn -jvm-target 17 -no-reflect -cp "$CCP" -d "$OUT" $SRCS "$HERE/UiSmoke.kt" "$A/test/lib/BlindDriver.kt" 2>&1 | grep -v "^Picked up" || true
+"$KC/bin/kotlinc" -nowarn -jvm-target 17 -no-reflect -cp "$CCP" -d "$OUT" $SRCS "$HERE/UiSmoke.kt" "$A/test/lib/BlindDriver.kt" "$A/test/lib/FBank.kt" 2>&1 | grep -v "^Picked up" || true
 cd "$A"
 java -Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Drobolectric.offline=true -Drobolectric.dependency.dir="$LIB" -Dyokus.manifest="$A/AndroidManifest.xml" \
   -cp "$OUT:$ATC:$CP" org.junit.runner.JUnitCore UiSmoke 2>&1 | grep -v "^Picked up"

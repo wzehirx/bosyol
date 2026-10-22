@@ -80,6 +80,14 @@ class Store(ctx: Context) {
     var volumeKeys: Boolean
         get() = sp.getBoolean("volumeKeys", false)
         set(v) { sp.edit().putBoolean("volumeKeys", v).apply() }
+    /** Menü sesleri (düğme tıkı, menü zemini, önizleme, geri sayım). Eski kayıtlarda yok: varsayılan açık. */
+    var menuSounds: Boolean
+        get() = sp.getBoolean("menuSounds", true)
+        set(v) { sp.edit().putBoolean("menuSounds", v).apply() }
+    /** Titreşim (menüde ve oyunda). Eski kayıtlarda yok: varsayılan açık. */
+    var haptics: Boolean
+        get() = sp.getBoolean("haptics", true)
+        set(v) { sp.edit().putBoolean("haptics", v).apply() }
     var latch: Boolean
         get() = sp.getBoolean("latch", false)
         set(v) { sp.edit().putBoolean("latch", v).apply() }

@@ -17,6 +17,7 @@ import android.util.TypedValue
 import android.view.Choreographer
 import android.view.Gravity
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -29,7 +30,10 @@ import android.widget.ScrollView
 import android.widget.SeekBar
 import android.widget.Switch
 import android.widget.TextView
+import com.yokus.app.core.BUS_ENGINE
 import com.yokus.app.core.BUS_FX
+import com.yokus.app.core.BUS_WORLD
+import com.yokus.app.core.Bank
 import com.yokus.app.core.EndReason
 import com.yokus.app.core.GameSession
 import com.yokus.app.core.Sonify
@@ -44,8 +48,31 @@ import kotlin.math.min
 import kotlin.math.pow
 
 class MainActivity : Activity() {
+    companion object {
+        /** Testler: gerçek ses bankası yerine başkasını (boş ya da dosyadan) verir. */
+        @JvmStatic var bankFactory: ((Context) -> Bank)? = null
+
+        val TIPS = listOf(
+            "Gaz ekranın sağında, fren solunda. Basılı tuttukça çalışırlar.",
+            "Her altın 1 altın eder. Altınlar parıltılı bir tın sesiyle haber verir, sesin geldiği yöne sür.",
+            "Yakıt yüzde yirminin altına inince uyarı gelir. Yakıt bidonlarını kaçırma, iki notalı yükselen sesi dinle.",
+            "Havada gaz aracın burnunu kaldırır. İnişe hazırlanırken gazı bırak.",
+            "Havada tam bir tur dönüp güvenle inersen takla bonusu kazanırsın.",
+            "Garaj'da motor, süspansiyon, lastik ve yakıt deposunu geliştirebilirsin.",
+            "Yol radarının tıkları inceliyorsa önünde yokuş yukarı var, kalınlaşıyorsa yokuş aşağı.",
+            "Eğim tonu burun yukarı kalktıkça incelir, aşağı inince kalınlaşır.",
+            "Ayarlar'dan pedal kilidini açarsan pedala çabucak dokunup sabitleyebilirsin.",
+            "Ayarlar'dan ses tuşlarını gaz ve fren için kullanabilirsin.",
+            "Kar ve buz kaygandır. Lastiğini geliştir ya da kar motosikleti dene.",
+            "Ay'da yer çekimi düşüktür. Sıçramalar uzun sürer, takla için iyi bir yer.",
+            "Menü seslerini ve titreşimi Ayarlar'dan kapatabilirsin.",
+            "Araçlar ve Haritalar listesinde bir öğeye odaklanınca kısa bir ses önizlemesi duyarsın."
+        )
+    }
+
     private lateinit var store: Store
-    private lateinit var bank: SoundBank
+    private lateinit var bank: Bank
+    private lateinit var sfx: UiSfx
     private lateinit var speaker: Speaker
     private val mix = Mixer()
     private lateinit var audio: AudioOut
@@ -75,39 +102,50 @@ class MainActivity : Activity() {
         window.decorView.setBackgroundColor(cBg)
         volumeControlStream = AudioManager.STREAM_MUSIC
         store = Store(this)
-        bank = SoundBank(this)
+        bank = bankFactory?.invoke(this) ?: SoundBank(this)
+        sfx = UiSfx(this, mix, bank, store)
+        sfx.warm()
         audio = AudioOut(mix)
         root = FrameLayout(this)
         root.setBackgroundColor(cBg)
         setContentView(root)
         speaker = Speaker(this)
         speaker.root = root
+        sfx.speak = { speaker.say(it) }
         applyVolumes()
         crashReport = CrashLog.read(this)
         screen = if (crashReport != null) Scr.CRASH else Scr.MENU
         render()
     }
 
-    override fun onResume() { super.onResume(); audio.start() }   // oyundaysak Duraklat ekranında kalırız
+    override fun onResume() { super.onResume(); audio.start(); syncBed() }   // oyundaysak Duraklat ekranında kalırız
     override fun onPause() {
         if (screen == Scr.GAME) { if (session?.over == true) showEnd() else pauseGame() }
         bankProgress()   // uygulama arka planda sistem tarafından öldürülürse kazanılan altın kaybolmasın
+        sfx.stopMenuBed(); sfx.cancelTransient()
         audio.stop(); super.onPause()
     }
     override fun onDestroy() {
         stopLoop(); sonify?.stop(); sonify = null
+        sfx.release()
         ui.removeCallbacksAndMessages(null); audio.stop(); speaker.shutdown(); super.onDestroy()
+    }
+
+    private fun isMenuScreen() = when (screen) {
+        Scr.MENU, Scr.VEHICLES, Scr.MAPS, Scr.GARAGE, Scr.SETTINGS, Scr.HELP, Scr.EXIT -> true
+        else -> false
+    }
+    /** Menü ekranlarındaysak seçili araç ve haritanın zemin sesi çalar; değilse susar. */
+    private fun syncBed() {
+        if (isMenuScreen()) sfx.startMenuBed(Vehicles.byId(store.vehicleId), Maps.byId(store.mapId)) else sfx.stopMenuBed()
     }
 
     private fun applyVolumes() {
         mix.master = ((store.audio.volMaster / 100.0).pow(1.6) * 1.1).toFloat()
         mix.busGain[BUS_FX] = 1f
-    }
-
-    /** Kısa arayüz sesi: "buy", "nope". Dosya yoksa sessiz kalır. */
-    private fun uiSound(key: String) {
-        val p = bank.get(key) ?: return
-        mix.add(SampleVoice(p, BUS_FX, false, durSec = minOf(p.duration, 2.0), fadeOutSec = 0.2)).fadeTo(0.9f, 0.01f)
+        // menüde de motor ve ortam düzeyi Ayarlar'daki çubuklara uysun
+        mix.busGain[BUS_ENGINE] = (store.audio.volEngine.coerceIn(0, 100) / 100.0).pow(1.5).toFloat()
+        mix.busGain[BUS_WORLD] = (store.audio.volWorld.coerceIn(0, 100) / 100.0).pow(1.5).toFloat()
     }
 
     /** Hemen söyler (ekran değişmiyorsa). */
@@ -170,7 +208,20 @@ class MainActivity : Activity() {
         val t = TextView(this); t.text = text; t.setTextColor(color); t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 19f)
         t.setLineSpacing(0f, 1.2f); t.setPadding(0, dp(4f), 0, dp(4f)); t.isFocusable = true; return t
     }
-    private fun btn(text: String, primary: Boolean = false, tag: String? = null, onClick: () -> Unit): Button {
+    /** Sistem tıkını kapatır (oyunun kendi sesi çalar); odak yeni görünüme geçince kısa tık. */
+    private fun feel(v: View, onFocus: (() -> Unit)? = null) {
+        v.isSoundEffectsEnabled = false; v.isHapticFeedbackEnabled = false
+        v.accessibilityDelegate = object : View.AccessibilityDelegate() {
+            override fun sendAccessibilityEvent(host: View, eventType: Int) {
+                if (eventType == AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
+                    sfx.focusTick(); onFocus?.invoke()
+                }
+                super.sendAccessibilityEvent(host, eventType)
+            }
+        }
+    }
+
+    private fun btn(text: String, primary: Boolean = false, tag: String? = null, back: Boolean = false, onFocus: (() -> Unit)? = null, onClick: () -> Unit): Button {
         val b = Button(this); b.text = text; b.isAllCaps = false
         b.setTextSize(TypedValue.COMPLEX_UNIT_SP, if (primary) 24f else 20f)
         b.typeface = Typeface.create("sans-serif", Typeface.BOLD)
@@ -181,7 +232,18 @@ class MainActivity : Activity() {
         b.setPadding(dp(18f), dp(10f), dp(18f), dp(10f))
         b.stateListAnimator = null
         if (tag != null) b.tag = tag
-        b.setOnClickListener { onClick() }
+        feel(b, onFocus)
+        // dokunuşta basılır basılmaz ses; ekran okuyucunun çift dokunuşunda (dokunma olayı yok) tıklamada
+        var downPlayed = false
+        b.setOnTouchListener { _, e ->
+            if (e.actionMasked == MotionEvent.ACTION_DOWN) { if (back) sfx.back() else sfx.click(); downPlayed = true }
+            false
+        }
+        b.setOnClickListener {
+            if (!downPlayed) { if (back) sfx.back() else sfx.click() }
+            downPlayed = false
+            onClick()
+        }
         return b
     }
     private fun sw(text: String, checked: Boolean, onChange: (Boolean) -> Unit): Switch {
@@ -190,7 +252,8 @@ class MainActivity : Activity() {
         s.minHeight = dp(60f); s.setPadding(dp(4f), dp(6f), dp(4f), dp(6f))
         s.thumbTintList = ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(cAmber, 0xFFE0E6E3.toInt()))
         s.trackTintList = ColorStateList(arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()), intArrayOf(cSign, 0xFF5A6772.toInt()))
-        s.setOnCheckedChangeListener { _, v -> onChange(v) }
+        feel(s)
+        s.setOnCheckedChangeListener { _, v -> onChange(v); sfx.click() }
         return s
     }
     private fun seek(col: LinearLayout, label: String, value: Int, onChange: (Int) -> Unit) {
@@ -200,12 +263,13 @@ class MainActivity : Activity() {
         sb.contentDescription = label
         sb.progressTintList = ColorStateList.valueOf(cAmber); sb.thumbTintList = ColorStateList.valueOf(cAmber)
         sb.minimumHeight = dp(52f)
+        feel(sb)
         fun state(v: Int) {
             if (Build.VERSION.SDK_INT >= 30) sb.stateDescription = "yüzde $v" else sb.contentDescription = "$label, yüzde $v"
         }
         state(value)
         sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(s: SeekBar, p: Int, fromUser: Boolean) { val v = p * 5; state(v); onChange(v) }
+            override fun onProgressChanged(s: SeekBar, p: Int, fromUser: Boolean) { val v = p * 5; state(v); onChange(v); if (fromUser) sfx.click() }
             override fun onStartTrackingTouch(s: SeekBar) {}
             override fun onStopTrackingTouch(s: SeekBar) {}
         })
@@ -217,6 +281,7 @@ class MainActivity : Activity() {
 
     @Deprecated("Deprecated in Java")
     override fun onBackPressed() {
+        if (screen != Scr.GAME) sfx.back()
         when (screen) {
             Scr.MENU -> go(Scr.EXIT)
             Scr.CRASH -> closeCrash()
@@ -233,6 +298,9 @@ class MainActivity : Activity() {
             Scr.SETTINGS -> settings(); Scr.HELP -> help(); Scr.EXIT -> confirmExit(); Scr.GAME -> game(); Scr.PAUSE -> pauseScreen(); Scr.OVER -> overScreen()
             Scr.CRASH -> crash()
         }
+        if (screen != Scr.OVER) sfx.stopTally()
+        if (screen != Scr.VEHICLES && screen != Scr.MAPS && screen != Scr.GARAGE) sfx.stopPreview()
+        syncBed()
     }
 
     /* ================= Ekranlar ================= */
@@ -255,15 +323,17 @@ class MainActivity : Activity() {
     private fun closeCrash() { CrashLog.clear(this); crashReport = null; go(Scr.MENU) }
 
     private fun menu() {
+        focusTag = "start"
         val c = page("Yokuş Ustası")
         val v = Vehicles.byId(store.vehicleId); val m = Maps.byId(store.mapId)
+        c.addView(para("İpucu: ${TIPS[java.util.Random().nextInt(TIPS.size)]}", cAmber).also { it.tag = "tip" })
         val info = para("Altın: ${store.gold}. Araç: ${v.name}. Harita: ${m.name}. En iyi: ${store.best(m.id)} metre.", cInk)
         info.tag = "gold"
         c.addView(info)
-        c.addView(btn("Başla", primary = true) { startGame() }, lp(top = 14))
+        c.addView(btn("Başla", primary = true, tag = "start") { startGame() }, lp(top = 14))
+        c.addView(btn("Garaj") { go(Scr.GARAGE) }, lp())
         c.addView(btn("Araçlar") { go(Scr.VEHICLES) }, lp())
         c.addView(btn("Haritalar") { go(Scr.MAPS) }, lp())
-        c.addView(btn("Garaj") { go(Scr.GARAGE) }, lp())
         c.addView(btn("Ayarlar") { go(Scr.SETTINGS) }, lp())
         c.addView(btn("Nasıl oynanır") { go(Scr.HELP) }, lp())
         c.addView(btn("Çıkış") { go(Scr.EXIT) }, lp())
@@ -273,7 +343,7 @@ class MainActivity : Activity() {
         val c = page("Çıkmak istiyor musun?")
         c.addView(para("Oyundan çıkarsan ilerlemen kayıtlı kalır."))
         c.addView(btn("Evet, çık", primary = true) { finish() }, lp(top = 16))
-        c.addView(btn("Vazgeç") { go(Scr.MENU) }, lp())
+        c.addView(btn("Vazgeç", back = true) { go(Scr.MENU) }, lp())
     }
 
     private fun vehicles() {
@@ -285,18 +355,18 @@ class MainActivity : Activity() {
                 store.owns(v.id) -> "${v.name}, sahipsin"
                 else -> "${v.name}, ${v.price} altın. ${v.desc}"
             }
-            c.addView(btn(label, tag = "v_${v.id}") {
+            c.addView(btn(label, tag = "v_${v.id}", onFocus = { sfx.previewVehicle(v) }) {
                 if (store.owns(v.id)) {
                     store.vehicleId = v.id; sayAfterRender("${v.name} seçildi")
                 } else if (store.buyVehicle(v)) {
-                    store.vehicleId = v.id; uiSound("buy"); sayAfterRender("Satın alındı")
+                    store.vehicleId = v.id; sfx.buy(); sayAfterRender("Satın alındı")
                 } else {
-                    uiSound("nope"); sayAfterRender("Yeterli altın yok, ${v.price - store.gold} altın gerek")
+                    sfx.nope(); sayAfterRender("Yeterli altın yok, ${v.price - store.gold} altın gerek")
                 }
                 focusTag = "v_${v.id}"; render()
             }, lp())
         }
-        c.addView(btn("Geri", primary = true) { go(Scr.MENU) }, lp(top = 18))
+        c.addView(btn("Geri", primary = true, back = true) { go(Scr.MENU) }, lp(top = 18))
     }
 
     private fun maps() {
@@ -308,18 +378,18 @@ class MainActivity : Activity() {
                 store.ownsMap(m.id) -> "${m.name}, sahipsin"
                 else -> "${m.name}, ${m.price} altın. ${m.desc}"
             }
-            c.addView(btn(label, tag = "m_${m.id}") {
+            c.addView(btn(label, tag = "m_${m.id}", onFocus = { sfx.previewMap(m) }) {
                 if (store.ownsMap(m.id)) {
                     store.mapId = m.id; sayAfterRender("${m.name} seçildi")
                 } else if (store.buyMap(m)) {
-                    store.mapId = m.id; uiSound("buy"); sayAfterRender("Satın alındı")
+                    store.mapId = m.id; sfx.buy(); sayAfterRender("Satın alındı")
                 } else {
-                    uiSound("nope"); sayAfterRender("Yeterli altın yok, ${m.price - store.gold} altın gerek")
+                    sfx.nope(); sayAfterRender("Yeterli altın yok, ${m.price - store.gold} altın gerek")
                 }
                 focusTag = "m_${m.id}"; render()
             }, lp())
         }
-        c.addView(btn("Geri", primary = true) { go(Scr.MENU) }, lp(top = 18))
+        c.addView(btn("Geri", primary = true, back = true) { go(Scr.MENU) }, lp(top = 18))
     }
 
     private fun garage() {
@@ -336,14 +406,14 @@ class MainActivity : Activity() {
                 if (cur >= Store.MAX_LEVEL) {
                     sayAfterRender("${k.label} en yüksek seviyede")
                 } else if (store.buyUpgrade(v, k)) {
-                    uiSound("buy"); sayAfterRender("${k.label} geliştirildi, seviye ${cur + 1}")
+                    sfx.buy(); sfx.rev(v); sayAfterRender("${k.label} geliştirildi, seviye ${cur + 1}")
                 } else {
-                    uiSound("nope"); sayAfterRender("Yeterli altın yok, ${upgradeCost(v, k, cur) - store.gold} altın gerek")
+                    sfx.nope(); sayAfterRender("Yeterli altın yok, ${upgradeCost(v, k, cur) - store.gold} altın gerek")
                 }
                 focusTag = "u_${k.name}"; render()
             }, lp())
         }
-        c.addView(btn("Geri", primary = true) { go(Scr.MENU) }, lp(top = 18))
+        c.addView(btn("Geri", primary = true, back = true) { go(Scr.MENU) }, lp(top = 18))
     }
 
     private fun settings() {
@@ -351,6 +421,7 @@ class MainActivity : Activity() {
         val c = page("Ayarlar")
         val save = { store.saveAudio(); applyVolumes() }
         c.addView(heading("Sesler"))
+        c.addView(sw("Menü sesleri", store.menuSounds) { store.menuSounds = it; syncBed() }, lp(top = 4))
         c.addView(sw("Eğim tonu", a.tiltTone) { a.tiltTone = it; save() }, lp(top = 4))
         c.addView(sw("Yol radarı", a.radar) { a.radar = it; save() }, lp(top = 4))
         c.addView(sw("Mesafe duyurusu", a.distanceCalls) { a.distanceCalls = it; save() }, lp(top = 4))
@@ -358,12 +429,13 @@ class MainActivity : Activity() {
         c.addView(sw("Denge yardımı", a.balanceAssist) { a.balanceAssist = it; save() }, lp(top = 4))
         c.addView(sw("Ses tuşları gaz/fren", store.volumeKeys) { store.volumeKeys = it }, lp(top = 4))
         c.addView(sw("Pedal kilidi", store.latch) { store.latch = it }, lp(top = 4))
+        c.addView(sw("Titreşim", store.haptics) { store.haptics = it }, lp(top = 4))
         c.addView(heading("Ses düzeyi"))
         seek(c, "Ana ses", a.volMaster) { a.volMaster = it; save() }
         seek(c, "Motor", a.volEngine) { a.volEngine = it; save() }
         seek(c, "Ortam", a.volWorld) { a.volWorld = it; save() }
         seek(c, "İşaret sesleri", a.volCues) { a.volCues = it; save() }
-        c.addView(btn("Geri", primary = true) { go(Scr.MENU) }, lp(top = 22))
+        c.addView(btn("Geri", primary = true, back = true) { go(Scr.MENU) }, lp(top = 22))
     }
 
     private fun help() {
@@ -375,12 +447,12 @@ class MainActivity : Activity() {
             "Eğim tonu: arabanın burnu yukarı kalktıkça ses incelir, aşağı inince kalınlaşır. Araba neredeyse takla atacak kadar yatarsa uyarı bipi duyulur ve açı arttıkça sıklaşır.",
             "Yol radarı: sürekli tık sesi duyulur. Tıklar inceliyorsa önünde yokuş yukarı, kalınlaşıyorsa yokuş aşağı var. Düz yolda orta perdede kalır.",
             "Duyurular: önünde rampa, çukur gibi bir şey varsa önceden sesli söylenir. Ekran okuyucu kapalıysa konuşma sesi kullanılır.",
-            "Altınlar önünden parıltılı bir tın sesiyle haber verir. Sesin geldiği yöne gidince altını toplarsın. Yakıt bidonu ise iki notalı, yükselen bir işaret çalar.",
+            "Altınlar önünden parıltılı bir tın sesiyle haber verir. Sesin geldiği yöne gidince altını toplarsın. Her altın 1 altın eder. Yakıt bidonu ise iki notalı, yükselen bir işaret çalar.",
             "Yakıt: gaza bastıkça yakıt azalır. Yüzde yirminin altında uyarı gelir. Yakıt biterse yavaşlar ve oyun biter. Yakıt bidonlarını toplayarak depoyu doldurabilirsin.",
             "Takla: havada tam bir tur dönüp güvenle inersen bonus altın kazanırsın. Ters dönüp kafan yere değerse kaza olur ve oyun biter.",
             "Kazandığın altınla Araçlar ve Haritalar ekranlarından yenilerini alabilir, Garaj'da aracını geliştirebilirsin."
         ).forEach { c.addView(para(it)) }
-        c.addView(btn("Geri", primary = true) { go(Scr.MENU) }, lp(top = 18))
+        c.addView(btn("Geri", primary = true, back = true) { go(Scr.MENU) }, lp(top = 18))
     }
 
 
@@ -413,15 +485,46 @@ class MainActivity : Activity() {
         val v = Vehicles.byId(store.vehicleId)
         val s = GameSession(v, store.upgrades(v.id), Maps.byId(store.mapId))
         val so = Sonify(mix, bank, store.audio) { speaker.say(it) }
-        so.start(s)
         session = s; sonify = so
         settled = false; overT = 0.0; gasCur = 0.0; credited = 0; bestAtStart = store.best(s.map.id)
         warmSounds()
+        sfx.stopMenuBed()
+        sfx.whoosh()
+        runStarted = false
+        beginCountdownOrRun()
         screen = Scr.GAME
         introSay = true
         render()
     }
     private var introSay = false
+    private var runStarted = false
+    private var counting = false
+    private var cdT = 0.0
+    /** Testler için: geri sayım sürüyor mu (oyun saati henüz başlamadı). */
+    val countingDown: Boolean get() = counting
+    /** Testler için. */
+    val sounds: UiSfx get() = sfx
+
+    private fun beginCountdownOrRun() {
+        val s = session ?: return
+        cdT = 0.0
+        counting = sfx.countdown(s.vehicle)
+        if (!counting) beginRun()
+    }
+
+    /** Geri sayım bitti (ya da yok): ses katmanları ve olaylar başlar, oyun saati işlemeye başlar. */
+    private fun beginRun() {
+        val s = session ?: return
+        counting = false; runStarted = true
+        attachSonify(s)
+        if (introSay && screen == Scr.GAME) { speaker.say("Başla! Gaz sağda, fren solda."); introSay = false }
+    }
+
+    private fun attachSonify(s: GameSession) {
+        val so = sonify ?: return
+        so.start(s)
+        s.events = HapticEvents(so, sfx)
+    }
 
     /** Oyun sırasında ilk kez kullanılacak kısa sesleri önceden çözer (UI iş parçacığında takılma olmasın). */
     private fun warmSounds() {
@@ -432,7 +535,8 @@ class MainActivity : Activity() {
 
     /** Açık oyunu ve ses/döngü kaynaklarını bırakır. */
     private fun leaveGame() {
-        stopLoop()
+        stopLoop(); counting = false; runStarted = false
+        sfx.cancelCountdown(); sfx.stopTally()
         sonify?.stop(); sonify = null
         session = null; gameView = null; brakePedal = null; gasPedal = null
         keyGas = false; keyBrake = false; gasCur = 0.0
@@ -463,6 +567,13 @@ class MainActivity : Activity() {
         val s = session ?: return
         if (screen != Scr.GAME) return
         val dt = min(max(dt0, 0.0), 0.05)
+        if (counting) {
+            // geri sayım: gaz yok sayılır, oyun saati ve ses katmanları başlamaz; yalnızca bipler ve motor çalıştırma
+            cdT += dt
+            if (s.over || sfx.countdownTick(cdT)) beginRun()
+            gameView?.invalidate()
+            return
+        }
         val gasTarget = if (gasPedal?.active == true || keyGas) 1.0 else 0.0
         val brake = if (brakePedal?.active == true || keyBrake) 1.0 else 0.0
         val step = dt / 0.12                        // gaz yaklaşık 0.12 sn'de tam açılır
@@ -515,13 +626,14 @@ class MainActivity : Activity() {
         if (screen != Scr.GAME) return
         stopLoop()
         gasPedal?.release(); brakePedal?.release(); keyGas = false; keyBrake = false; gasCur = 0.0
+        sfx.cancelCountdown(); counting = false
         sonify?.stop()
         screen = Scr.PAUSE; render()
     }
 
     private fun resumeGame() {
         val s = session ?: return toMenu()
-        sonify?.start(s)
+        if (!runStarted) beginCountdownOrRun() else attachSonify(s)
         screen = Scr.GAME; render()
     }
 
@@ -531,7 +643,7 @@ class MainActivity : Activity() {
 
     private fun game() {
         val s = session ?: return go(Scr.MENU)
-        val intro = introSay; introSay = false
+        val intro = introSay; if (!counting) introSay = false
         val fl = FrameLayout(this)
         val gv = GameView(this, s)
         fl.addView(gv, FrameLayout.LayoutParams(-1, -1))
@@ -567,7 +679,7 @@ class MainActivity : Activity() {
         val job = Runnable {
             gas.performAccessibilityAction(AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
             gas.sendAccessibilityEvent(AccessibilityEvent.TYPE_VIEW_FOCUSED)
-            if (intro) ui.postDelayed({ if (screen == Scr.GAME) speaker.say("Başla! Gaz sağda, fren solda.") }, 600)
+            if (intro && !counting) ui.postDelayed({ if (screen == Scr.GAME) speaker.say("Başla! Gaz sağda, fren solda.") }, 600)
         }
         focusJob = job
         ui.postDelayed(job, 250)
@@ -578,6 +690,7 @@ class MainActivity : Activity() {
         val p = PedalView(this, label)
         p.gravity = Gravity.CENTER; p.setTextColor(cInk)
         p.setTextSize(TypedValue.COMPLEX_UNIT_SP, 34f); p.typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+        p.isSoundEffectsEnabled = false; p.isHapticFeedbackEnabled = false
         p.latchOn = { store.latch }
         p.onChange = { syncPedal(p, color) }
         return p
@@ -619,5 +732,6 @@ class MainActivity : Activity() {
         c.addView(btn("Tekrar", primary = true) { startGame() }, lp(top = 14))
         c.addView(btn("Garaj") { leaveGame(); go(Scr.GARAGE) }, lp())
         c.addView(btn("Ana menü") { toMenu() }, lp())
+        sfx.tally(resCoins, resRecord)
     }
 }

@@ -1,3 +1,4 @@
+import com.yokus.app.core.Bank
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
@@ -53,6 +54,8 @@ class UiSmoke {
         assertTrue("tıklanamaz: $prefix", b.isClickable)
         b.performClick(); idle()
     }
+    /** Geri sayımı tick ile bitirir. */
+    fun skip() { var n = 0; while (a.countingDown && n++ < 600) a.tick(1.0 / 60) }
     fun back() { @Suppress("DEPRECATION") a.onBackPressed(); idle() }
 
     /** Her tıklanabilir ya da odaklanabilir görünümün sesli etiketi olmalı. */
@@ -141,7 +144,9 @@ class UiSmoke {
 
         // --- Ayarlar: anahtarlar, çubuklar, kalıcılık
         click("Ayarlar")
-        val sw = views().filterIsInstance<CompoundButton>(); assertTrue("anahtar yok", sw.size >= 5)
+        val sw = views().filterIsInstance<CompoundButton>(); assertTrue("anahtar yok", sw.size >= 7)
+        assertTrue("Menü sesleri anahtarı yok", sw.any { it.text.toString() == "Menü sesleri" })
+        assertTrue("Titreşim anahtarı yok", sw.any { it.text.toString() == "Titreşim" })
         sw.forEach { val o = it.isChecked; it.performClick(); assertEquals(!o, Store(a).let { s -> state(s, it.text.toString()) }) }
         val sbs = views().filterIsInstance<SeekBar>(); assertEquals(4, sbs.size)
         sbs[0].progress = 6; idle()
@@ -168,7 +173,7 @@ class UiSmoke {
         a = ctl.get(); a.autoLoop = false; idle()
         val st = Store(a)
         val gold0 = st.gold
-        click("Başla")
+        click("Başla"); skip()
         val s = a.gameSession!!
         assertTrue("GameView yok", views().any { it is GameView })
         assertEquals("GameView erişilebilirlik dışı olmalı", View.IMPORTANT_FOR_ACCESSIBILITY_NO,
@@ -211,7 +216,7 @@ class UiSmoke {
         assertSame("oturum korunmalı", s, a.gameSession)
 
         // Yeniden başla, sonra Ana menü: altın eklenir
-        click("Yeniden başla"); val s2 = a.gameSession!!
+        click("Yeniden başla"); skip(); val s2 = a.gameSession!!
         assertNotSame(s, s2)
         val g2 = pedal("Gaz"); touch(g2, MotionEvent.ACTION_DOWN); run(3.0); touch(g2, MotionEvent.ACTION_UP)
         s2.coins += 7
@@ -224,7 +229,7 @@ class UiSmoke {
         assertTrue("kazanılan altın eklenmedi", after >= before + 7)
 
         // oyun sonu: kaza -> 2.5 sn sonra Oyun sonu ekranı
-        click("Başla"); val s3 = a.gameSession!!
+        click("Başla"); skip(); val s3 = a.gameSession!!
         run(1.0); s3.end(EndReason.CRASH); s3.coins += 5
         run(2.0); assertTrue("2.5 sn dolmadan bitiş ekranı", views().any { it is GameView })
         run(1.0); idle()
@@ -269,7 +274,7 @@ class UiSmoke {
         a = Robolectric.buildActivity(MainActivity::class.java).setup().get(); a.autoLoop = false; idle()
         Store(a).latch = false
         val gold0 = Store(a).gold
-        click("Başla")
+        click("Başla"); skip()
         val s = a.gameSession!!
         val (t, ended) = playUi(seed = 3, maxSec = 360.0, stopOnEnd = true)
         println("UI oyunu: ${"%.0f".format(t)} sn, mesafe=${s.distance.toInt()} m, bitti=$ended, neden=${s.endReason} '${s.endMessage}', oturum altını=${s.coins}, uçuş=${"%.1f".format(s.airTime)} sn, takla=${s.flips}")
@@ -297,7 +302,7 @@ class UiSmoke {
         back(); assertEquals("Yokuş Ustası", title()?.text.toString())
 
         // yeniden başla, 30 sn oyna, duraklat, Ana menü
-        click("Başla")
+        click("Başla"); skip()
         val s2 = a.gameSession!!
         assertNotSame(s, s2)
         playUi(seed = 4, maxSec = 30.0, stopOnEnd = false)
@@ -310,8 +315,88 @@ class UiSmoke {
         println("OK")
     }
 
+
+    /** Ana menü sırası, ipucu satırı, yeni düğmeler ve odak/önizleme/ses çağrıları (boş banka: sessiz, çökmez). */
+    private fun menuFeelBody() {
+        a = Robolectric.buildActivity(MainActivity::class.java).setup().get(); a.autoLoop = false; idle()
+        val btns = views().filterIsInstance<Button>().map { it.text.toString() }
+        assertEquals(listOf("Başla", "Garaj", "Araçlar", "Haritalar", "Ayarlar", "Nasıl oynanır", "Çıkış"), btns)
+        val tip = texts().first { it.startsWith("İpucu: ") }
+        assertTrue("ipucu boş", tip.length > 12)
+        assertFalse("ipucunda eski değerler: $tip", Regex("\\b(25|100|500)\\b").containsMatchIn(tip))
+        audit("Ana menü (yeni)")
+        // sistem sesleri kapalı
+        for (b in views().filterIsInstance<Button>()) {
+            assertFalse("${b.text} sistem tıklaması açık", b.isSoundEffectsEnabled); assertFalse(b.isHapticFeedbackEnabled)
+        }
+        val sf = a.sounds
+        val c0 = sf.clicks + sf.buzzes
+        click("Garaj"); assertTrue("tıklama titreşimi/sesi yok", sf.buzzes > 0)
+        // odak tıkı: yeni düğmeye erişilebilirlik odağı
+        val t0 = sf.buzzes
+        back(); click("Araçlar")
+        val vb = views().filterIsInstance<Button>().first { (it.tag as? String)?.startsWith("v_") == true }
+        vb.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
+        Thread.sleep(300); idle()
+        val vbs = views().filterIsInstance<Button>().filter { (it.tag as? String)?.startsWith("v_") == true }
+        for (b in vbs) { b.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED) }  // hızlı kaydırma
+        Thread.sleep(300); idle()
+        assertTrue("araç önizlemesi başlamadı", sf.previews >= 1)
+        back(); click("Haritalar")
+        for (b in views().filterIsInstance<Button>().filter { (it.tag as? String)?.startsWith("m_") == true }.take(3)) b.sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED)
+        Thread.sleep(300); idle()
+        back()
+        // garaj geliştirmesi (motor gazı önizlemesi) ve satın alma sesleri çökmemeli
+        Store(a).gold = 100000
+        click("Garaj"); click("Motor seviye 0"); Thread.sleep(200); idle(); back()
+        // Menü sesleri ve Titreşim kapatılınca ses/titreşim sayaçları artmaz
+        click("Ayarlar")
+        for (n in listOf("Menü sesleri", "Titreşim")) views().filterIsInstance<CompoundButton>().first { it.text.toString() == n }.performClick()
+        assertFalse(Store(a).menuSounds); assertFalse(Store(a).haptics)
+        val b0 = sf.buzzes; val k0 = sf.clicks
+        back(); click("Garaj"); back()
+        assertEquals("titreşim kapalıyken sayaç arttı", b0, sf.buzzes); assertEquals("menü sesleri kapalıyken tık çaldı", k0, sf.clicks)
+        assertFalse("menü sesleri kapalıyken zemin açık", sf.bedActive)
+        // kapalıyken geri sayım yok
+        click("Başla"); assertFalse("menü sesleri kapalıyken geri sayım", a.countingDown); back(); click("Ana menü")
+        for (n in listOf("Menü sesleri", "Titreşim")) { /* tekrar aç */ }
+        Store(a).menuSounds = true; Store(a).haptics = true
+        println("OK menuFeel bed=${sf.bedActive} clicks=${sf.clicks} ticks=${sf.ticks} previews=${sf.previews}")
+    }
+
+    @Test fun menuFeelSilent() { MainActivity.bankFactory = { NullBank() }; try { menuFeelBody() } finally { MainActivity.bankFactory = null } }
+    @Test fun menuFeelRealBank() { MainActivity.bankFactory = { SyncBank(FBank()) }; try { menuFeelBody() } finally { MainActivity.bankFactory = null } }
+
+    class SyncBank(val b: com.yokus.app.core.Bank) : com.yokus.app.core.Bank { override fun get(key: String) = synchronized(this) { b.get(key) } }
+
+    /** Başla: geri sayım. Gaz yok sayılır, oyun saati sayımdan sonra başlar, toplam 1.9 sn altında. */
+    @Test fun countdown() {
+        MainActivity.bankFactory = { SyncBank(FBank()) }
+        try {
+            a = Robolectric.buildActivity(MainActivity::class.java).setup().get(); a.autoLoop = false; idle()
+            click("Başla")
+            val s = a.gameSession!!
+            assertTrue("geri sayım başlamadı", a.countingDown)
+            val gas = pedal("Gaz"); touch(gas, MotionEvent.ACTION_DOWN)
+            var t = 0.0
+            while (a.countingDown && t < 3.0) { a.tick(1.0 / 60); t += 1.0 / 60; if (a.countingDown) assertEquals("sayım sırasında saat ilerledi", 0.0, s.time, 0.0) }
+            println("geri sayım ${"%.2f".format(t)} sn, bip=${a.sounds.beeps}")
+            assertTrue("geri sayım 1.9 sn'den uzun: $t", t < 1.9)
+            assertTrue("geri sayım çok kısa: $t", t > 1.4)
+            assertEquals("bip sayısı", 4, a.sounds.beeps)
+            assertEquals(0.0, s.distance, 0.0)
+            run(1.0)
+            assertTrue("sayımdan sonra oyun ilerlemedi", s.time > 0.9 && s.distance > 0.0)
+            touch(gas, MotionEvent.ACTION_UP)
+            // duraklat/devam: sayım sırasında duraklatılırsa devamda yeniden başlar
+            back(); click("Ana menü"); click("Başla"); assertTrue(a.countingDown); back(); assertEquals("Duraklatıldı", title()?.text.toString())
+            assertFalse(a.countingDown); click("Devam"); assertTrue("devamda geri sayım yeniden", a.countingDown)
+            back(); click("Ana menü")
+        } finally { MainActivity.bankFactory = null }
+    }
+
     private fun state(s: Store, text: String): Boolean = when (text) {
         "Eğim tonu" -> s.audio.tiltTone; "Yol radarı" -> s.audio.radar; "Mesafe duyurusu" -> s.audio.distanceCalls; "Denge yardımı" -> s.audio.balanceAssist
-        "Ses tuşları gaz/fren" -> s.volumeKeys; "Pedal kilidi" -> s.latch; else -> error("bilinmeyen anahtar $text")
+        "Ses tuşları gaz/fren" -> s.volumeKeys; "Pedal kilidi" -> s.latch; "Menü sesleri" -> s.menuSounds; "Titreşim" -> s.haptics; else -> error("bilinmeyen anahtar $text")
     }
 }
