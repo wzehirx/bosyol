@@ -21,7 +21,7 @@ Depo düzeni (kök klasör): `android/` (kaynak, build.py, testler), `sounds/` (
 ## Görevler
 
 - [x] 0. Depo temizliği: Boş Yol silindi, proje kök klasöre taşındı.
-- [~] 1. Araştırma (Haiku): `docs/ARASTIRMA_ICERIK.md` (araç/harita önerileri), `docs/ARASTIRMA_SES.md` (yeni sesler, YouTube kanalı lisansı).
+- [x] 1. Araştırma (Haiku): `docs/ARASTIRMA_ICERIK.md`, `docs/ARASTIRMA_SES.md`, `docs/ARASTIRMA_VIDEO.md` (video kareleri, sürüyor).
 - [ ] 2. S-A Ses paketi ve altın sistemi (Sonnet): `tools/prep_sounds.py`, `core/Sonify.kt`.
   - Paket sesleri `sounds/` altına hazırlanır (hcr_ öneki yok, anlamlı adlar: ui_click, coin, buy, fuel_pick, fuel_low, crash_crack, splash_in, splash_out, mud_slime, shutter, turbo_spool, turbo_blow, supercharger, eng_hill, eng_monster2, eng_rally2).
   - Altın: her altın rastgele değerde, her alımda ses; art arda alımda her biri ayrı çalar ve üst üste binebilir; ses perdesi değişmez, hızlı zincirde örnek kısalır ve tempo hızlanır; 25/100/500 değerleri aynı örneğin çoklu vuruşları ile ayırt edilir.

@@ -65,6 +65,8 @@ Kurallar:
 
 ## Ekonomi
 
+**Güncelleme (kullanıcı isteği): her altın tam 1 altın değerindedir.** Altın değer katmanları (5, 25, 100, 500) yoktur. Bu yüzden bir oyunda kazanılan altın yüzler mertebesindedir ve yukarıdaki fiyat sütunları (3.000 ... 250.000 vb.) göreli sıralamayı gösterir. S-C görevinde bütün fiyatlar (araç, harita, geliştirme) altın gelirine göre yeniden ölçeklenir, hedefler aşağıdaki gibi kalır. Haritanın fiyatı arttıkça altın yoğunluğu artar.
+
 Toplam 20 araç ve 16 harita satın alınınca ekonomi uzar. PlayTest ekonomi kapısı: bütün mağaza yaklaşık 25–40 saatlik iyi oyunda tamamlanır. İlk araç (scooter) 1–2 oyunda, ilk harita (Çöl) 2–3 oyunda alınır. Altın değerleri ve yoğunluğu gerekirse haritanın fiyatına göre oranlanır (`Terrain` içinde mevcut mekanizma).
 
 ## Testler
