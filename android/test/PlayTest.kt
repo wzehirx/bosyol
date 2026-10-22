@@ -202,6 +202,9 @@ class Gate(val name: String, val ok: Boolean, val value: String)
  *  runsScooter / runsDesert: Kır yolu + jeep (yükseltmesiz, iyi sürücü) ortalama koşu geliriyle kaç koşu.
  *  simHours: ilerleme benzetimi. Araç ve haritalar fiyat sırasıyla alınır; oyuncu elindeki haritaların hepsini sırayla oynar
  *  (gelir = sahip olunan haritalardaki jeep y0 iyi sürücü altın/dk ortalaması). Geliştirmeler dahil değildir (isteğe bağlı harcama). */
+/** Seviye hedefleri: [dist] metre gidilirse tek seferlik toplam bonus (Goals.target/bonus; her harita ve hedef bir kez ödenir). */
+fun goalBonusFor(dist: Double): Int { var l = 0; var sum = 0; while (dist >= Goals.target(l)) { sum += Goals.bonus(l); l++ }; return sum }
+
 class Eco(val perRun: Double, val runMin: Double, val runsScooter: Double, val runsDesert: Double, val rate: Double, val simHours: Double, val shop: Int,
           val mapRates: Map<String, Double>, val simHoursNoLow: Double = 0.0)
 fun economy(all: List<Res>): Eco {
@@ -216,22 +219,35 @@ fun economy(all: List<Res>): Eco {
         if (l.isNotEmpty()) rates[m.id] = l.sumOf { it.coins.toDouble() } / max(1.0, l.sumOf { it.endT }) * 60.0
     }
     val fallback = rates["country"] ?: rate
+    // seviye hedefleri: her haritada iyi sürücünün medyan mesafesine kadar olan hedeflerin bonusu bir kez ödenir (tek seferlik gelir)
+    val mapBonus = HashMap<String, Int>()
+    for (m in Maps.all) {
+        val l = all.filter { it.spec.map == m.id && it.spec.veh == "jeep" && it.spec.upg == 0 && !it.spec.novice && it.spec.group != "arac" }
+        if (l.isNotEmpty()) mapBonus[m.id] = goalBonusFor(median(l.map { it.dist }))
+    }
+    val firstBonus = mapBonus["country"] ?: 0
     data class Item(val price: Int, val map: String?)
     val items = (Vehicles.all.filter { it.price > 0 }.map { Item(it.price, null) } + Maps.all.filter { it.price > 0 }.map { Item(it.price, it.id) }).sortedBy { it.price }
     // düşük yer çekimli haritalarda (Ay, Mars) havada kalma bonusu altını 2-5 kat artırır; oyuncu onları hiç oynamazsa en kötü durum
     fun sim(skip: Set<String>): Double {
         val owned = arrayListOf("country")
         var minutes = 0.0
+        // Kır yolunun hedef bonusu ilk koşularda gelir; her yeni harita alınınca onun bonusu da (ilk koşuda) gelir
+        var credit = (mapBonus["country"] ?: 0).toDouble()
         for (it in items) {
             val r = owned.filter { id -> id !in skip }.map { id -> rates[id] ?: fallback }.average()
-            minutes += it.price / max(1.0, r)
-            if (it.map != null) owned.add(it.map)
+            val need = max(0.0, it.price - credit)       // elde kalan bonus altını fiyattan düşer
+            credit = max(0.0, credit - it.price)
+            minutes += need / max(1.0, r)
+            if (it.map != null) { owned.add(it.map); if (it.map !in skip) credit += (mapBonus[it.map] ?: 0).toDouble() }
         }
         return minutes
     }
     val minutes = sim(emptySet())
     val scooter = Vehicles.byId("scooter").price; val desert = Maps.byId("desert").price
-    return Eco(k, median(cj.map { it.endT / 60.0 }), if (k > 0) scooter / k else 1e9, if (k > 0) desert / k else 1e9, rate, minutes / 60.0, shop, rates, sim(setOf("moon", "mars")) / 60.0)
+    // ilk koşuda Kır yolu hedef bonusu da gelir: kaç koşu gerektiği (en az 1)
+    fun runsFor(price: Int) = if (k > 0) max(1.0, (price - firstBonus) / k) else 1e9
+    return Eco(k, median(cj.map { it.endT / 60.0 }), runsFor(scooter), runsFor(desert), rate, minutes / 60.0, shop, rates, sim(setOf("moon", "mars")) / 60.0)
 }
 
 /** PLAN2 F1-5 kabul kapıları. */

@@ -45,3 +45,9 @@ Tasarım: `docs/TASARIM.md` (kararlar orada; buna uy).
 - 20 araç (yeni: Scooter, Go-kart, Dörtteker, Chopper, Hot rod, Çöp kamyonu, İtfaiye aracı, Formül araba) ve 16 harita (yeni: Tuz gölü, Donmuş göl, Gece çatıları, Mars, Volkan, Deniz tabanı). Yüzeyler SALT (0,35) ve MARS (0,65); `MapDef.drag` (deniz tabanı su direnci) ve `MapDef.pits` (çatılarda çukur sıklığı) varsayılanlı, eski haritalar aynı.
 - Altı yeni ortam döngüsü `tools/prep_sounds.py` ile üretilir (`sounds-raw/yeni` varsa kullanır, yoksa sentez/miks). Donmuş gölde buz çatırtısı oyunda `crash_crack` ile rastgele çalar. Eksik ses dosyası oyunu çökertmez.
 - Ekonomi: her altın 1; fiyatlar Kır yolu + jeep gelirine (432 altın / 3,6 dk) göre ~1/7 ölçeklendi, sıra aynı. Geliştirme tabanı max(60, fiyat/25). PlayTest ekonomi kapıları gerçek: Scooter 1-2 koşu, Çöl 2-3 koşu, bütün mağaza 25-40 saat (benzetim 31,8 saat). Ayrıntı: `docs/OYUN_TESTI.md`.
+
+## S-D seviye hedefleri (22 Ekim 2026)
+- Hill Climb Racing'deki "Level N: Reach X m" mantığı: her haritada 200, 450, 700, 1000, 1400, 1800, 2400 m hedefleri (sonra her biri 800 m daha uzak). Tamamlanan hedef sayısı harita bazında Store'da kalıcıdır (`goal_<harita>`, yalnızca artar), bonus bir kez ödenir: 25, 30, 35, 40, 45, 50, 55 altın (sonra +5, en çok 100). Her bonus 432 altınlık tipik koşunun %30'unun (129) altındadır ve bonus/metre oranı azalır.
+- Koşu başında "Hedef: N metre.", hedefte buy_hcr sesi ve "Hedef tamamlandı, bonus N altın. Sonraki hedef M metre.", en iyi mesafe aşılınca koşu içinde bir kez "Yeni rekor". Oyun sonu özeti ve ana menü bilgisi sıradaki hedefi söyler. Yeni ses dosyası yok.
+- Bonus `GameSession.goalBonus`ta tutulur (`coins` değişmez, PlayTest altın ölçüleri aynı kalır); kaydedilen altın = coins + goalBonus.
+- Testler: GameTest.goalsAndRecord, SonifyTest.goalSounds, UiSmoke.goalsThroughUi, PlayTest ekonomi benzetimi (tek seferlik bonus dahil).

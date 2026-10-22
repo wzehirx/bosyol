@@ -2,7 +2,7 @@
 
 Bu rapor `bash android/test/run.sh PlayTest` tarafından otomatik üretilir (elle düzenlemeyin, yeniden çalıştırınca yazılır). Sürücü `BlindDriver`: yalnızca sesle algılanabilen bilgilere bakar (eğim açısı, 10-15 m ilerideki radar eğimi, duyurular, havada olma, yakıt uyarıları, hız), 0.25 sn tepki gecikmesi ve küçük gürültüyle oynar. Strateji: tam gaz, burun zemin eğiminden 35° fazla kalkarsa gazı kes, havada burnu iniş eğimine yatır, takılırsa kısa geri git. "Acemi" sürücü yalnızca takla bipi (>70°) çalınca gazı keser.
 
-- Koşu sayısı: 188 (matris 128, tohum 15, araç 38); oyun zamanı sınırı 20 dk; gerçek süre 125 sn.
+- Koşu sayısı: 188 (matris 128, tohum 15, araç 38); oyun zamanı sınırı 20 dk; gerçek süre 124 sn.
 - Hata dedektörü tetiklenen koşu: 0
 
 ## 0. Kabul kapıları (PLAN2 F1-5)
@@ -34,8 +34,8 @@ Bu rapor `bash android/test/run.sh PlayTest` tarafından otomatik üretilir (ell
 | Her araç Kır yolunda y0 iyi sürücüyle ≥ 800 m (20 araç) | GEÇTİ | en az 2183 m (garbage) |
 | Her araç, acemi sürücü + denge yardımı: ilk 500 m'de kaza yok | GEÇTİ | yok (20 koşu) |
 | Ekonomi: ilk araç Scooter (450) 1-2 koşuda | GEÇTİ | 1.0 koşu (432 altın/koşu, medyan koşu 3.6 dk) |
-| Ekonomi: ilk harita Çöl (1000) 2-3 koşuda | GEÇTİ | 2.3 koşu |
-| Ekonomi: bütün mağaza (iyi oyunla) 25-40 saat | GEÇTİ | 31.8 saat benzetim (311750 altın; matris ortalaması 160 altın/dk) |
+| Ekonomi: ilk harita Çöl (1000) 2-3 koşuda | GEÇTİ | 1.7 koşu |
+| Ekonomi: bütün mağaza (iyi oyunla) 25-40 saat | GEÇTİ | 31.4 saat benzetim (311750 altın; matris ortalaması 160 altın/dk) |
 
 ## 1. Hata dedektörleri
 
@@ -190,17 +190,17 @@ Bu rapor `bash android/test/run.sh PlayTest` tarafından otomatik üretilir (ell
 
 | Sürücü | Tohum | Mesafe (m) | Bitiş | Süre (sn) | Bidon | Bidon konumları (m, yakıt%) | Tepe açı | Altın | Duyuru | En uzun sessizlik (sn) |
 |---|---|---|---|---|---|---|---|---|---|---|
-| iyi | 0 | 3196 | FUEL | 218 | 4 | 242 (73%), 700 (58%), 1142 (58%), 2069 (11%) | 51° | 432 | 54 | 12 |
-| iyi | 1 | 3196 | FUEL | 217 | 4 | 242 (73%), 700 (57%), 1141 (57%), 2069 (9%) | 51° | 432 | 55 | 12 |
-| iyi | 2 | 3197 | FUEL | 218 | 4 | 242 (73%), 700 (56%), 1142 (58%), 2069 (10%) | 51° | 432 | 55 | 12 |
-| iyi | 3 | 3196 | FUEL | 220 | 4 | 242 (73%), 700 (57%), 1142 (57%), 2069 (9%) | 51° | 432 | 56 | 12 |
-| iyi | 4 | 3197 | FUEL | 217 | 4 | 242 (73%), 700 (57%), 1142 (59%), 2069 (9%) | 45° | 432 | 55 | 12 |
-| iyi | 5 | 3197 | FUEL | 218 | 4 | 242 (73%), 700 (58%), 1142 (57%), 2069 (10%) | 51° | 432 | 56 | 12 |
-| acemi | 1 | 3197 | FUEL | 217 | 4 | 242 (73%), 700 (57%), 1142 (57%), 2069 (10%) | 63° | 432 | 55 | 12 |
-| acemi | 2 | 3197 | FUEL | 217 | 4 | 242 (73%), 700 (56%), 1141 (58%), 2069 (10%) | 62° | 432 | 55 | 12 |
-| acemi | 3 | 3197 | FUEL | 220 | 4 | 242 (73%), 700 (57%), 1141 (57%), 2069 (9%) | 62° | 432 | 55 | 12 |
-| acemi | 4 | 3197 | FUEL | 217 | 4 | 242 (73%), 700 (57%), 1142 (59%), 2069 (10%) | 50° | 432 | 54 | 12 |
-| acemi | 5 | 3197 | FUEL | 217 | 4 | 242 (73%), 701 (58%), 1141 (57%), 2069 (10%) | 62° | 432 | 55 | 12 |
+| iyi | 0 | 3196 | FUEL | 218 | 4 | 242 (73%), 700 (58%), 1142 (58%), 2069 (11%) | 51° | 432 | 62 | 12 |
+| iyi | 1 | 3196 | FUEL | 217 | 4 | 242 (73%), 700 (57%), 1141 (57%), 2069 (9%) | 51° | 432 | 63 | 12 |
+| iyi | 2 | 3197 | FUEL | 218 | 4 | 242 (73%), 700 (56%), 1142 (58%), 2069 (10%) | 51° | 432 | 63 | 12 |
+| iyi | 3 | 3196 | FUEL | 220 | 4 | 242 (73%), 700 (57%), 1142 (57%), 2069 (9%) | 51° | 432 | 64 | 12 |
+| iyi | 4 | 3197 | FUEL | 217 | 4 | 242 (73%), 700 (57%), 1142 (59%), 2069 (9%) | 45° | 432 | 63 | 12 |
+| iyi | 5 | 3197 | FUEL | 218 | 4 | 242 (73%), 700 (58%), 1142 (57%), 2069 (10%) | 51° | 432 | 64 | 12 |
+| acemi | 1 | 3197 | FUEL | 217 | 4 | 242 (73%), 700 (57%), 1142 (57%), 2069 (10%) | 63° | 432 | 63 | 12 |
+| acemi | 2 | 3197 | FUEL | 217 | 4 | 242 (73%), 700 (56%), 1141 (58%), 2069 (10%) | 62° | 432 | 63 | 12 |
+| acemi | 3 | 3197 | FUEL | 220 | 4 | 242 (73%), 700 (57%), 1141 (57%), 2069 (9%) | 62° | 432 | 63 | 12 |
+| acemi | 4 | 3197 | FUEL | 217 | 4 | 242 (73%), 700 (57%), 1142 (59%), 2069 (10%) | 50° | 432 | 62 | 12 |
+| acemi | 5 | 3197 | FUEL | 217 | 4 | 242 (73%), 701 (58%), 1141 (57%), 2069 (10%) | 62° | 432 | 63 | 12 |
 
 İyi sürücü, tohum 1-5: 3. yakıt bidonuna ulaşan = **5/5** (PLAN2 F1 kuralı: en az 4/5).
 
@@ -641,16 +641,16 @@ Menzil = depo / ölçülen yakıt harcaması (m başına). Bu değer tam gazla v
 
 ## 8. Duyurular ve karıştırıcı
 
-Mixer.voiceCount en yüksek: **16** (sınır 60). Koşu başına duyuru: ortalama 77.5; en uzun sessizlik: 35 sn (Deniz tabanı/Motosiklet/y3/iyi/s0).
+Mixer.voiceCount en yüksek: **16** (sınır 60). Koşu başına duyuru: ortalama 86.1; en uzun sessizlik: 35 sn (Deniz tabanı/Motosiklet/y3/iyi/s0).
 
 | Koşu | En uzun sessizlik (sn) | Duyuru sayısı | Süre (sn) |
 |---|---|---|---|
-| Deniz tabanı/Motosiklet/y3/iyi/s0 | 35 | 27 | 297 |
-| Kır yolu/Çöp kamyonu/y0/iyi/s1 | 33 | 39 | 322 |
-| Tuz gölü/Traktör/y3/iyi/s0 | 33 | 62 | 531 |
-| Deniz tabanı/Motosiklet/y0/iyi/s0 | 30 | 20 | 212 |
-| Volkan/Traktör/y0/iyi/s0 | 29 | 33 | 261 |
-| Tuz gölü/Cip/y3/iyi/s0 | 29 | 37 | 220 |
+| Deniz tabanı/Motosiklet/y3/iyi/s0 | 35 | 33 | 297 |
+| Kır yolu/Çöp kamyonu/y0/iyi/s1 | 33 | 46 | 322 |
+| Tuz gölü/Traktör/y3/iyi/s0 | 33 | 71 | 531 |
+| Volkan/Traktör/y0/iyi/s0 | 29 | 38 | 261 |
+| Deniz tabanı/Motosiklet/y0/iyi/s0 | 29 | 24 | 212 |
+| Tuz gölü/Cip/y3/iyi/s0 | 29 | 44 | 220 |
 
 ## 9. Ekonomi
 
@@ -791,7 +791,7 @@ Sürücü yakıt bitene ya da 20 dk dolana kadar oynadığı için koşu başı 
 
 Kır yolu + jeep ortalaması (6 koşu): 432 altın/koşu. Jeep için 4 geliştirmenin 3. seviyeye maliyeti: 1240 altın = 3 koşu; Scooter (450): 2 koşu; Çöl haritası (1000): 3 koşu.
 
-**İlerleme özeti (kapılarla aynı hesap):** Kır yolu + jeep (geliştirme yok) iyi koşu ortalaması 432 altın, medyan koşu süresi 3.6 dk. Scooter (450) = 1.0 koşu, Çöl (1000) = 2.3 koşu. Matristeki tüm iyi sürücü koşularının ortalama hızı 160 altın/dk. Tüm araçlar ve haritalar (311750 altın): ilerleme benzetimiyle ≈ **31.8 saat**. Hedef: Scooter 1-2 koşu, Çöl 2-3 koşu, tüm mağaza 25-40 saat. Benzetim: ürünler fiyat sırasıyla alınır, oyuncu sahip olduğu haritaların hepsini sırayla oynar; harita başına jeep y0 altın/dk: Kır yolu 119, Çöl 112, Tuz gölü 117, Kutup 109, Ay 631, Donmuş göl 114, Orman 116, Gece çatıları 129, Dağ 134, Plaj 129, Mağara 109, Mars 223, Bataklık 142, Volkan 125, Şantiye 148, Deniz tabanı 85. Geliştirmeler (isteğe bağlı) dahil değildir. Ay ve Mars'taki havada kalma bonusu altını 2-5 kat artırır; oyuncu bu iki haritayı hiç oynamazsa en kötü durum ≈ 43.4 saat.
+**İlerleme özeti (kapılarla aynı hesap):** Kır yolu + jeep (geliştirme yok) iyi koşu ortalaması 432 altın, medyan koşu süresi 3.6 dk. Scooter (450) = 1.0 koşu, Çöl (1000) = 1.7 koşu. Matristeki tüm iyi sürücü koşularının ortalama hızı 160 altın/dk. Tüm araçlar ve haritalar (311750 altın): ilerleme benzetimiyle ≈ **31.4 saat**. Hedef: Scooter 1-2 koşu, Çöl 2-3 koşu, tüm mağaza 25-40 saat. Benzetim: ürünler fiyat sırasıyla alınır, oyuncu sahip olduğu haritaların hepsini sırayla oynar; harita başına jeep y0 altın/dk: Kır yolu 119, Çöl 112, Tuz gölü 117, Kutup 109, Ay 631, Donmuş göl 114, Orman 116, Gece çatıları 129, Dağ 134, Plaj 129, Mağara 109, Mars 223, Bataklık 142, Volkan 125, Şantiye 148, Deniz tabanı 85. Geliştirmeler (isteğe bağlı) dahil değildir. Ay ve Mars'taki havada kalma bonusu altını 2-5 kat artırır; oyuncu bu iki haritayı hiç oynamazsa en kötü durum ≈ 42.9 saat.
 
 Tüm araçlar ve haritalar toplam 311750 altın. Yalnızca Kır yolu + jeep hızıyla (119 altın/dk) hepsini almak ≈ 44 saat oyun sürerdi; zengin haritalar (Ay, Mars, Şantiye vb.) hızı artırdığı için benzetim daha kısa çıkar.
 
