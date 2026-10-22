@@ -2,7 +2,7 @@
 
 Bu rapor `bash android/test/run.sh PlayTest` tarafından otomatik üretilir (elle düzenlemeyin, yeniden çalıştırınca yazılır). Sürücü `BlindDriver`: yalnızca sesle algılanabilen bilgilere bakar (eğim açısı, 10-15 m ilerideki radar eğimi, duyurular, havada olma, yakıt uyarıları, hız), 0.25 sn tepki gecikmesi ve küçük gürültüyle oynar. Strateji: tam gaz, burun zemin eğiminden 35° fazla kalkarsa gazı kes, havada burnu iniş eğimine yatır, takılırsa kısa geri git. "Acemi" sürücü yalnızca takla bipi (>70°) çalınca gazı keser.
 
-- Koşu sayısı: 188 (matris 128, tohum 15, araç 38); oyun zamanı sınırı 20 dk; gerçek süre 124 sn.
+- Koşu sayısı: 188 (matris 128, tohum 15, araç 38); oyun zamanı sınırı 20 dk; gerçek süre 127 sn.
 - Hata dedektörü tetiklenen koşu: 0
 
 ## 0. Kabul kapıları (PLAN2 F1-5)
