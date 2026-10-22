@@ -115,7 +115,7 @@ class GameView(ctx: Context, val session: GameSession) : View(ctx) {
         rect.set(pad, pad, pad + hudInk.measureText(dist) + pad * 2, pad + ts * 1.4f)
         c.drawRoundRect(rect, pad, pad, hudBg)
         c.drawText(dist, pad * 2, pad + ts * 1.05f, hudInk)
-        val coins = "Altın ${s.coins}"
+        val coins = "Altın ${s.gold}"
         val cw = hudInk.measureText(coins)
         rect.set(w - pad * 3 - cw, pad, w - pad, pad + ts * 1.4f)
         c.drawRoundRect(rect, pad, pad, hudBg)

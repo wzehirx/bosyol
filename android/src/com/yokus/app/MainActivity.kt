@@ -601,7 +601,7 @@ class MainActivity : Activity() {
     /** Şimdiye dek kazanılan altını ve en iyi mesafeyi kaydeder. Tekrar çağrılabilir: her altın yalnızca bir kez eklenir. */
     private fun bankProgress() {
         val s = session ?: return
-        val total = s.coins + s.goalBonus   // hedef bonusu da altındır
+        val total = s.gold   // hedef bonusu da altındır
         if (total > credited) { store.gold = store.gold + (total - credited); credited = total }
         store.setGoalLevel(s.map.id, s.goalLevel)
         store.setBest(s.map.id, s.distance.toInt())
@@ -614,7 +614,7 @@ class MainActivity : Activity() {
         settled = true
         val m = s.distance.toInt()
         resRecord = m > bestAtStart && m > 0
-        resMeters = m; resCoins = s.coins + s.goalBonus; resGoals = s.goalsDone; resBonus = s.goalBonus; resNext = s.nextGoal; resBest = max(bestAtStart, m)
+        resMeters = m; resCoins = s.gold; resGoals = s.goalsDone; resBonus = s.goalBonus; resNext = s.nextGoal; resBest = max(bestAtStart, m)
         bankProgress()
     }
 

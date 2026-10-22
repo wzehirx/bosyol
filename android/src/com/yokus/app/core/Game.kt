@@ -56,6 +56,8 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
         private set
     var goalBonus = 0
         private set
+    /** Koşuda kazanılan toplam altın: toplananlar, takla ve havada kalma ile hedef bonusları. Menüdeki, durum duyurusundaki ve oyun sonu altını hep budur. */
+    val gold: Int get() = coins + goalBonus
     /** Sıradaki hedefin mesafesi (m). */
     val nextGoal: Int get() = Goals.target(goalLevel)
     /** Koşu başı hedef duyurusu yapıldı mı (duraklat-devam ile tekrarlanmasın). */
@@ -269,7 +271,7 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
     fun statusText(): String {
         val t = tiltDeg()
         val tilt = when { abs(t) < 3 -> "Burun düz"; t > 0 -> "Burun $t derece yukarı"; else -> "Burun ${-t} derece aşağı" }
-        return "Mesafe ${distance.toInt()} metre. Yakıt yüzde ${fuelPct()}. Altın $coins. $tilt."
+        return "Mesafe ${distance.toInt()} metre. Yakıt yüzde ${fuelPct()}. Altın $gold. $tilt."
     }
 
     fun nearestAhead(): Pair<Coin?, FuelCan?> {

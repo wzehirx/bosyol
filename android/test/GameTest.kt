@@ -357,6 +357,9 @@ fun goalsAndRecord() {
     req(s.goalBonus == 55 && s.goalsDone == 2 && s.goalLevel == 2) { "bonus ${s.goalBonus}" }
     for (i in 0 until 120) s.update(DT, 0.0, 0.0)
     req(s.goalBonus == 55 && g.goals.size == 2) { "tekrar ödendi" }
+    // durum duyurusu ve oyun sonu aynı altını söyler: toplananlar + hedef bonusu, bir kez
+    req(s.gold == s.coins + 55) { "gold ${s.gold} coins ${s.coins}" }
+    req(s.statusText().contains("Altın ${s.gold}.")) { "durum bonusu içermiyor: ${s.statusText()}" }
     // sonraki koşu kalıcı seviyeden başlar: aynı mesafede ödeme yok, yalnızca sıradaki hedef ödenir
     val g2 = G()
     val s2 = GameSession(jeep, Upgrades(), flat, g2, goalLevel = s.goalLevel)
