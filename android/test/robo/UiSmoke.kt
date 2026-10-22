@@ -252,6 +252,41 @@ class UiSmoke {
     }
 
 
+    /** Oyun bitmişken (2.5 sn'lik bekleme) geri tuşu ya da onPause Duraklat'a değil Oyun sonu'na gider; altın bir kez yazılır. */
+    @Test fun backDuringEndDelay() {
+        val ctl = Robolectric.buildActivity(MainActivity::class.java).setup()
+        a = ctl.get(); a.autoLoop = false; idle()
+        val g0 = Store(a).gold
+        click("Başla"); skip(); val s = a.gameSession!!
+        run(1.0); s.end(EndReason.CRASH); s.coins += 5
+        back()
+        assertEquals("bitmiş oyunda geri tuşu Duraklat'a gitti", "Oyun bitti", title()?.text.toString())
+        assertTrue(texts().any { it.contains("5 altın kazandın") })
+        assertEquals("altın bir kez eklenmeli", g0 + 5, Store(a).gold)
+        ctl.pause(); idle(); ctl.resume(); idle()
+        assertEquals("onPause altını yeniden eklememeli", g0 + 5, Store(a).gold)
+    }
+
+    /** 1.x kayıtları: yeni anahtarlar yok, bilinmeyen araç ve harita kimlikleri, sahip olunmayan seçili araç. */
+    @Test fun legacyPrefs() {
+        val sp = org.robolectric.RuntimeEnvironment.getApplication().getSharedPreferences("yokus", 0)
+        sp.edit().putInt("gold", 123456).putString("vehicle", "removed_car").putString("map", "tank_land")
+            .putBoolean("own_v_tank", true).putBoolean("own_m_desert", true).putInt("best_country", 900).putInt("up_jeep_engine", 99).commit()
+        val ctl = Robolectric.buildActivity(MainActivity::class.java).setup()
+        a = ctl.get(); a.autoLoop = false; idle()
+        val st = Store(a)
+        assertTrue("menü sesleri varsayılan açık olmalı", st.menuSounds); assertTrue("titreşim varsayılan açık olmalı", st.haptics)
+        assertEquals(0, st.goalLevel("country")); assertEquals(123456, st.gold)
+        assertEquals("jeep", st.vehicleId); assertEquals("country", st.mapId)
+        assertEquals(Store.MAX_LEVEL, st.upgrades("jeep").engine)
+        assertTrue(st.owns("tank") && st.ownsMap("desert") && !st.owns("super"))
+        assertEquals("Yokuş Ustası", title()?.text.toString())
+        assertTrue(texts().any { it.contains("Altın: 123456") && it.contains("Sıradaki hedef: 200 metre") })
+        sp.edit().putString("vehicle", "super").commit()   // sahip olunmayan araç seçili görünmemeli
+        assertEquals("jeep", Store(a).vehicleId)
+        click("Başla"); skip(); assertTrue(views().any { it is GameView })
+    }
+
     /** BlindDriver kararlarını gerçek pedallara (dokunma olayı) aktarır: gaz/fren 0..1 değerini 60 Hz'de titreşimle ikili basışa çevirir. */
     private var accG = 0.0; private var accB = 0.0
     private fun drive(d: BlindDriver, gas: PedalView, brake: PedalView) {

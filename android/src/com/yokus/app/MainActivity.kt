@@ -627,12 +627,14 @@ class MainActivity : Activity() {
     }
 
     private fun showEnd() {
+        settle()   // kare içinde biten oturum henüz kesinleşmemiş olabilir (onPause, geri tuşu)
         stopLoop(); sonify?.stop()
         screen = Scr.OVER; render()
     }
 
     private fun pauseGame() {
         if (screen != Scr.GAME) return
+        if (session?.over == true) { showEnd(); return }   // oyun bitmişken Duraklat'a geçilmez: devam edince ölü oturumun sesleri açılırdı
         stopLoop()
         gasPedal?.release(); brakePedal?.release(); keyGas = false; keyBrake = false; gasCur = 0.0
         sfx.cancelCountdown(); counting = false
