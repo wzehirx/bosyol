@@ -96,6 +96,16 @@ class UiSmoke {
             click(s); assertEquals(s, title()?.text.toString()); audit(s); back()
             assertEquals("Yokuş Ustası", title()?.text.toString())
         }
+        // S-C: araç ve harita listeleri 20 ve 16 satırdır, her satırda ad ve fiyat ya da "sahipsin" okunur
+        click("Araçlar")
+        val vb = views().filter { it.tag?.toString()?.startsWith("v_") == true }.filterIsInstance<TextView>()
+        assertEquals("araç listesi", 20, vb.size); assertEquals("araç listesi sırası", Vehicles.all.map { "v_${it.id}" }, vb.map { it.tag.toString() })
+        assertTrue("araç satırı fiyatsız", vb.drop(1).all { it.text.contains("altın") })
+        back()
+        click("Haritalar")
+        val mb = views().filter { it.tag?.toString()?.startsWith("m_") == true }.filterIsInstance<TextView>()
+        assertEquals("harita listesi", 16, mb.size); assertEquals("harita listesi sırası", Maps.all.map { "m_${it.id}" }, mb.map { it.tag.toString() })
+        back()
         click("Çıkış"); assertEquals("Çıkmak istiyor musun?", title()?.text.toString()); audit("Çıkış onayı"); click("Vazgeç")
         click("Başla"); audit("Oyun", needTitle = false); back(); assertEquals("Duraklatıldı", title()?.text.toString()); click("Ana menü")
 

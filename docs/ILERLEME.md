@@ -40,3 +40,8 @@ Tasarım: `docs/TASARIM.md` (kararlar orada; buna uy).
 - AudioOut ses odağı (audio focus) istemiyor; telefon çağrısında ses karışabilir.
 - Gerçek cihazda TalkBack/Jieshuo hareketleri ve AudioTrack elle denenmeli.
 - Uzak depoda eski wip-fizik dalı silinemedi (izin yok), zararsız.
+
+## S-C içerik genişletme (22 Ekim 2026)
+- 20 araç (yeni: Scooter, Go-kart, Dörtteker, Chopper, Hot rod, Çöp kamyonu, İtfaiye aracı, Formül araba) ve 16 harita (yeni: Tuz gölü, Donmuş göl, Gece çatıları, Mars, Volkan, Deniz tabanı). Yüzeyler SALT (0,35) ve MARS (0,65); `MapDef.drag` (deniz tabanı su direnci) ve `MapDef.pits` (çatılarda çukur sıklığı) varsayılanlı, eski haritalar aynı.
+- Altı yeni ortam döngüsü `tools/prep_sounds.py` ile üretilir (`sounds-raw/yeni` varsa kullanır, yoksa sentez/miks). Donmuş gölde buz çatırtısı oyunda `crash_crack` ile rastgele çalar. Eksik ses dosyası oyunu çökertmez.
+- Ekonomi: her altın 1; fiyatlar Kır yolu + jeep gelirine (432 altın / 3,6 dk) göre ~1/7 ölçeklendi, sıra aynı. Geliştirme tabanı max(60, fiyat/25). PlayTest ekonomi kapıları gerçek: Scooter 1-2 koşu, Çöl 2-3 koşu, bütün mağaza 25-40 saat (benzetim 31,8 saat). Ayrıntı: `docs/OYUN_TESTI.md`.

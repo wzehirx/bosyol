@@ -203,7 +203,7 @@ class Gate(val name: String, val ok: Boolean, val value: String)
  *  simHours: ilerleme benzetimi. Araç ve haritalar fiyat sırasıyla alınır; oyuncu elindeki haritaların hepsini sırayla oynar
  *  (gelir = sahip olunan haritalardaki jeep y0 iyi sürücü altın/dk ortalaması). Geliştirmeler dahil değildir (isteğe bağlı harcama). */
 class Eco(val perRun: Double, val runMin: Double, val runsScooter: Double, val runsDesert: Double, val rate: Double, val simHours: Double, val shop: Int,
-          val mapRates: Map<String, Double>)
+          val mapRates: Map<String, Double>, val simHoursNoLow: Double = 0.0)
 fun economy(all: List<Res>): Eco {
     val cj = all.filter { it.spec.map == "country" && it.spec.veh == "jeep" && it.spec.upg == 0 && !it.spec.novice && it.spec.group != "arac" }
     val k = avg(cj.map { it.coins.toDouble() })
@@ -218,15 +218,20 @@ fun economy(all: List<Res>): Eco {
     val fallback = rates["country"] ?: rate
     data class Item(val price: Int, val map: String?)
     val items = (Vehicles.all.filter { it.price > 0 }.map { Item(it.price, null) } + Maps.all.filter { it.price > 0 }.map { Item(it.price, it.id) }).sortedBy { it.price }
-    val owned = arrayListOf("country")
-    var minutes = 0.0
-    for (it in items) {
-        val r = owned.map { id -> rates[id] ?: fallback }.average()
-        minutes += it.price / max(1.0, r)
-        if (it.map != null) owned.add(it.map)
+    // düşük yer çekimli haritalarda (Ay, Mars) havada kalma bonusu altını 2-5 kat artırır; oyuncu onları hiç oynamazsa en kötü durum
+    fun sim(skip: Set<String>): Double {
+        val owned = arrayListOf("country")
+        var minutes = 0.0
+        for (it in items) {
+            val r = owned.filter { id -> id !in skip }.map { id -> rates[id] ?: fallback }.average()
+            minutes += it.price / max(1.0, r)
+            if (it.map != null) owned.add(it.map)
+        }
+        return minutes
     }
+    val minutes = sim(emptySet())
     val scooter = Vehicles.byId("scooter").price; val desert = Maps.byId("desert").price
-    return Eco(k, median(cj.map { it.endT / 60.0 }), if (k > 0) scooter / k else 1e9, if (k > 0) desert / k else 1e9, rate, minutes / 60.0, shop, rates)
+    return Eco(k, median(cj.map { it.endT / 60.0 }), if (k > 0) scooter / k else 1e9, if (k > 0) desert / k else 1e9, rate, minutes / 60.0, shop, rates, sim(setOf("moon", "mars")) / 60.0)
 }
 
 /** PLAN2 F1-5 kabul kapıları. */
@@ -522,7 +527,7 @@ fun writeReport(all: List<Res>, quick: Boolean, secs: Long, gates: List<Gate> = 
         sb.append("Scooter (${Vehicles.byId("scooter").price}) = ${f1(e.runsScooter)} koşu, Çöl (${Maps.byId("desert").price}) = ${f1(e.runsDesert)} koşu. Matristeki tüm iyi sürücü koşularının ortalama hızı ${f0(e.rate)} altın/dk. ")
         sb.append("Tüm araçlar ve haritalar (${e.shop} altın): ilerleme benzetimiyle ≈ **${f1(e.simHours)} saat**. Hedef: Scooter 1-2 koşu, Çöl 2-3 koşu, tüm mağaza 25-40 saat. ")
         sb.append("Benzetim: ürünler fiyat sırasıyla alınır, oyuncu sahip olduğu haritaların hepsini sırayla oynar; harita başına jeep y0 altın/dk: " +
-            Maps.all.joinToString(", ") { "${it.name} ${f0(e.mapRates[it.id] ?: 0.0)}" } + ". Geliştirmeler (isteğe bağlı) dahil değildir.\n\n")
+            Maps.all.joinToString(", ") { "${it.name} ${f0(e.mapRates[it.id] ?: 0.0)}" } + ". Geliştirmeler (isteğe bağlı) dahil değildir. Ay ve Mars'taki havada kalma bonusu altını 2-5 kat artırır; oyuncu bu iki haritayı hiç oynamazsa en kötü durum ≈ ${f1(e.simHoursNoLow)} saat.\n\n")
     }
     val shopTotal = Vehicles.all.sumOf { it.price } + Maps.all.sumOf { it.price }
     val jMin = if (jeepC.isNotEmpty()) jc / max(1.0, avg(jeepC.map { it.endT })) * 60.0 else 0.0

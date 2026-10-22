@@ -32,6 +32,6 @@ Depo düzeni (kök klasör): `android/` (kaynak, build.py, testler), `sounds/` (
   - Araç listesinde odaklanınca motor sesi önizlemesi, haritada ortam sesi önizlemesi.
   - Ana menüde arka plan motor/ortam sesi (açılıp kapanabilir).
   - Başlarken geri sayım ve motor çalıştırma, oyun sonu özeti.
-- [ ] 4. S-C İçerik (Sonnet): araç sayısı 12 → 20, harita sayısı 10 → 16 (`Defs.kt`, `Terrain.kt`, sesler, testler, PlayTest kapıları).
+- [x] 4. S-C İçerik (Sonnet): araç sayısı 12 → 20, harita sayısı 10 → 16 (`Defs.kt`, `Terrain.kt`, sesler, testler, PlayTest kapıları). Yeni yüzeyler SALT/MARS, `MapDef.drag`/`pits`, altı yeni ortam sesi, fiyatlar yeniden ölçeklendi (scooter 450 ... süper araba 36.000; Çöl 1.000 ... Deniz tabanı 14.500), ekonomi kapıları gerçek.
 - [ ] 5. Denetim (Sonnet), çözülemeyenler Opus.
 - [ ] 6. Sürüm: release imzalı APK `indir/YokusUstasi.apk`, README, commit ve push.

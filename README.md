@@ -30,17 +30,17 @@ https://github.com/wzehirx/bosyol/raw/main/yokus/indir/YokusUstasi.apk
 - Eğim tonu: aracın burnu kalktıkça ses incelir, indikçe kalınlaşır. Açı 70 dereceyi geçince hızlanan bip sesi takla tehlikesini haber verir.
 - Yol radarı: kısa tıkırtılar biraz ilerideki eğimi anlatır. Tık incelirse önde yokuş, kalınlaşırsa iniş vardır.
 - Önde dik yokuş, dik iniş, rampa, çukur ya da tümsek varsa sesli uyarı gelir.
-- Öndeki altınlar parıltı sesiyle duyulur. Altınların değeri farklıdır (5, 25, 100 ve ender 500) ve her değerin kendi sesi vardır: küçük altın tek tınlar, büyüdükçe sesi zenginleşir; 500'lük altın en gösterişli sestir ve uzaktan çift parıltıyla bildirilir. İlerledikçe değerli altınlar artar. Yakıt bidonunun iki notalı kendi işaret sesi vardır.
+- Öndeki altınlar parıltı sesiyle duyulur. Her altın 1 altın değerindedir ve her alınışında ses çalar; harita pahalandıkça altın yoğunluğu artar. Yakıt bidonunun iki notalı kendi işaret sesi vardır.
 - Yakıt yüzde 25'e ve yüzde 10'a düşünce uyarı gelir.
 - Havada takla atmak ve havada uzun kalmak ek altın kazandırır.
 
 ## Araçlar
 
-Cip, Motosiklet, Pikap, Traktör, Kum arabası, Ralli arabası, Canavar kamyon, Otobüs, Kar motosikleti, Ay aracı, Tank, Süper araba. Hepsinin kendi motor sesi ve sürüş karakteri var.
+20 araç var (fiyat sırasıyla): Cip, Scooter, Motosiklet, Go-kart, Pikap, Dörtteker, Traktör, Kum arabası, Chopper, Ralli arabası, Hot rod, Canavar kamyon, Çöp kamyonu, Otobüs, Kar motosikleti, İtfaiye aracı, Ay aracı, Formül araba, Tank, Süper araba. Hepsinin kendi motor sesi ve sürüş karakteri var.
 
 ## Haritalar
 
-Kır yolu, Çöl, Kutup, Ay (yer çekimi düşük), Orman, Dağ, Plaj, Mağara, Bataklık, Şantiye. Her haritanın kendi zemini ve ortam sesi var.
+16 harita var (fiyat sırasıyla): Kır yolu, Çöl, Tuz gölü, Kutup, Ay (yer çekimi düşük), Donmuş göl, Orman, Gece çatıları, Dağ, Plaj, Mağara, Mars (yer çekimi düşük), Bataklık, Volkan, Şantiye, Deniz tabanı (su direnci, yavaş ve uzun süzülme). Her haritanın kendi zemini ve ortam sesi var.
 
 ## Garaj
 
