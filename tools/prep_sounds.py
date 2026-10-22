@@ -17,6 +17,7 @@ OUT = os.path.join(YOKUS, "sounds")
 KAYNAK = os.path.join(YOKUS, "kaynak")
 BOS = os.path.join(KAYNAK, "bosyol")      # e0/e1/e2 engine layers, crash.mp3, fallbacks
 HCR = os.path.join(KAYNAK, "hcr")         # user-supplied effects pack
+YENI = os.path.join(RAW, "yeni")          # S-C: yeni ortam sesi adaylari (gitignored); yoksa sentezlenir
 SR = 44100
 XFADE = 0.15          # loop crossfade, s
 HOP = 0.05            # RMS hop, s
@@ -28,6 +29,8 @@ LOOPS = ["eng_jeep", "eng_moto", "eng_tractor", "eng_buggy", "eng_monster", "eng
          "roll_rock", "roll_asphalt", "wind"] + \
         ["amb_" + n for n in ["country", "desert", "arctic", "moon", "forest", "beach",
                               "cave", "swamp", "mountain", "city"]]
+# S-C yeni haritalarin ortam dongulari (kaynak/bosyol, sounds-raw ve sounds-raw/yeni altindan; eksikler sentezlenir)
+NEW_AMB = ["amb_saltflat", "amb_frozenlake", "amb_rooftops", "amb_mars", "amb_volcano", "amb_deepsea"]
 FX_CAP = {"coin": 0.6, "fuel_pick": 1.2, "land_thud": 0.6, "creak": 1.0, "crash": 2.5,
           "flip": 1.0, "buy": 1.0, "fuel_low": 1.2}
 FX_FADE = {"crash": 0.3}
@@ -228,6 +231,131 @@ def encode_raw(x, dst):
     """Encode PCM straight to mp3 (no loudnorm) - used for nope."""
     run(["ffmpeg", "-v", "error", "-y", "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", "-",
          "-c:a", "libmp3lame", "-b:a", "128k", dst], x.astype("<f4").tobytes())
+
+
+# ------------------------------------------------- S-C: yeni ortam sesleri ----
+def fit(x, n):
+    """x'i n ornege tekrarlayarak / keserek getirir."""
+    if len(x) >= n:
+        return x[:n]
+    return np.tile(x, int(math.ceil(n / len(x))))[:n]
+
+
+def norm(x, peak=1.0):
+    return x * (peak / (np.max(np.abs(x)) + 1e-9))
+
+
+def synth_wind_low(seconds=16.0, seed=11):
+    """Alcak ruzgar: 40-450 Hz suzulmus gurultu, yavas esen kabarmalar."""
+    rng = np.random.default_rng(seed)
+    n = int(seconds * SR)
+    t = np.arange(n) / SR
+    bed = pcm_filter(rng.standard_normal(n), "highpass=f=40,lowpass=f=450")
+    bed = norm(bed)
+    gust = 0.65 + 0.2 * np.sin(2 * np.pi * 0.11 * t + 0.5) + 0.15 * np.sin(2 * np.pi * 0.29 * t + 2.0)
+    return norm(bed * gust)
+
+
+def synth_rumble(seconds=16.0, seed=21):
+    """Gurleme: 25-110 Hz kahverengi gurultu, yavas kabaran derin dalgalar (volkan)."""
+    rng = np.random.default_rng(seed)
+    n = int(seconds * SR)
+    t = np.arange(n) / SR
+    low = norm(pcm_filter(rng.standard_normal(n), "highpass=f=22,lowpass=f=110"))
+    mid = norm(pcm_filter(rng.standard_normal(n), "highpass=f=80,lowpass=f=260"))
+    swell = 0.6 + 0.25 * np.sin(2 * np.pi * 0.17 * t + 1.0) + 0.15 * np.sin(2 * np.pi * 0.43 * t)
+    return norm((low + 0.25 * mid) * swell)
+
+
+def synth_crackle(seconds=16.0, seed=31):
+    """Citirti: poisson dagitimli kisa patlamalar (lav / kor), 1.2-7 kHz; ara sira daha dusuk 'pop'."""
+    rng = np.random.default_rng(seed)
+    n = int(seconds * SR)
+    out = np.zeros(n)
+    k = rng.poisson(38 * seconds)
+    pos = rng.integers(0, n - 2000, k)
+    amp = rng.exponential(1.0, k) ** 1.5
+    for p, a in zip(pos, amp):
+        ln = int(rng.integers(40, 400))
+        out[p:p + ln] += a * rng.standard_normal(ln) * np.exp(-np.arange(ln) / (ln / 5))
+    out = pcm_filter(out, "highpass=f=1200,lowpass=f=7000")
+    pops = np.zeros(n)
+    for p in rng.integers(0, n - 4000, int(2.0 * seconds)):
+        ln = int(rng.integers(600, 2200))
+        tt = np.arange(ln) / SR
+        pops[p:p + ln] += rng.uniform(0.3, 1.0) * np.sin(2 * np.pi * rng.uniform(180, 520) * tt) * np.exp(-tt * 45)
+    return norm(norm(out) + 0.5 * pops)
+
+
+def synth_bubbles(seconds=16.0, seed=41):
+    """Kabarciklar: kisa, yukari kayan sinus cikislari (200-1200 Hz), rastgele aralikli (deniz tabani)."""
+    rng = np.random.default_rng(seed)
+    n = int(seconds * SR)
+    out = np.zeros(n)
+    for p in rng.integers(0, n - SR // 4, int(5.5 * seconds)):
+        ln = int(rng.uniform(0.04, 0.16) * SR)
+        tt = np.arange(ln) / SR
+        f0 = rng.uniform(200, 900)
+        f = f0 * (1 + rng.uniform(1.2, 3.0) * tt / (ln / SR))
+        ph = 2 * np.pi * np.cumsum(f) / SR
+        out[p:p + ln] += rng.uniform(0.2, 1.0) * np.sin(ph) * np.exp(-tt * (22 + 30 * rng.random())) * np.minimum(1, tt / 0.004)
+    return norm(out)
+
+
+def shift(x, factor):
+    """asetrate: perde ve tempo birlikte `factor` kati (SR korunur)."""
+    return pcm_filter(x, f"asetrate={int(SR * factor)},aresample={SR}")
+
+
+def process_new_amb(slot):
+    dst = os.path.join(OUT, slot + ".mp3")
+    if True:
+        how = ""
+        if slot == "amb_saltflat":      # genis, alcak perdeli ruzgar: cole ait bir ruzgar yavaslatilmis
+            x = shift(decode(os.path.join(RAW, "amb_desert.mp3")), 0.78)
+            how = "amb_desert, perde x0.78 (alcak ruzgar)"
+        elif slot == "amb_frozenlake":  # kutup ruzgari biraz alcak + yumusak
+            x = pcm_filter(shift(decode(os.path.join(RAW, "amb_arctic.mp3")), 0.9), "lowpass=f=5500")
+            how = "amb_arctic, perde x0.9, 5.5 kHz alcak geciren (buz catirtisi oyunda crash_crack ile)"
+        elif slot == "amb_rooftops":    # gece + sehir
+            a = decode(os.path.join(BOS, "bed_night.mp3")); b = decode(os.path.join(BOS, "bed_city.mp3"))
+            n = min(len(a), len(b))
+            x = norm(0.75 * norm(a[:n]) + 0.7 * norm(b[:n]))
+            how = "kaynak/bosyol bed_night + bed_city"
+        elif slot == "amb_mars":        # alcak ruzgar + ay ortami
+            yw = os.path.join(YENI, "amb_mars.mp3")
+            if os.path.exists(yw):
+                w = pcm_filter(decode(yw), "highpass=f=40,lowpass=f=700"); wn = "sounds-raw/yeni/amb_mars.mp3 (alcak rüzgar, 700 Hz alcak geciren)"
+                w = w[int(2 * SR):int(2 * SR) + int(24 * SR)] if len(w) > int(30 * SR) else w
+            else:
+                w = synth_wind_low(20.0); wn = "sentez alcak ruzgar"
+            moon = fit(decode(os.path.join(RAW, "amb_moon.mp3")), len(w))
+            x = norm(0.9 * norm(w) + 0.35 * norm(moon))
+            how = wn + " + amb_moon"
+        elif slot == "amb_volcano":     # gurleme + citirti (+ varsa lav kabarciklari)
+            n = int(20 * SR)
+            parts = [norm(synth_rumble(20.0)), 0.55 * norm(synth_crackle(20.0))]
+            yv = os.path.join(YENI, "amb_volcano.mp3")
+            if os.path.exists(yv):
+                v = decode(yv); parts.append(0.4 * norm(fit(v[int(1 * SR):], n)))
+            x = norm(sum(parts))
+            how = "sentez gurleme + citirti" + (" + sounds-raw/yeni/amb_volcano.mp3 (lav kabarciklari)" if os.path.exists(yv) else "")
+        elif slot == "amb_deepsea":     # kisik dalga + kabarcik
+            w = pcm_filter(decode(os.path.join(BOS, "em_waves.mp3")), "lowpass=f=480")
+            n = len(w)
+            hum = norm(pcm_filter(np.random.default_rng(5).standard_normal(n), "highpass=f=30,lowpass=f=140"))
+            x = norm(0.8 * norm(w) + 0.5 * norm(synth_bubbles(n / SR)) + 0.25 * hum)
+            how = "kaynak/bosyol em_waves (480 Hz alcak geciren) + sentez kabarcik + alcak uğultu"
+        else:
+            raise KeyError(slot)
+        report.append((slot, "synth/mix", how))
+    start, length, spread, cen, seam = best_window(x, False)
+    y = make_seamless(x, start, length)
+    loudnorm_encode(y, -20, dst)
+    amb_info[slot] = how
+
+
+amb_info = {}
 
 
 # ----------------------------------------------------------------- main ----
@@ -474,6 +602,8 @@ def main():
         process_loop(slot)
     for slot in FX_CAP:
         process_fx(slot)
+    for slot in NEW_AMB:
+        process_new_amb(slot)
     # bosyol-derived copies
     for f in sorted(os.listdir(BOS)):
         if re.match(r"e[012]_.*\.wav$", f):
@@ -496,6 +626,9 @@ def main():
     rows.append(["e0_*/e1_*/e2_*.wav", "", "bosyol engine layers", "Bruno Simon (folio-2019)",
                  "https://github.com/brunosimon/folio-2019", "MIT"])
     rows.append(["crash_car", "", "bosyol crash.mp3", "bosyol deposu", "bosyol deposu", "bosyol deposu"])
+    for n in NEW_AMB:
+        rows.append([n, "", amb_info.get(n, ""), "yokus prep_sounds.py (S-C)", "kaynak/bosyol, sounds-raw/yeni (CC0: archive.org GOLD_TAPE_55_56 / SSE_Library_GEOTHERMAL)",
+                     "CC0 / MIT / sentez"])
     rows.append(["nope", "", "synthesized 220 Hz tone", "yokus prep_sounds.py", "", "CC0 (generated)"])
     rows.append(["roll_sand", "", "synthesized granular sand roll", "yokus prep_sounds.py", "", "CC0 (generated)"])
     for n, src in list(HCR_FX.items()) + list(HCR_LOOPS.items()):
@@ -523,7 +656,7 @@ def main():
                 bad.append(f"{f}: {st}")
         lufs, pk = measure(p)
         seam = ""
-        if slot in LOOPS:
+        if slot in LOOPS or slot in NEW_AMB:
             j = seam_jump(p)
             seam = f"{j:.2f}"
             if j >= 3.0:
@@ -555,7 +688,7 @@ def main():
     # slot completeness
     print("\nCoin sounds:")
     make_coins.print_table(OUT)
-    for s in LOOPS + list(FX_CAP) + ["nope", "crash_car"] + make_coins.NAMES + list(HCR_FX):
+    for s in LOOPS + NEW_AMB + list(FX_CAP) + ["nope", "crash_car"] + make_coins.NAMES + list(HCR_FX):
         assert os.path.exists(os.path.join(OUT, s + ".mp3")), s
     for s in HCR_LOOPS:
         assert os.path.exists(os.path.join(OUT, s + ".wav")), s

@@ -34,6 +34,12 @@ flip,449996,whoosh_short_mid.wav,DJT4NN3R,https://freesound.org/s/449996/,CC0
 buy,209578,Cash Register Purchase,Zott820,https://freesound.org/s/209578/,CC0
 e0_*/e1_*/e2_*.wav,,bosyol engine layers,Bruno Simon (folio-2019),https://github.com/brunosimon/folio-2019,MIT
 crash_car,,bosyol crash.mp3,bosyol deposu,bosyol deposu,bosyol deposu
+amb_saltflat,,"amb_desert, perde x0.78 (alcak ruzgar)",yokus prep_sounds.py (S-C),"kaynak/bosyol, sounds-raw/yeni (CC0: archive.org GOLD_TAPE_55_56 / SSE_Library_GEOTHERMAL)",CC0 / MIT / sentez
+amb_frozenlake,,"amb_arctic, perde x0.9, 5.5 kHz alcak geciren (buz catirtisi oyunda crash_crack ile)",yokus prep_sounds.py (S-C),"kaynak/bosyol, sounds-raw/yeni (CC0: archive.org GOLD_TAPE_55_56 / SSE_Library_GEOTHERMAL)",CC0 / MIT / sentez
+amb_rooftops,,kaynak/bosyol bed_night + bed_city,yokus prep_sounds.py (S-C),"kaynak/bosyol, sounds-raw/yeni (CC0: archive.org GOLD_TAPE_55_56 / SSE_Library_GEOTHERMAL)",CC0 / MIT / sentez
+amb_mars,,"sounds-raw/yeni/amb_mars.mp3 (alcak rüzgar, 700 Hz alcak geciren) + amb_moon",yokus prep_sounds.py (S-C),"kaynak/bosyol, sounds-raw/yeni (CC0: archive.org GOLD_TAPE_55_56 / SSE_Library_GEOTHERMAL)",CC0 / MIT / sentez
+amb_volcano,,sentez gurleme + citirti + sounds-raw/yeni/amb_volcano.mp3 (lav kabarciklari),yokus prep_sounds.py (S-C),"kaynak/bosyol, sounds-raw/yeni (CC0: archive.org GOLD_TAPE_55_56 / SSE_Library_GEOTHERMAL)",CC0 / MIT / sentez
+amb_deepsea,,kaynak/bosyol em_waves (480 Hz alcak geciren) + sentez kabarcik + alcak uğultu,yokus prep_sounds.py (S-C),"kaynak/bosyol, sounds-raw/yeni (CC0: archive.org GOLD_TAPE_55_56 / SSE_Library_GEOTHERMAL)",CC0 / MIT / sentez
 nope,,synthesized 220 Hz tone,yokus prep_sounds.py,,CC0 (generated)
 roll_sand,,synthesized granular sand roll,yokus prep_sounds.py,,CC0 (generated)
 ui_click,,"kaynak/hcr/click.wav: click.wav, 0.065s -> 0.043s, gain +9.0 dB",Kullanıcı tarafından sağlanan ses paketi,kaynak/hcr/,Kullanıcı sağladı (yalnızca proje içi kullanım)
