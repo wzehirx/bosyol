@@ -330,6 +330,53 @@ fun stuckHint() {
     req(e4.n == 0) { "ilerlerken ipucu" }
 }
 
+/** Seviye hedefleri: tablo, bonus sınırı, tek ödeme, devam eden seviye, koşu içi rekor. */
+fun goalsAndRecord() {
+    // tablo
+    val want = listOf(200, 450, 700, 1000, 1400, 1800, 2400)
+    for (i in want.indices) req(Goals.target(i) == want[i]) { "hedef $i = ${Goals.target(i)}" }
+    req((0 until 40).all { Goals.target(it + 1) > Goals.target(it) }) { "hedefler artmıyor" }
+    req(Goals.bonus(0) == 25) { "ilk bonus ${Goals.bonus(0)}" }
+    req((0 until 60).all { Goals.bonus(it) in 1..Goals.BONUS_CAP }) { "bonus sınırı aşıldı" }
+    req(Goals.BONUS_CAP <= (432 * 0.30).toInt()) { "sınır koşunun %30'unu aşıyor" }
+    req((1 until 60).all { Goals.bonus(it) >= Goals.bonus(it - 1) }) { "bonus azalıyor" }
+    req((1 until 60).all { Goals.bonus(it).toDouble() / Goals.target(it) < Goals.bonus(it - 1).toDouble() / Goals.target(it - 1) }) { "bonus/metre oranı azalmıyor" }
+    fun jump(s: GameSession, m: Double) { s.car.x += m; s.car.rear.x += m; s.car.front.x += m }
+    class G : GameEvents {
+        val goals = ArrayList<List<Int>>(); var rec = 0
+        override fun onGoal(level: Int, target: Int, bonus: Int, next: Int) { goals.add(listOf(level, target, bonus, next)) }
+        override fun onRecord(m: Int) { rec++ }
+    }
+    // bir kez ödenir: ışınlan, birden çok hedef birlikte; sonra beklemek tekrar ödemez
+    val g = G()
+    val s = GameSession(jeep, Upgrades(), flat, g)
+    req(s.goalLevel == 0 && s.nextGoal == 200) { "başlangıç" }
+    s.update(DT, 0.0, 0.0); req(g.goals.isEmpty()) { "0 m'de hedef" }
+    jump(s, 460.0); s.update(DT, 0.0, 0.0)
+    req(g.goals == listOf(listOf(1, 200, 25, 450), listOf(2, 450, 30, 700))) { "hedefler ${g.goals}" }
+    req(s.goalBonus == 55 && s.goalsDone == 2 && s.goalLevel == 2) { "bonus ${s.goalBonus}" }
+    for (i in 0 until 120) s.update(DT, 0.0, 0.0)
+    req(s.goalBonus == 55 && g.goals.size == 2) { "tekrar ödendi" }
+    // sonraki koşu kalıcı seviyeden başlar: aynı mesafede ödeme yok, yalnızca sıradaki hedef ödenir
+    val g2 = G()
+    val s2 = GameSession(jeep, Upgrades(), flat, g2, goalLevel = s.goalLevel)
+    jump(s2, 460.0); s2.update(DT, 0.0, 0.0)
+    req(g2.goals.isEmpty() && s2.goalBonus == 0) { "yeniden ödendi ${g2.goals}" }
+    jump(s2, 260.0); s2.update(DT, 0.0, 0.0)
+    req(g2.goals == listOf(listOf(3, 700, 35, 1000))) { "3. hedef ${g2.goals}" }
+    // tipik koşu (2500-8000 m, 7+ hedef) bile tek koşuda 432 altının büyük kısmını aşmaz: toplam ilk 7 hedef 280
+    req((0 until 7).sumOf { Goals.bonus(it) } == 280) { "ilk 7 hedef toplamı" }
+    // rekor: yalnızca bestStart > 0 iken, mesafe aşılınca bir kez
+    val g3 = G()
+    val s3 = GameSession(jeep, Upgrades(), flat, g3, bestStart = 300)
+    jump(s3, 250.0); s3.update(DT, 0.0, 0.0); req(g3.rec == 0) { "erken rekor" }
+    jump(s3, 70.0); s3.update(DT, 0.0, 0.0); req(g3.rec == 1 && s3.recordHit) { "rekor gelmedi" }
+    jump(s3, 100.0); s3.update(DT, 0.0, 0.0); s3.update(DT, 0.0, 0.0); req(g3.rec == 1) { "rekor yinelendi" }
+    val g4 = G()
+    val s4 = GameSession(jeep, Upgrades(), flat, g4, bestStart = 0)
+    jump(s4, 500.0); s4.update(DT, 0.0, 0.0); req(g4.rec == 0 && !s4.recordHit) { "rekor 0 iken verildi" }
+}
+
 fun main() {
     coinsCollected(); println("coinsCollected ok")
     coinsOneEachAndAllFire(); println("coinsOneEachAndAllFire ok")
@@ -349,5 +396,6 @@ fun main() {
     assistPreventsFlip(); println("assistPreventsFlip ok")
     assistWarns(); println("assistWarns ok")
     stuckHint(); println("stuckHint ok")
+    goalsAndRecord(); println("goalsAndRecord ok")
     println("OK")
 }

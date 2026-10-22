@@ -52,6 +52,11 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         private set
     @Volatile var superGain = 0f
         private set
+    /** Testler için: tamamlanan hedef ve koşu içi rekor duyuru sayaçları. */
+    @Volatile var goalCount = 0
+        private set
+    @Volatile var recordCount = 0
+        private set
     @Volatile var spoolCount = 0
         private set
     @Volatile var blowCount = 0
@@ -90,6 +95,7 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         const val MASTER_TRIM = 1.6f
         /** Mesafe duyurusu aralığı (m): uzun sessizlikleri böler, ilerlemeyi bildirir. */
         const val DIST_CALL_EVERY = 250
+        const val GOAL_INTRO_DELAY = 3.4
         val COIN_S = arrayOf("coin_s", "coin_s2", "coin_s3")   // coin_hcr yoksa yedekler
         /** Yeni motor döngüleri: döngü noktası dosyaya işlenmiştir, ek bindirme gerekmez. */
         val BAKED_LOOPS = setOf("eng_hill", "eng_monster2", "eng_rally2", "supercharger")
@@ -161,6 +167,8 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
         amb?.fadeTo(0.35f, 1.0f)
         tilt = OscVoice(BUS_CABIN, OscVoice.SINE).also { it.gain = 0f; mix.add(it); loops.add(it) }
         nextBeep = clock; nextRadar = clock; nextCoinGlint = clock + 0.3; nextFuelBeacon = clock + 0.6
+        // koşu başı hedef duyurusu: "Başla! Gaz sağda, fren solda." bittikten sonra (konuşma birbirini kesmesin), koşu başına bir kez
+        if (!s.goalIntroDone) later(GOAL_INTRO_DELAY) { if (!ended && !s.goalIntroDone) { s.goalIntroDone = true; say("Hedef: ${s.nextGoal} metre.") } }
     }
 
     fun stop() {
@@ -438,6 +446,21 @@ class Sonify(val mix: Mixer, val bank: Bank, val set: AudioSettings, val speak: 
     override fun onAirBonus(sec: Double, bonus: Int) { say("Havada ${sec.toInt()} saniye, $bonus altın") }
 
     override fun onFeature(f: Feature) { say(f.kind.say) }
+
+    /** Hedef başarı sesi buy_hcr; duyuru bonusu ve sıradaki hedefi tek cümlede söyler (konuşma birbirini kesmesin). */
+    override fun onGoal(level: Int, target: Int, bonus: Int, next: Int) {
+        goalCount++
+        shot("buy_hcr", BUS_FX, 0.9f)
+        say("Hedef tamamlandı, bonus $bonus altın. Sonraki hedef $next metre.")
+    }
+
+    /** Koşu içi rekor: coin_hcr'den iki kısa yükselen vuruş. */
+    override fun onRecord(m: Int) {
+        recordCount++
+        shot("coin_hcr", BUS_FX, 0.5f, 1.25, 0f)
+        later(0.12) { shot("coin_hcr", BUS_FX, 0.5f, 1.68, 0f) }
+        say("Yeni rekor")
+    }
 
     override fun onDistance(m: Int) { if (set.distanceCalls && m % DIST_CALL_EVERY == 0) say("$m metre") }
 

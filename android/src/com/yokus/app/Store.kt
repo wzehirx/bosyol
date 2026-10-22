@@ -77,6 +77,10 @@ class Store(ctx: Context) {
     fun best(mapId: String) = sp.getInt("best_$mapId", 0)
     fun setBest(mapId: String, m: Int) { if (m > best(mapId)) sp.edit().putInt("best_$mapId", m).apply() }
 
+    /** Haritada tamamlanan hedef sayısı (seviye hedefleri); yalnızca artar, böylece bonus bir kez ödenir. */
+    fun goalLevel(mapId: String) = maxOf(0, sp.getInt("goal_$mapId", 0))
+    fun setGoalLevel(mapId: String, n: Int) { if (n > goalLevel(mapId)) sp.edit().putInt("goal_$mapId", n).apply() }
+
     var volumeKeys: Boolean
         get() = sp.getBoolean("volumeKeys", false)
         set(v) { sp.edit().putBoolean("volumeKeys", v).apply() }

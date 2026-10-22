@@ -131,7 +131,8 @@ fun engineFollowsRpm() {
 fun announceThrottle() {
     println("announceThrottle")
     val said = ArrayList<String>()
-    val (son, _, _) = newSonify(FBank(), said)
+    val (son, ses0, _) = newSonify(FBank(), said)
+    ses0.goalIntroDone = true   // koşu başı hedef duyurusu bu sınamayı karıştırmasın
     repeat(5) { son.say("A"); son.update(0.2) }
     check("A x5 within 1 s -> once", said == listOf("A"), said.toString())
     said.clear()
@@ -149,7 +150,7 @@ fun announceThrottle() {
     son2.update(0.3); check("Y after 0.9 s", said == listOf("X", "Y"), said.toString())
     // aynı metin 3 sn içinde bastırılır, sonra yine söylenir
     said.clear()
-    val (son3, _, _) = newSonify(FBank(), said)
+    val (son3, ses3, _) = newSonify(FBank(), said); ses3.goalIntroDone = true
     son3.say("W"); son3.update(2.0); son3.say("W"); son3.update(0.5)
     check("same text within 3 s dropped", said == listOf("W"))
     son3.update(1.0); son3.say("W")
@@ -520,7 +521,34 @@ fun voicesDoNotLeak() {
     check("no voices left after stop", mix.voiceCount == 0, "left=${mix.voiceCount}")
 }
 
+fun goalSounds() {
+    println("goalSounds")
+    val cb = CountBank(FBank())
+    val said = ArrayList<String>()
+    val (son, ses, _) = newSonify(cb, said)
+    // koşu başı duyurusu gecikmeli ve bir kez: "Hedef: 200 metre."
+    son.update(1.0); check("no goal intro before intro speech ends", said.none { it.startsWith("Hedef") }, said.toString())
+    son.update(3.0); check("goal intro spoken", said.contains("Hedef: 200 metre."), said.toString())
+    son.update(10.0); check("goal intro once", said.count { it.startsWith("Hedef:") } == 1, said.toString())
+    // hedef: buy_hcr + duyuru
+    cb.counts.clear()
+    son.onGoal(1, 200, 25, 450)
+    check("goal plays buy_hcr", (cb.counts["buy_hcr"] ?: 0) == 1 && son.goalCount == 1, cb.counts.toString())
+    son.update(1.0)
+    check("goal announcement", said.contains("Hedef tamamlandı, bonus 25 altın. Sonraki hedef 450 metre."), said.toString())
+    // rekor: iki coin_hcr vuruşu + duyuru, altın sayacına karışmaz
+    cb.counts.clear(); val hits = son.coinHits
+    son.onRecord(500); son.update(1.0)
+    check("record sound + announcement", (cb.counts["coin_hcr"] ?: 0) >= 1 && said.contains("Yeni rekor") && son.recordCount == 1 && son.coinHits == hits, cb.counts.toString() + said)
+    // yeniden başlatılan (duraklat-devam) oturumda koşu başı duyurusu tekrarlanmaz
+    val said2 = ArrayList<String>()
+    val son2 = Sonify(Mixer(), FBank(), AudioSettings()) { said2.add(it) }
+    son2.start(ses); son2.update(5.0)
+    check("goal intro not repeated after resume", said2.none { it.startsWith("Hedef:") }, said2.toString())
+}
+
 fun main() {
+    goalSounds()
     missingSoundsSilentOk()
     rendersFinite()
     engineFollowsRpm()

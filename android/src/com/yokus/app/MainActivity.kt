@@ -36,6 +36,7 @@ import com.yokus.app.core.BUS_WORLD
 import com.yokus.app.core.Bank
 import com.yokus.app.core.EndReason
 import com.yokus.app.core.GameSession
+import com.yokus.app.core.Goals
 import com.yokus.app.core.Sonify
 import com.yokus.app.core.Maps
 import com.yokus.app.core.Mixer
@@ -66,7 +67,8 @@ class MainActivity : Activity() {
             "Kar ve buz kaygandır. Lastiğini geliştir ya da kar motosikleti dene.",
             "Ay'da yer çekimi düşüktür. Sıçramalar uzun sürer, takla için iyi bir yer.",
             "Menü seslerini ve titreşimi Ayarlar'dan kapatabilirsin.",
-            "Araçlar ve Haritalar listesinde bir öğeye odaklanınca kısa bir ses önizlemesi duyarsın."
+            "Araçlar ve Haritalar listesinde bir öğeye odaklanınca kısa bir ses önizlemesi duyarsın.",
+            "Her haritada hedef mesafeler var: 200, 450, 700 metre ve ötesi. Hedefe ulaşınca bonus altın kazanırsın, her hedefin bonusu bir kez verilir."
         )
     }
 
@@ -327,7 +329,7 @@ class MainActivity : Activity() {
         val c = page("Yokuş Ustası")
         val v = Vehicles.byId(store.vehicleId); val m = Maps.byId(store.mapId)
         c.addView(para("İpucu: ${TIPS[java.util.Random().nextInt(TIPS.size)]}", cAmber).also { it.tag = "tip" })
-        val info = para("Altın: ${store.gold}. Araç: ${v.name}. Harita: ${m.name}. En iyi: ${store.best(m.id)} metre.", cInk)
+        val info = para("Altın: ${store.gold}. Araç: ${v.name}. Harita: ${m.name}. En iyi: ${store.best(m.id)} metre. Sıradaki hedef: ${Goals.target(store.goalLevel(m.id))} metre.", cInk)
         info.tag = "gold"
         c.addView(info)
         c.addView(btn("Başla", primary = true, tag = "start") { startGame() }, lp(top = 14))
@@ -450,6 +452,7 @@ class MainActivity : Activity() {
             "Altınlar önünden parıltılı bir tın sesiyle haber verir. Sesin geldiği yöne gidince altını toplarsın. Her altın 1 altın eder. Yakıt bidonu ise iki notalı, yükselen bir işaret çalar.",
             "Yakıt: gaza bastıkça yakıt azalır. Yüzde yirminin altında uyarı gelir. Yakıt biterse yavaşlar ve oyun biter. Yakıt bidonlarını toplayarak depoyu doldurabilirsin.",
             "Takla: havada tam bir tur dönüp güvenle inersen bonus altın kazanırsın. Ters dönüp kafan yere değerse kaza olur ve oyun biter.",
+            "Hedefler: her haritada sıradaki hedef mesafe koşu başında söylenir. Hedefe ulaşınca bonus altın kazanırsın. Her hedefin bonusu bir kez verilir, sonra bir sonraki hedefe geçilir. En iyi mesafeni aşınca Yeni rekor duyurulur.",
             "Kazandığın altınla Araçlar ve Haritalar ekranlarından yenilerini alabilir, Garaj'da aracını geliştirebilirsin."
         ).forEach { c.addView(para(it)) }
         c.addView(btn("Geri", primary = true, back = true) { go(Scr.MENU) }, lp(top = 18))
@@ -475,6 +478,9 @@ class MainActivity : Activity() {
     private var resCoins = 0
     private var resBest = 0
     private var resRecord = false
+    private var resGoals = 0
+    private var resBonus = 0
+    private var resNext = 0
 
     /** Testler false yaparak döngüyü kendisi [tick] ile sürer. */
     var autoLoop = true
@@ -483,7 +489,8 @@ class MainActivity : Activity() {
     fun startGame() {
         leaveGame()
         val v = Vehicles.byId(store.vehicleId)
-        val s = GameSession(v, store.upgrades(v.id), Maps.byId(store.mapId))
+        val mp = Maps.byId(store.mapId)
+        val s = GameSession(v, store.upgrades(v.id), mp, goalLevel = store.goalLevel(mp.id), bestStart = store.best(mp.id))
         val so = Sonify(mix, bank, store.audio) { speaker.say(it) }
         session = s; sonify = so
         settled = false; overT = 0.0; gasCur = 0.0; credited = 0; bestAtStart = store.best(s.map.id)
@@ -594,7 +601,9 @@ class MainActivity : Activity() {
     /** Şimdiye dek kazanılan altını ve en iyi mesafeyi kaydeder. Tekrar çağrılabilir: her altın yalnızca bir kez eklenir. */
     private fun bankProgress() {
         val s = session ?: return
-        if (s.coins > credited) { store.gold = store.gold + (s.coins - credited); credited = s.coins }
+        val total = s.coins + s.goalBonus   // hedef bonusu da altındır
+        if (total > credited) { store.gold = store.gold + (total - credited); credited = total }
+        store.setGoalLevel(s.map.id, s.goalLevel)
         store.setBest(s.map.id, s.distance.toInt())
     }
 
@@ -605,7 +614,7 @@ class MainActivity : Activity() {
         settled = true
         val m = s.distance.toInt()
         resRecord = m > bestAtStart && m > 0
-        resMeters = m; resCoins = s.coins; resBest = max(bestAtStart, m)
+        resMeters = m; resCoins = s.coins + s.goalBonus; resGoals = s.goalsDone; resBonus = s.goalBonus; resNext = s.nextGoal; resBest = max(bestAtStart, m)
         bankProgress()
     }
 
@@ -728,7 +737,8 @@ class MainActivity : Activity() {
         val c = page("Oyun bitti")   // başlık odaklanınca okunur; neden Sonify'dan zaten söylendi, metinde yazılı kalır
         val why = session?.endMessage?.takeIf { it.isNotEmpty() } ?: reason.say
         val rec = if (resRecord) " Yeni rekor!" else ""
-        c.addView(para("$why. $resMeters metre, $resCoins altın kazandın. En iyi: $resBest metre.$rec", cInk))
+        val goal = if (resGoals > 0) " $resGoals hedef tamamlandı, bonus $resBonus altın. Sıradaki hedef: $resNext metre." else " Sıradaki hedef: $resNext metre."
+        c.addView(para("$why. $resMeters metre, $resCoins altın kazandın. En iyi: $resBest metre.$rec$goal", cInk))
         c.addView(btn("Tekrar", primary = true) { startGame() }, lp(top = 14))
         c.addView(btn("Garaj") { leaveGame(); go(Scr.GARAGE) }, lp())
         c.addView(btn("Ana menü") { toMenu() }, lp())

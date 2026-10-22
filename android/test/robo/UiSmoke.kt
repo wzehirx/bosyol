@@ -279,6 +279,40 @@ class UiSmoke {
         return Pair(t, title()?.text.toString() == "Oyun bitti")
     }
 
+    /** Seviye hedefleri: ışınlanarak hedefe ulaş, bonus bir kez ödenir, kalıcıdır, oyun sonu özetinde görünür. */
+    @Test fun goalsThroughUi() {
+        a = Robolectric.buildActivity(MainActivity::class.java).setup().get(); a.autoLoop = false; idle()
+        assertTrue("menüde hedef yok: ${texts()}", texts().any { it.contains("Sıradaki hedef: 200 metre") })
+        click("Nasıl oynanır"); assertTrue("yardımda hedef yok", texts().any { it.contains("Hedefler:") }); back()
+        assertEquals(0, Store(a).goalLevel("country"))
+        fun jump(s: com.yokus.app.core.GameSession, m: Double) { s.car.x = s.car.x + m; s.car.rear.x += m; s.car.front.x += m }
+        click("Başla"); skip(); val s = a.gameSession!!
+        assertEquals(0, s.goalLevel)
+        jump(s, 210.0); a.tick(1.0 / 60)
+        assertEquals("ilk hedef", 1, s.goalsDone); assertEquals(25, s.goalBonus)
+        jump(s, 10.0); a.tick(1.0 / 60); a.tick(1.0 / 60)
+        assertEquals("bonus yinelenmedi", 25, s.goalBonus)
+        val g0 = Store(a).gold
+        s.end(EndReason.CRASH); run(3.0); idle()
+        assertEquals("Oyun bitti", title()?.text.toString())
+        println("hedefli oyun sonu: ${texts()}")
+        assertTrue("özette hedef/bonus yok: ${texts()}", texts().any { it.contains("1 hedef tamamlandı, bonus 25 altın") && it.contains("Sıradaki hedef: 450 metre") })
+        assertEquals("bonus altına eklendi", g0 + 25 + s.coins, Store(a).gold)
+        assertEquals(1, Store(a).goalLevel("country"))
+        // yeni koşu: hedef 1 tamamlanmış, tekrar ödenmez; rekor 210 m aşılınca koşu içi rekor bir kez
+        click("Tekrar"); skip(); val s2 = a.gameSession!!
+        assertEquals(1, s2.goalLevel); assertEquals(450, s2.nextGoal)
+        val g1 = Store(a).gold
+        jump(s2, 235.0); a.tick(1.0 / 60); a.tick(1.0 / 60)
+        assertEquals("tekrar ödenmedi", 0, s2.goalBonus); assertTrue("rekor", s2.recordHit)
+        jump(s2, 230.0); a.tick(1.0 / 60)
+        assertEquals(30, s2.goalBonus); assertEquals(2, s2.goalLevel)
+        back(); click("Ana menü")
+        assertEquals(2, Store(a).goalLevel("country"))
+        assertTrue("2. hedef bonusu altına eklenmedi", Store(a).gold >= g1 + 30)
+        println("OK")
+    }
+
     /** P3: tam oyun UI üzerinden: BlindDriver ile bitişe dek oyna, Garaj'da geliştirme al, yeniden oyna, duraklat, Ana menü. */
     @Test fun fullGameThroughUi() {
         a = Robolectric.buildActivity(MainActivity::class.java).setup().get(); a.autoLoop = false; idle()
@@ -297,7 +331,7 @@ class UiSmoke {
         val gold1 = Store(a).gold
         println("altın: $gold0 -> $gold1")
         assertTrue("altın artmadı ($gold0 -> $gold1)", gold1 > gold0)
-        assertEquals("altın = oturum altını (çift sayma yok)", gold0 + s.coins, gold1)
+        assertEquals("altın = oturum altını + hedef bonusu (çift sayma yok)", gold0 + s.coins + s.goalBonus, gold1)
 
         // Garaj: geliştirme al (gerekirse altın ver)
         click("Garaj"); assertEquals("Garaj", title()?.text.toString())

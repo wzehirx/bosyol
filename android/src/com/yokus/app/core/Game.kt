@@ -20,13 +20,18 @@ interface GameEvents {
     fun onAirBonus(sec: Double, bonus: Int) {}
     fun onFeature(f: Feature) {}
     fun onDistance(m: Int) {}
+    /** Seviye hedefi tamamlandı: [level] tamamlanan hedef sayısı (1 tabanlı), [next] sıradaki hedef (m). */
+    fun onGoal(level: Int, target: Int, bonus: Int, next: Int) {}
+    /** Koşu içinde mevcut en iyi mesafe aşıldı (koşu başına bir kez, rekor 0 iken yok). */
+    fun onRecord(m: Int) {}
     fun onTipWarning() {}               // denge yardımı: araç devrilmek üzere
     fun onStuck() {}                    // gaz veriyor ama ilerleyemiyor
     fun onEnd(reason: EndReason) {}
 }
 
 /** Bir oyun turu: araç + zemin + yakıt, altın, takla, duyurular. Fizik 1/60 s gibi adımlarla [update] ile ilerler. */
-class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapDef, var events: GameEvents? = null) {
+class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapDef, var events: GameEvents? = null,
+                  goalLevel: Int = 0, val bestStart: Int = 0) {
     val terrain = Terrain(map)
     private val def: VehicleDef = vehicle.upgraded(upgrades)
     val car = Car(def, terrain, map.gravity, gripMul(upgrades), extraDrag = map.drag)
@@ -43,6 +48,20 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
     /** Denge yardımı: yerde burun zemine göre 40°'yi aşınca gazı yumuşakça kısar (60°'de 0.3). */
     var balanceAssist = true
     var time = 0.0
+    /** Bu haritada tamamlanmış hedef sayısı (koşu başında Store'dan gelir, hedef geçildikçe artar). */
+    var goalLevel = goalLevel
+        private set
+    /** Bu koşuda tamamlanan hedef sayısı ve bonus altını (coins'e dahil değildir; altın = coins + goalBonus). */
+    var goalsDone = 0
+        private set
+    var goalBonus = 0
+        private set
+    /** Sıradaki hedefin mesafesi (m). */
+    val nextGoal: Int get() = Goals.target(goalLevel)
+    /** Koşu başı hedef duyurusu yapıldı mı (duraklat-devam ile tekrarlanmasın). */
+    var goalIntroDone = false
+    var recordHit = false
+        private set
 
     private val startX = car.x
     private val coinList = terrain.coins.sortedBy { it.x }
@@ -132,6 +151,12 @@ class GameSession(val vehicle: VehicleDef, val upgrades: Upgrades, val map: MapD
         // --- mesafe ---
         if (car.x - startX > distance) distance = car.x - startX
         while (distance >= nextDist) { events?.onDistance(nextDist); nextDist += DIST_STEP }
+        while (distance >= Goals.target(goalLevel)) {
+            val t = Goals.target(goalLevel); val b = Goals.bonus(goalLevel)
+            goalLevel++; goalsDone++; goalBonus += b
+            events?.onGoal(goalLevel, t, b, Goals.target(goalLevel))
+        }
+        if (!recordHit && bestStart > 0 && distance > bestStart) { recordHit = true; events?.onRecord(distance.toInt()) }
 
         pickups()
         fuelWarnings()
